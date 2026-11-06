@@ -1,0 +1,21 @@
+Mozilla runtime data notices
+
+firefox-roots.pem and firefox-root-constraints.json are extracted from Mozilla
+NSS certdata.txt. firefox-suffixes.dat is the Mozilla public suffix data copy.
+The certdata.txt source carries this notice:
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+The suffix data carries the same notice with the HTTPS MPL URL.
+
+The full MPL-2.0 is included in the project LICENSE and firefox-license.html.
+The suffix file also retains its original notice, version, and source guidance.
+
+Upstream locations:
+https://github.com/mozilla-firefox/firefox/tree/main/security/nss/lib/ckfw/builtins
+https://publicsuffix.org/list/public_suffix_list.dat
+
+The upstream locations describe the data origins. Source availability for the
+bundled native libraries is addressed separately in THIRD_PARTY_NOTICES.md.

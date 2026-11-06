@@ -1,0 +1,7 @@
+include LICENSE README.md THIRD_PARTY_NOTICES.md pyproject.toml
+recursive-include ruyihttp *.py *.json *.pem *.dat
+recursive-include ruyihttp/licenses *
+recursive-include native/win_amd64 *.dll *.json
+recursive-include native/darwin_arm64 *.dylib *.md
+recursive-include native/darwin_x86_64 *.dylib *.md
+global-exclude *.py[cod]

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=77", "wheel>=0.45"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ruyihttp"
+version = "0.9.0"
+description = "Requests-style Python HTTP client with a bundled NSS and Necko native runtime"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MPL-2.0"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "ruyihttp/licenses/*"]
+authors = [{name = "LoseNine"}]
+dependencies = [
+  "requests>=2.32.5,<3",
+  "urllib3>=2.2.3,<3",
+  "cryptography>=45,<51",
+  "h2>=4.3,<5",
+  "brotli>=1.2,<2",
+  "backports.zstd>=1.0; python_version < '3.14'",
+  "zstandard>=0.23,<1",
+  "publicsuffixlist>=1.0,<2",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Internet :: WWW/HTTP",
+]
+
+[project.urls]
+Homepage = "https://github.com/charlesval/ruyiHttp"
+Repository = "https://github.com/charlesval/ruyiHttp"
+Issues = "https://github.com/charlesval/ruyiHttp/issues"
+Releases = "https://github.com/charlesval/ruyiHttp/releases"
+
+[project.optional-dependencies]
+socks = ["PySocks>=1.5.6,!=1.5.7"]
+
+[tool.setuptools]
+packages = ["ruyihttp"]
+include-package-data = false
+
+[tool.setuptools.package-data]
+ruyihttp = ["*.dll", "*.dylib", "*.so", "*.json", "*.pem", "*.dat", "licenses/*"]

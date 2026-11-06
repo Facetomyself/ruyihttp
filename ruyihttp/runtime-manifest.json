@@ -1,0 +1,16 @@
+{
+  "version": "0.9.0",
+  "platform": "win_amd64",
+  "sha256": {
+    "firefox-profile.json": "e50d1504521ff99fdaf99c8f5e9ff3ad44a0d19c14aa9aa90b3cfed39de68453",
+    "firefox-root-constraints.json": "44ecc1d2c59eca1a3bcfc82c576ed5a91f7bb1c33ca550e8f3b8744c5d0a6650",
+    "firefox-roots.pem": "8d6fe75aa8d3c2c539410d268996c469c5089a60c897691dfce61fd88ca5feb8",
+    "firefox-suffixes.dat": "3e6ca639b7ef33f86ec0e6fe9a475857cf2585f28fdf485f38f14d5f00c1c2a4",
+    "freebl3.dll": "9bc57db64c16fd51efc769e43c69c072c5fbdb05b979c54c640510fc802f215c",
+    "mozglue.dll": "5674da87e99554812cda2e952711e539df47fe938b7ce96a6c15b41f218ee4f8",
+    "necko_core.dll": "441dde546c1e5d0e4e19ccb4e3d79f3d957ff7c104a5831b4a8e4d8887710a12",
+    "necko_quic.dll": "bba3edc283a339f3b391e6590b942a6d250b8c7e9520484380d7f41c3b88dd62",
+    "nss3.dll": "b6b44e3cbd731e1c1cd95e53b5266dae7f346267668124e5cd687b8355bee683",
+    "softokn3.dll": "303c91b2f2ec4042c269a2196fbfaee2683db5e710a300112b7053285fa57a46"
+  }
+}
