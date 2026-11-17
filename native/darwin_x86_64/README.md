@@ -1,8 +1,17 @@
-# Intel 原生库空位
+# Intel macOS native runtime (build-required)
 
-这里还没有文件。Mac 端口需要至少：
+This slot is empty. The Python path, wheel tag and runtime manifest entry exist,
+but no `libnecko_core.dylib` or `libnecko_quic.dylib` is checked in.
+
+To populate it, build on an Intel macOS host with the ff-ruyijs native sources
+and copy the whole set here:
 
 - `libnecko_core.dylib`
 - `libnecko_quic.dylib`
+- `libnss3.dylib`
+- `libsoftokn3.dylib`
+- `libfreebl3.dylib`
+- `libmozglue.dylib`
 
-Python 用 `ctypes.CDLL` 按上述文件名加载，并调用 Windows 版已经导出的 `necko_*` 符号。NSS、NSPR、mozglue 的安装名以这份 dylib 的实际链接为准。NSS 版本字符串必须是 `3.131`，否则 `_nss.py` 会拒绝加载。
+The expected runtime is NSS 3.132 / NSPR 4.40 / Neqo 0.33.0. `setup.py` raises
+`native runtime missing` instead of packaging another platform's binary.

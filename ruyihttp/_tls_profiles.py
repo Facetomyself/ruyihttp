@@ -150,3 +150,20 @@ PROFILES = {
     "158": _P7,
     "159": _P7,
 }
+
+
+# The cluster table above was derived from Firefox release sources and checked
+# against Windows x64 captures. macOS and Linux select the same clusters; the
+# platform runtimes are NSS 3.132 and are validated by cipher/group/key-share
+# counts, not by byte-identical ClientHello records.
+PLATFORM_PROFILES = {
+    "win_amd64": PROFILES,
+    "darwin": PROFILES,
+    "linux": PROFILES,
+}
+
+PLATFORM_PROVENANCE = {
+    "win_amd64": "Firefox release sources; checked against Windows x64 captures",
+    "darwin": "Shared cluster table; macOS arm64 count checks, NSS 3.132",
+    "linux": "Shared cluster table; Linux x86_64 count checks, NSS 3.132",
+}

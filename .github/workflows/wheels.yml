@@ -1,0 +1,42 @@
+name: Wheels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win_amd64
+            os: windows-latest
+          - platform: darwin_arm64
+            os: macos-26
+          - platform: linux_x86_64
+            os: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
+      - name: Install and smoke
+        run: |
+          python -c "import glob,subprocess,sys; subprocess.check_call([sys.executable,'-m','pip','install','--force-reinstall','--no-deps',*glob.glob('wheelhouse/*.whl')])"
+          python tools/build_native.py --check
+          python ci/smoke_local.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruyihttp-${{ matrix.platform }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14

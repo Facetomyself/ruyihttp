@@ -1,0 +1,68 @@
+{
+  "platform": "linux_x86_64",
+  "source": "Facetomyself/ff-ruyijs PyPI ruyijs 0.4.1",
+  "wheel": "ruyijs-0.4.1-py3-none-manylinux_2_39_x86_64.whl",
+  "nss": "3.132",
+  "neqo": "0.33.0",
+  "files": {
+    "libfreebl3.so": {
+      "size": 21673,
+      "sha256": "ea36298b1e9073836413f34655c5dde6f2c128e9b12af0636a639d3ee148b830"
+    },
+    "libfreeblpriv3.so": {
+      "size": 1263561,
+      "sha256": "ff18cc16796ff9ed036d9e435b9d21d0957dd9ef48b2982d360643aaba064170"
+    },
+    "libnecko_core.so": {
+      "size": 255297,
+      "sha256": "5469a2566d52eae2e04bc9123d5aeecad9273aabd371d82ad4cefb59aab1249d"
+    },
+    "libnecko_quic.so": {
+      "size": 2774169,
+      "sha256": "3e4c524b1d72f9bab6889ac4530cb432ce03dbd24daaedca6d1fbd5972f48cd3"
+    },
+    "libnspr4.so": {
+      "size": 299233,
+      "sha256": "bde066b309c1119365f87e272f8d7c620d2bcf1d07c2dd854faa885a0e2f0bf3"
+    },
+    "libnss3.so": {
+      "size": 875313,
+      "sha256": "3fea49e59dc21bb51fce0754e0e29f674210ee0aa33bced8707951e6e36165d1"
+    },
+    "libnssutil3.so": {
+      "size": 264233,
+      "sha256": "8197055041ebd3155fe7d2d485561bcebb38111700a795d409452def0379fd66"
+    },
+    "libplc4.so": {
+      "size": 30409,
+      "sha256": "5e7c459b97532dd192c57b907e4dbcd4a4abbab38a4ee3b2f85a3b9a9b2a88d8"
+    },
+    "libplds4.so": {
+      "size": 26073,
+      "sha256": "d8c4b6149ffd53894a3c93332262c0408ad6ebf48666bd93c32758e33e7a44c4"
+    },
+    "libsoftokn3.so": {
+      "size": 429833,
+      "sha256": "2b7f6d5acf316ad92dcf1a02389e25e43bc7b00af5d5aa19f00993c414daaa83"
+    },
+    "libssl3.so": {
+      "size": 494121,
+      "sha256": "02434e37ad99e934aafc825557a3ef4bcb836600416917c4d5921dc18a082ac4"
+    },
+    "libsqlite3.so": {
+      "size": 1287049,
+      "sha256": "dde33a2c3c529f5ed63549cb940951cb65b9b2b411f6b810a1b51d42030aa267"
+    },
+    "libnssckbi.so": {
+      "size": 649177,
+      "sha256": "35db0e5d296e852c1e3f6f24c0a5b7c14eee4427a290d394ecd9b8faa285fe73"
+    },
+    "libnsssysinit.so": {
+      "size": 22289,
+      "sha256": "2b855312d9582fce29dcc81ed552deed4a33803fa4802171a26348ab062116cb"
+    }
+  },
+  "license": "AGPL-3.0-only OR commercial; Mozilla-derived parts MPL-2.0. Private use only until relicensed.",
+  "wheel_sha256": "f80de6b269e0bcef9fd6dccab6c722e57d6350ce5a5ecce5c68a96270b908d37",
+  "ff_ruyijs_commit": "0b02c04fb8f2b54d5b66ac0dddba1a1711f1a89c"
+}

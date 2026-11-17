@@ -5,6 +5,7 @@
 import copy
 import ipaddress
 import os
+import platform as _platform
 import sys
 from http.cookiejar import DefaultCookiePolicy
 from pathlib import Path
@@ -47,6 +48,27 @@ def client_platform(os_name=None, platform_name=None):
         return "win_amd64"
     if platform_name == "darwin":
         return "darwin"
+    if platform_name.startswith("linux"):
+        return "linux"
+    return "other"
+
+
+def _machine(machine=None):
+    if machine is None:
+        machine = os.environ.get("RUYIHTTP_MACHINE") or _platform.machine()
+    return (machine or "").lower()
+
+
+def runtime_platform(os_name=None, platform_name=None, machine=None):
+    """Native runtime directory and manifest key for the current host."""
+    name = client_platform(os_name, platform_name)
+    machine = _machine(machine)
+    if name == "win_amd64":
+        return "win_amd64"
+    if name == "darwin":
+        return "darwin_arm64" if machine in ("arm64", "aarch64") else "darwin_x86_64"
+    if name == "linux":
+        return "linux_aarch64" if machine in ("aarch64", "arm64") else "linux_x86_64"
     return "other"
 
 
@@ -55,14 +77,21 @@ def _user_agent(version, platform=None):
     # The OS token is Firefox's own reduced UA, not a captured ClientHello.
     # macOS stays "Intel Mac OS X 10.15" on Apple Silicon as well.
     platform = client_platform() if platform is None else platform
+    if platform.startswith("darwin"):
+        platform = "darwin"
+    elif platform.startswith("linux"):
+        platform = "linux"
     rv = 109 if 110 <= version <= 119 else version
     if platform == "win_amd64":
         system = "Windows NT 10.0; Win64; x64"
     elif platform == "darwin":
         system = "Macintosh; Intel Mac OS X 10.15"
+    elif platform == "linux":
+        machine = _machine()
+        system = "X11; Linux aarch64" if machine in ("aarch64", "arm64") else "X11; Linux x86_64"
     else:
         raise RuntimeError(
-            "User-Agent was measured for Windows x64 and Macintosh. "
+            "User-Agent was measured for Windows x64, Macintosh and Linux x86_64. "
             f"Refusing to reuse the Windows token for {platform}."
         )
     return (
@@ -71,17 +100,18 @@ def _user_agent(version, platform=None):
     )
 
 
-def _require_windows_measurement(kind, platform=None):
+PROFILE_PLATFORMS = ("win_amd64", "darwin", "linux")
+
+
+def require_profile_platform(kind, platform=None):
     platform = client_platform() if platform is None else platform
-    if platform != "win_amd64":
-        raise RuntimeError(
-            f"{kind} were measured on Windows x64 and are not reused for {platform}."
-        )
-    return platform
+    if platform in PROFILE_PLATFORMS:
+        return platform
+    raise RuntimeError(f"{kind} have no profile table for {platform}.")
 
 
 def quic_profile(version, platform=None):
-    _require_windows_measurement("QUIC profiles", platform)
+    require_profile_platform("QUIC profiles", platform)
     return PROFILES[str(version)]["quic"]
 
 

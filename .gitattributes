@@ -1,0 +1,5 @@
+*.dll binary
+*.dylib binary
+*.so binary
+*.pem text eol=lf
+*.dat text eol=lf

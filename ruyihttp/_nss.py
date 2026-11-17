@@ -18,8 +18,15 @@ from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.verification import PolicyBuilder, Store
 
-from ._firefox import DEFAULT_FIREFOX, data_path, _require_windows_measurement
-from ._tls_profiles import PROFILES as TLS_PROFILES
+from ._firefox import (
+    DEFAULT_FIREFOX,
+    data_path,
+    require_profile_platform,
+    runtime_platform,
+)
+from ._tls_profiles import PLATFORM_PROFILES
+
+TLS_PROFILES = PLATFORM_PROFILES["win_amd64"]
 
 try:
     from compression import zstd
@@ -67,11 +74,11 @@ def _array(values):
 def native_profile(version, platform=None):
     """Build the necko_tls_profile for a Firefox version ("100".."159").
 
-    The tables in _tls_profiles are Windows x64 captures. Other platforms
-    must supply their own ClientHello measurements.
+    Each platform selects its own table. macOS and Linux currently reuse the
+    measured cluster table; the provenance is recorded in _tls_profiles.
     """
-    _require_windows_measurement("TLS ClientHello profiles", platform)
-    profile = TLS_PROFILES[version]
+    platform = require_profile_platform("TLS ClientHello profiles", platform)
+    profile = PLATFORM_PROFILES[platform][version]
     arrays = [
         _array(profile.ciphers),
         _array(profile.groups),
@@ -96,7 +103,24 @@ def native_profile(version, platform=None):
     return native
 
 
-def configure_library(library):
+def _runtime_manifest():
+    return json.loads(
+        Path(__file__).with_name("runtime-manifest.json").read_text(encoding="utf-8")
+    )
+
+
+def expected_nss_version(platform=None):
+    platform = runtime_platform() if platform is None else platform
+    manifest = _runtime_manifest()
+    entry = manifest.get("platforms", {}).get(platform)
+    if not entry:
+        raise RuntimeError(f"runtime-manifest.json has no entry for {platform}")
+    return str(entry["nss"]).encode()
+
+
+def configure_library(library, expected_nss=None):
+    if expected_nss is None:
+        expected_nss = expected_nss_version()
     signatures = {
         "open": (
             [
@@ -141,8 +165,10 @@ def configure_library(library):
     for name, (arguments, result) in signatures.items():
         function = getattr(library, "necko_tls_" + name)
         function.argtypes, function.restype = arguments, result
-    if library.necko_tls_nss_version() != b"3.131":
-        raise RuntimeError("firefox-159 requires the packaged NSS 3.131 runtime")
+    if library.necko_tls_nss_version() != expected_nss:
+        raise RuntimeError(
+            f"firefox-159 requires the packaged NSS {expected_nss.decode()} runtime"
+        )
 
 
 def _certificate_bytes(certificate):
