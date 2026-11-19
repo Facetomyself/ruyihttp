@@ -2,6 +2,9 @@
 build/
 build-*/
 dist-*/
+# 归档的发布物要入库（对照用），别被上面的 dist-*/ 吃掉
+!dist-v0.9.0-legacy/
+!dist-v0.9.0-legacy/**
 wheelhouse/
 *.egg-info/
 __pycache__/
