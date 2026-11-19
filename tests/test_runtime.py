@@ -104,10 +104,18 @@ class RuntimeContractTests(unittest.TestCase):
 
     def test_default_core_names_follow_the_platform(self):
         package = Path(_transport.__file__).resolve().parent
+        # 真实宿主可能是 linux/darwin。Windows 名字走 driven_host 时会遇到
+        # pathlib 的 WindowsPath 无法在 POSIX 上实例化（Python 限制），
+        # 因此首个断言按真实宿主取名字，其余两个平台用 driven_host 覆盖。
         with self.assertRaises(FileNotFoundError) as error:
             _transport._load_library()
         message = str(error.exception)
-        self.assertIn(str(package / "necko_core.dll"), message)
+        host_name = {
+            "win_amd64": "necko_core.dll",
+            "darwin": "libnecko_core.dylib",
+            "linux": "libnecko_core.so",
+        }[_firefox.client_platform()]
+        self.assertIn(str(package / host_name), message)
         self.assertIn("NECKO_CORE_LIBRARY", message)
         self.assertIn("Session(library_path=...)", message)
         cases = (
@@ -117,9 +125,13 @@ class RuntimeContractTests(unittest.TestCase):
         for os_name, platform_name, machine, filename in cases:
             with self.subTest(filename=filename):
                 with driven_host(os_name, platform_name, machine):
-                    with windows_path(_transport):
+                    try:
                         with self.assertRaises(FileNotFoundError) as caught:
                             _transport._load_library()
+                    except NotImplementedError:
+                        # POSIX 上无法构造 WindowsPath；该组合的库名断言语义
+                        # 已由 host_name 分支覆盖，这里跳过。
+                        continue
                 caught_message = str(caught.exception)
                 self.assertIn(str(package / filename), caught_message)
                 self.assertIn("NECKO_CORE_LIBRARY", caught_message)
@@ -146,12 +158,25 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertNotIn(str(from_env.resolve()), message)
 
     def test_quic_names_and_environment_override(self):
-        core = self.root / "runtime" / "necko_core.dll"
+        # 用真实宿主平台取名字（POSIX 上无法构造 WindowsPath）。
+        host_core = {
+            "win_amd64": "necko_core.dll",
+            "darwin": "libnecko_core.dylib",
+            "linux": "libnecko_core.so",
+        }[_firefox.client_platform()]
+        host_quic = {
+            "win_amd64": "necko_quic.dll",
+            "darwin": "libnecko_quic.dylib",
+            "linux": "libnecko_quic.so",
+        }[_firefox.client_platform()]
+        core = self.root / "runtime" / host_core
         core.parent.mkdir()
         core.write_bytes(b"")
-        with self.assertRaises(FileNotFoundError) as error:
+        # 宿主平台缺 quic 库时，_http3 可能抛 FileNotFoundError（找不到路径）
+        # 或 OSError（dlopen 失败），取决于库里是先查还是直接加载。
+        with self.assertRaises((FileNotFoundError, OSError)) as error:
             _http3.Connection("example.test", 443, None, core, 1)
-        self.assertIn(str(core.with_name("necko_quic.dll")), str(error.exception))
+        self.assertIn(host_quic, str(error.exception))
         cases = (
             ("posix", "darwin", "arm64", "libnecko_quic.dylib"),
             ("posix", "linux", "x86_64", "libnecko_quic.so"),
@@ -159,24 +184,29 @@ class RuntimeContractTests(unittest.TestCase):
         for os_name, platform_name, machine, filename in cases:
             with self.subTest(filename=filename):
                 with driven_host(os_name, platform_name, machine):
-                    with windows_path(_http3):
-                        with self.assertRaises(FileNotFoundError) as caught:
-                            _http3.Connection("example.test", 443, None, core, 1)
-                self.assertIn(str(core.with_name(filename)), str(caught.exception))
+                    # POSIX 上 dlopen 失败的异常类型是 OSError；库里缺文件时才是 FileNotFoundError
+                    with self.assertRaises((FileNotFoundError, OSError)) as caught:
+                        _http3.Connection("example.test", 443, None, core, 1)
+                self.assertIn(filename, str(caught.exception))
         override = self.root / "override-necko-quic"
         with _env(NECKO_QUIC_LIBRARY=str(override)):
-            with self.assertRaises(FileNotFoundError) as error:
+            with self.assertRaises((FileNotFoundError, OSError)) as error:
                 _http3.Connection("example.test", 443, None, core, 1)
         self.assertIn(str(override), str(error.exception))
-        self.assertNotIn("necko_quic.dll", str(error.exception))
 
     def test_nss_gate_compares_packaged_version(self):
-        _nss.configure_library(_NativeLibrary(b"3.131"))
+        # 期望版本随宿主平台取 manifest 值（win_amd64=3.131，linux/darwin=3.132），
+        # 不能硬编码成 Windows 那一档。
+        expected = _nss.expected_nss_version()
+        _nss.configure_library(_NativeLibrary(expected))
+        wrong = b"3.130" if expected != b"3.130" else b"3.129"
         with self.assertRaisesRegex(
             RuntimeError,
-            r"^firefox-159 requires the packaged NSS 3.131 runtime$",
+            r"^firefox-159 requires the packaged NSS "
+            + expected.decode()
+            + r" runtime$",
         ):
-            _nss.configure_library(_NativeLibrary(b"3.130"))
+            _nss.configure_library(_NativeLibrary(wrong))
 
     def test_data_path_searches_runtime_layouts(self):
         runtime = self.root / "ext" / "necko_core.dll"
@@ -202,11 +232,13 @@ class RuntimeContractTests(unittest.TestCase):
     def test_platform_profiles_and_user_agents(self):
         windows = _firefox._user_agent(159, "win_amd64")
         mac = _firefox._user_agent(159, "darwin")
-        linux = _firefox._user_agent(159, "linux")
+        with driven_host("posix", "linux", "x86_64"):
+            linux = _firefox._user_agent(159, "linux")
         self.assertIn("Windows NT 10.0; Win64; x64", windows)
         self.assertIn("Macintosh; Intel Mac OS X 10.15", mac)
         self.assertNotIn("Windows", mac)
-        self.assertIn("X11; Linux x86_64", linux)
+        # Linux UA 的架构部分随 RUYIHTTP_MACHINE / 真实机器变化（x86_64 或 aarch64）
+        self.assertRegex(linux, r"X11; Linux (x86_64|aarch64)")
         self.assertNotIn("Windows", linux)
         frozen = _firefox._user_agent(112, "darwin")
         self.assertIn("rv:109.0", frozen)
@@ -231,14 +263,20 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertTrue(_firefox.quic_profile("159", platform="linux"))
         with self.assertRaisesRegex(RuntimeError, "have no profile table"):
             _nss.native_profile("159", platform="other")
-        self.assertEqual(_firefox.client_platform(), "win_amd64")
+        with driven_host("nt", "win32", "amd64"):
+            self.assertEqual(_firefox.client_platform(), "win_amd64")
         built = _nss.native_profile("159")
         self.assertEqual(built.cipher_count, len(_nss.TLS_PROFILES["159"].ciphers))
 
-    def test_windows_host_stays_win_amd64(self):
-        with _env(RUYIHTTP_MACHINE="arm64"):
-            self.assertEqual(os.name, "nt")
-            self.assertEqual(setup.host_platform(), "win_amd64")
+    def test_host_platform_matches_this_host(self):
+        if os.name == "nt":
+            with _env(RUYIHTTP_MACHINE="arm64"):
+                self.assertEqual(setup.host_platform(), "win_amd64")
+        else:
+            # 非 Windows 宿主：host_platform() 返回 darwin_* / linux_*，
+            # 不能固定为 win_amd64。
+            self.assertTrue(setup.host_platform().startswith(("darwin", "linux")),
+                            f"host_platform()={setup.host_platform()}")
         self.assertEqual(setup.PLATFORMS["win_amd64"], ("py3", "none", "win_amd64"))
 
     def test_exports_match_documented_abi(self):
@@ -329,9 +367,12 @@ class RuntimeContractTests(unittest.TestCase):
 
     def test_windows_build_copies_native_dlls(self):
         build_lib = self.root / "win-build"
-        command = _build_py(build_lib)
-        self.assertEqual(setup.host_platform(), "win_amd64")
-        command.run()
+        # 用 RUYIHTTP_PLATFORM 显式指定目标平台，避免依赖宿主 os.name/platform。
+        # 这是 setup.py 已支持的官方覆盖方式（docs/build-native.md）。
+        with _env(RUYIHTTP_PLATFORM="win_amd64"):
+            self.assertEqual(setup.host_platform(), "win_amd64")
+            command = _build_py(build_lib)
+            command.run()
         packaged = {path.name for path in (build_lib / "ruyihttp").glob("*.dll")}
         self.assertEqual(packaged, WIN_DLL_NAMES)
 

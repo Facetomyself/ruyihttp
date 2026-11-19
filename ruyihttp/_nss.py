@@ -31,7 +31,10 @@ TLS_PROFILES = PLATFORM_PROFILES["win_amd64"]
 try:
     from compression import zstd
 except ImportError:
-    from backports import zstd
+    try:
+        from backports import zstd
+    except ImportError:  # Python 3.10–3.13 上 backports.zstd 的隐式命名空间包
+        from backports.zstd import zstd
 
 _Pointer = ct.c_void_p
 _Bytes = ct.POINTER(ct.c_uint8)
