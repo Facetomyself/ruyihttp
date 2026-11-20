@@ -1,7 +1,7 @@
 # Licensing and distribution
 
-This is a private maintenance tree. Private use lowers the practical risk but
-does not rewrite the licenses of the native runtimes.
+This is a public source-maintenance tree. Publishing it does not rewrite the
+licenses of the native runtimes it bundles.
 
 ## Python package
 
@@ -21,10 +21,9 @@ The macOS arm64 and Linux x86_64 native runtimes were imported from
 
 Mozilla-derived files remain MPL-2.0 under either choice. The AGPL obligations
 apply if you distribute the binary or let users interact with a modified version
-over a network. If this tree is only used privately and is not distributed or
-offered as a network service, the practical exposure is lower; if you publish
-wheels or run it for external users, decide between AGPL compliance and a
-commercial license before shipping.
+over a network. This repository is published, so anyone redistributing a wheel
+built from it must pick AGPL compliance or a commercial license from the
+`ff-ruyijs` author before shipping.
 
 ## Windows native runtime
 
@@ -35,11 +34,12 @@ Mozilla notices and the `ruyihttp/licenses/` directory.
 
 MPL-2.0 section 3.2 requires making the corresponding source of covered binary
 code available to recipients. This tree records the native provenance in
-`native/<platform>/provenance.json` and the platform manifest, but it does not
-contain the full ff-ruyijs native source. Before distributing binaries, either:
+`native/<platform>/provenance.json` and the platform manifest. The full
+`ff-ruyijs` native source and build scripts live in
+`Facetomyself/ff-ruyijs`; a redistributor of these binaries must either:
 
-1. publish the corresponding source and build scripts, or
-2. obtain terms that cover the distribution, or
-3. keep the build strictly private and do not distribute the binaries.
+1. point recipients at that corresponding source and keep the build scripts
+   available, or
+2. obtain terms that cover the distribution.
 
 This note is an engineering record, not legal advice.

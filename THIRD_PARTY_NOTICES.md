@@ -6,7 +6,7 @@ covered source files.
 
 | Component | Version / reference | Upstream |
 | --- | --- | --- |
-| ruyihttp Python package | 0.9.0, private source-maintenance fork | Original PyPI `ruyihttp` wheel |
+| ruyihttp Python package | 0.9.0, source-maintenance fork | Original PyPI `ruyihttp` wheel |
 | Standalone Necko core (Windows) | 0.8.2, locally adapted | Mozilla Necko plus local wrappers |
 | Standalone Necko core (macOS/Linux) | ff-ruyijs 0.4.1 native ABI | `Facetomyself/ff-ruyijs` |
 | Firefox / Necko / mozglue / roots and suffix data | Windows profile 159; macOS/Linux donor from ff-ruyijs 0.4.1 | https://github.com/mozilla-firefox/firefox |
@@ -42,18 +42,18 @@ The macOS arm64 and Linux x86_64 native runtimes were imported from
 
 Mozilla-derived files remain MPL-2.0 under either choice. AGPL obligations apply
 if the binary is distributed or a modified version is offered to users over a
-network. This repository is maintained as a private tree; see
-`docs/licensing.md` before publishing wheels or exposing a hosted service.
+network. This repository is published; see `docs/licensing.md` before
+redistributing wheels or exposing a hosted service.
 
 ## Corresponding source status
 
 MPL-2.0 section 3.2 requires making the corresponding Source Code Form of
 covered software available to recipients of its executable form, including
 covered modifications. This repository contains Python sources, prebuilt native
-libraries, per-platform provenance and hashes. It does not contain the full
-ff-ruyijs native source or build scripts. Before distributing binaries, either
-publish the corresponding source and build scripts, obtain terms that cover the
-distribution, or keep the build strictly private and do not distribute it.
+libraries, per-platform provenance and hashes. The full ff-ruyijs native source
+and build scripts live in `Facetomyself/ff-ruyijs`; redistributors of these
+binaries either point recipients at that source or obtain terms that cover the
+distribution.
 
 Official license and guidance:
 https://www.mozilla.org/en-US/MPL/2.0/ and

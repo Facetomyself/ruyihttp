@@ -5,7 +5,7 @@ Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。一个会话可以选择 
 Web 逆向里它是 `test.py` 的真实 TLS 引擎，不是 browser fact，也不替代
 RuyiTrace、RuyiDOM 或 ruyipage。
 
-这是私有维护树，来源是 PyPI `ruyihttp==0.9.0` 的 Python 源码，加上 ruyijs /
+这是源码维护树，来源是 PyPI `ruyihttp==0.9.0` 的 Python 源码，加上 ruyijs /
 ff-ruyijs 产出的平台原生运行时。目标不是继续做 wheel 抽包，而是把 Python、
 原生库、manifest、构建脚本、测试和发布流程放在同一个仓库里维护。
 
@@ -92,5 +92,5 @@ wheel 装配和 Windows/macOS/Linux 原生布局。真正发请求的 smoke 建�
   同一 cluster，并按 NSS 3.132 的计数/布局做对照，不宣称字节级一致。
 - HTTP/3 需要 Alt-Svc；DNS HTTPS/ECH 没有集成。代理路径需要单独验收。
 - `darwin_arm64` 只支持 macOS 26+；要支持更旧版本必须降 deployment target 重编。
-- 这是私有维护树。`ruyijs/ff-ruyijs` 是 AGPL-3.0-only 或商业许可，Mozilla 派生
-  部分是 MPL-2.0。公开发布前先读 `docs/licensing.md`。
+- `ruyijs/ff-ruyijs` 是 AGPL-3.0-only 或商业许可，Mozilla 派生部分是 MPL-2.0。
+  分发二进制前先读 `docs/licensing.md`。
