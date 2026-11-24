@@ -1,9 +1,18 @@
 name: Native candidate (ARM64 Linux, Intel macOS)
 
 on:
-  push:
-    branches: ['native/arm64-intel-20261124-1321']
   workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: Native target to exercise
+        default: all
+        options: [all, linux_aarch64, darwin_x86_64]
+      mode:
+        type: choice
+        description: Verify tracked libraries or compile a fresh candidate from pinned source
+        default: verify
+        options: [verify, rebuild]
 
 permissions:
   contents: read
@@ -20,8 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Narrow repair runs to a selected architecture via the push commit message.
-        slot: ${{ fromJSON(contains(github.event.head_commit.message, '[linux-only]') && '["linux_aarch64"]' || contains(github.event.head_commit.message, '[intel-only]') && '["darwin_x86_64"]' || '["linux_aarch64","darwin_x86_64"]') }}
+        slot: ${{ fromJSON(inputs.platform == 'linux_aarch64' && '["linux_aarch64"]' || inputs.platform == 'darwin_x86_64' && '["darwin_x86_64"]' || '["linux_aarch64","darwin_x86_64"]') }}
     env:
       TARGET_ARCH: ${{ matrix.slot == 'linux_aarch64' && 'aarch64' || 'x86_64' }}
       DONOR_COMMIT: f557fcd437aae5f18f313eb330bd3ef50f5fc7df
@@ -56,6 +64,35 @@ jobs:
             printf 'CPU: %s; Rosetta translation: %s\n' "$cpu" "${translated:-0}"
             [[ $cpu == *Intel* && ${translated:-0} == 0 ]]
           fi
+      - name: Isolate the old native set for a source rebuild
+        if: inputs.mode == 'rebuild'
+        env:
+          SLOT: ${{ matrix.slot }}
+        run: |
+          python - <<'PY'
+          import json, os, shutil
+          from pathlib import Path
+          slot = os.environ['SLOT']
+          if slot not in {'linux_aarch64', 'darwin_x86_64'}:
+              raise SystemExit('unknown native target')
+          root = Path(os.environ['GITHUB_WORKSPACE']).resolve(strict=True)
+          assert Path.cwd().resolve() == root
+          src = root / 'native' / slot
+          assert src.resolve(strict=True) == src and src.is_dir() and not src.is_symlink()
+          # Dedicated hosted runner only. Keep the original bytes in a separate
+          # directory; the artifact job has a read-only repository credential.
+          temp = Path(os.environ['RUNNER_TEMP']).resolve(strict=True)
+          saved = temp / ('tracked-native-' + slot)
+          assert saved.resolve() == saved and not saved.exists() and root not in saved.parents
+          src.rename(saved)
+          src.mkdir()
+          if (saved / 'README.md').is_file():
+              shutil.copy2(saved / 'README.md', src / 'README.md')
+          fp = root / 'ruyihttp' / 'runtime-manifest.json'
+          doc = json.loads(fp.read_text(encoding='utf-8'))
+          doc['platforms'][slot].update(status='build-required', files={})
+          fp.write_text(json.dumps(doc, indent=2) + '\n', encoding='utf-8')
+          PY
       - name: Check slot state
         id: slot
         run: |
