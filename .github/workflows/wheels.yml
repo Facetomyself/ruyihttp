@@ -20,6 +20,8 @@ jobs:
             os: macos-26
           - platform: linux_x86_64
             os: ubuntu-24.04
+          - platform: linux_aarch64
+            os: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,9 +33,10 @@ jobs:
           python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
       - name: Install and smoke
         run: |
-          python -c "import glob,subprocess,sys; subprocess.check_call([sys.executable,'-m','pip','install','--force-reinstall','--no-deps',*glob.glob('wheelhouse/*.whl')])"
-          python tools/build_native.py --check
-          python ci/smoke_local.py
+          python -c "import glob,subprocess,sys; wheel,=glob.glob('wheelhouse/*.whl'); subprocess.check_call([sys.executable,'-m','pip','install',wheel])"
+          python -m pip check
+          python -I ci/verify_installed.py ${{ matrix.platform }}
+          python -I ci/smoke_local.py
       - uses: actions/upload-artifact@v4
         with:
           name: ruyihttp-${{ matrix.platform }}
