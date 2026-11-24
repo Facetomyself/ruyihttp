@@ -115,6 +115,7 @@ class _Protocol(QuicConnectionProtocol):
         origin.connections += 1
         self.http = None
         self.requests = {}
+        self.finished = set()
 
     def quic_event_received(self, event):
         if isinstance(event, ProtocolNegotiated):
@@ -128,12 +129,16 @@ class _Protocol(QuicConnectionProtocol):
             if isinstance(part, HeadersReceived):
                 self.requests[stream] = (dict(part.headers), bytearray())
             elif isinstance(part, DataReceived):
+                # aioquic can deliver an empty data event again on stream teardown.
+                if stream in self.finished and not part.data:
+                    continue
                 self.requests[stream][1].extend(part.data)
             else:
                 continue
             if not part.stream_ended:
                 continue
             headers, body = self.requests.pop(stream)
+            self.finished.add(stream)
             path = headers[b":path"]
             payload = bytes(body)
             self.origin.requests.append((self.number, stream, headers, payload))
@@ -166,6 +171,7 @@ class _Origin:
         self.negotiated = []
         self.requests = []
         self.connections = 0
+        self.errors = []
         self.ready = Future()
         self.cert = cert
         self.key = key
@@ -180,10 +186,15 @@ class _Origin:
             if not self.ready.done():
                 self.ready.set_exception(error)
             else:
-                raise
+                self.errors.append(error)
 
     async def _serve(self):
         self.loop = asyncio.get_running_loop()
+        self.loop.set_exception_handler(
+            lambda _loop, event: self.errors.append(
+                event.get("exception", event["message"])
+            )
+        )
         self.stop = asyncio.Event()
         config = QuicConfiguration(is_client=False, alpn_protocols=["h3"])
         config.certificate, config.private_key = self.cert, self.key
@@ -200,10 +211,13 @@ class _Origin:
         return _Protocol(*args, origin=self, **kwargs)
 
     def close(self):
-        self.loop.call_soon_threadsafe(self.stop.set)
+        if not self.loop.is_closed():
+            self.loop.call_soon_threadsafe(self.stop.set)
         self.thread.join(5)
         if self.thread.is_alive():
             raise RuntimeError("H3 origin did not stop")
+        if self.errors:
+            raise AssertionError(f"H3 origin errors: {self.errors!r}")
 
 
 @unittest.skipUnless(
