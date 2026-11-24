@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -124,14 +126,11 @@ class RuntimeContractTests(unittest.TestCase):
         )
         for os_name, platform_name, machine, filename in cases:
             with self.subTest(filename=filename):
-                with driven_host(os_name, platform_name, machine):
-                    try:
-                        with self.assertRaises(FileNotFoundError) as caught:
-                            _transport._load_library()
-                    except NotImplementedError:
-                        # POSIX 上无法构造 WindowsPath；该组合的库名断言语义
-                        # 已由 host_name 分支覆盖，这里跳过。
-                        continue
+                # Only simulate the loader's OS, not pathlib's real filesystem.
+                with patch.object(_transport, 'os', SimpleNamespace(name=os_name, environ=os.environ)), \
+                     patch.object(_transport, 'sys', SimpleNamespace(platform=platform_name)):
+                    with self.assertRaises(FileNotFoundError) as caught:
+                        _transport._load_library()
                 caught_message = str(caught.exception)
                 self.assertIn(str(package / filename), caught_message)
                 self.assertIn("NECKO_CORE_LIBRARY", caught_message)
@@ -183,7 +182,8 @@ class RuntimeContractTests(unittest.TestCase):
         )
         for os_name, platform_name, machine, filename in cases:
             with self.subTest(filename=filename):
-                with driven_host(os_name, platform_name, machine):
+                with patch.object(_http3, 'os', SimpleNamespace(name=os_name, environ=os.environ)), \
+                     patch.object(_http3, 'sys', SimpleNamespace(platform=platform_name)):
                     # POSIX 上 dlopen 失败的异常类型是 OSError；库里缺文件时才是 FileNotFoundError
                     with self.assertRaises((FileNotFoundError, OSError)) as caught:
                         _http3.Connection("example.test", 443, None, core, 1)

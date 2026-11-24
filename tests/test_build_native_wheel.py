@@ -31,10 +31,20 @@ class NativeWheelTests(unittest.TestCase):
 
     def test_rejects_conflicting_basenames_links_and_traversal(self):
         link=zipfile.ZipInfo('native/libwanted.so');link.create_system=3;link.external_attr=(stat.S_IFLNK|0o777)<<16
-        for files in ([('one/libwanted.so',ELF),('two/libwanted.so',ELF)],[(link,b'target')],[('../libwanted.so',ELF)],[(r'native\libwanted.so',ELF)]):
+        for files in ([('one/libwanted.so',ELF),('two/libwanted.so',ELF)],[(link,b'target')],[('../libwanted.so',ELF)]):
             self.wheel_with(files)
             with self.subTest(files=files),self.assertRaisesRegex(ValueError,'ambiguous, linked or oversized'):
                 tool.wheel_members(self.wheel,['libwanted.so'])
+
+    def test_rejects_noncanonical_member_as_read(self):
+        # Windows' ZipFile writer normalizes separators. Exercise the reader's
+        # inventory check directly so the same name is checked on every OS.
+        item=zipfile.ZipInfo('native/libwanted.so')
+        item.orig_filename=r'native\libwanted.so'
+        item.file_size=len(ELF)
+        with zipfile.ZipFile(self.wheel,'w') as archive, patch.object(archive,'infolist',return_value=[item]):
+            with self.assertRaisesRegex(ValueError,'ambiguous, linked or oversized'):
+                tool.selected_members(archive,self.wheel.name,['libwanted.so'])
 
     def test_invalid_linux_arch_leaves_native_tree_and_manifest_absent(self):
         arch='linux_x86_64';self.wheel_with([(name,ELF if i else ELF[:18]+b'\xb7\x00') for i,name in enumerate(tool.PLATFORM_FILES[arch])])
