@@ -6,7 +6,7 @@ recursive-include native/darwin_arm64 *.dylib *.json *.md
 recursive-include native/darwin_x86_64 *.dylib *.json *.md
 recursive-include native/linux_x86_64 *.so *.json *.md
 recursive-include native/linux_aarch64 *.so *.json *.md
-recursive-include native *.md
+recursive-include native *.md SHA256SUMS
 recursive-include docs *.md
 recursive-include tools *.py *.md
 global-exclude *.py[cod]

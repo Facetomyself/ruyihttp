@@ -142,6 +142,26 @@ async def test_transactions():
         h2_worker.result(10)
 
 
+def check_loaded_libraries(root, target, files):
+    if target == 'linux_aarch64':
+        maps = Path('/proc/self/maps').read_text().splitlines()
+        paths = {Path(row.split(maxsplit=5)[5]).resolve() for row in maps
+                 if len(row.split(maxsplit=5)) == 6 and row.split(maxsplit=5)[5].startswith('/')}
+        required = {'libnecko_core.so', 'libnecko_quic.so', 'libnss3.so', 'libnspr4.so'}
+    else:
+        dyld = ctypes.CDLL(None)
+        dyld._dyld_image_count.restype = ctypes.c_uint32
+        dyld._dyld_get_image_name.argtypes = [ctypes.c_uint32]
+        dyld._dyld_get_image_name.restype = ctypes.c_char_p
+        paths = {Path(p.decode()).resolve() for p in
+                 (dyld._dyld_get_image_name(i) for i in range(dyld._dyld_image_count())) if p}
+        required = {'libnecko_core.dylib', 'libnecko_quic.dylib', 'libnss3.dylib', 'libmozglue.dylib'}
+    observed = {path for path in paths if path.name in files}
+    assert required <= {path.name for path in observed}, observed
+    assert all(path.parent == root for path in observed), observed
+    print('loaded sibling libraries:', ', '.join(sorted(p.name for p in observed)), flush=True)
+
+
 def main():
     target = sys.argv[1]
     expected = {'linux_aarch64': ('Linux', 'aarch64', '.so', 14),
@@ -164,6 +184,7 @@ def main():
     print(target, sys.version.split()[0], root, manifest['wheel_platform_tag'],
           'native hashes', count, 'NSS', manifest['nss'], 'NSPR', manifest['nspr'], flush=True)
     asyncio.run(test_transactions())
+    check_loaded_libraries(root, target, files)
 
 
 if __name__ == '__main__':

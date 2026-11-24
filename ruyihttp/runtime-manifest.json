@@ -70,12 +70,28 @@
       "files": {}
     },
     "linux_aarch64": {
-      "status": "build-required",
+      "status": "ready",
       "firefox": "159.0",
       "nss": "3.132",
       "nspr": "4.40",
       "neqo": "0.33.0",
-      "files": {}
+      "files": {
+        "libnecko_core.so": "0fa68cf71c27fb8514167de0d33997b48d97bc3c0b8902748d357c150cb6ee08",
+        "libnecko_quic.so": "596cf731c306951c2a6d0a12061d0cc4c163de201dc0a836e16a3a02c58428c1",
+        "libnss3.so": "d32ffd3d74c35fd8ea4c7b68a3faa11b45be9ee299c5585f2cb03bbdf58ffe2a",
+        "libnssutil3.so": "66ded6e7fbf9c277e5afd56efdb776de0cfc5d490ee8bff51e3984d9951c72d9",
+        "libssl3.so": "01e4f22ac3b3f3e1d8a38bbe102a82bfaabf83e0b051779e5c01e92e0f2a0813",
+        "libnspr4.so": "3bd8479f39cbb370999e3af4611d2ab39d64a6be5aa756484ce8b63faec91d80",
+        "libplc4.so": "5584fd2478f22bb6524c2e321857c33372c0ba2bb1963934c763674f9c520159",
+        "libplds4.so": "6e9e7ec5cf53165cc366bd3f30683f05c32f94cec72551601f41ba74186e98f2",
+        "libsoftokn3.so": "7350f8deb1e2eebd7582699fea1759108f508a28afde6e0f35793310dbc6fce6",
+        "libfreebl3.so": "fab3f651dbe93e0c8055c5c01b3e33f6585b7194d61bfb8a5679540d0cbbe65a",
+        "libfreeblpriv3.so": "9d271478e31df8d5c97b100ff8b5ad02ec81018f6e950a55d888c9b327a0169a",
+        "libsqlite3.so": "ffa41b80f839883d03610c92df9d31cdd4bdbe8517648812467f3d8d98db9f41",
+        "libnssckbi.so": "81f5217ece8f88714ae9a1f7315609b9b0a41e505e557ba77c581b8c0932c774",
+        "libnsssysinit.so": "ce4f0ddc9300a1732af10e22813a775b0c835810c9232b1b6ffc7e0110e95566"
+      },
+      "wheel_platform_tag": "manylinux_2_39_aarch64"
     }
   }
 }

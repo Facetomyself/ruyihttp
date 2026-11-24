@@ -1,9 +1,10 @@
-# Linux aarch64 native runtime (build-required)
+# Linux aarch64 native runtime
 
-This slot is empty. The Python path, wheel tag and runtime manifest entry exist,
-but no `libnecko_core.so` or `libnecko_quic.so` is checked in.
-
-Build the private Necko/NSS candidate for aarch64 from pinned and recorded source inputs. Keep `ff-ruyijs` and the historical x86_64 binary set as comparison references. The standalone SpiderMonkey donor is separate from this Necko ABI. Before placing a new candidate in this slot, validate this complete set:
+The checked-in `manylinux_2_39_aarch64` runtime was built and tested on GitHub's
+Ubuntu 24.04 ARM64 runner, including a clean installed-wheel HTTP/1.1, NSS HTTP/2,
+and NSS/Neqo HTTP/3 exchange. See [provenance.json](provenance.json) for the exact
+source pins, run and wheel digest, and [SHA256SUMS](SHA256SUMS) for the native bytes.
+The standalone SpiderMonkey donor is separate from this Necko ABI. The complete set is:
 
 - `libnecko_core.so`
 - `libnecko_quic.so`
@@ -12,9 +13,9 @@ Build the private Necko/NSS candidate for aarch64 from pinned and recorded sourc
 - `libsoftokn3.so`, `libfreebl3.so`, `libfreeblpriv3.so`
 - `libsqlite3.so`, `libnssckbi.so`, `libnsssysinit.so`
 
-The expected runtime is NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 with a glibc 2.39
-floor. `setup.py` raises `native runtime missing` instead of packaging another
-platform's binary.
+The runtime is NSS 3.132 / NSPR 4.40 / Neqo 0.33.0. The wheel's supported
+floor is glibc 2.39; `auditwheel` agrees. The manifest inventory and exact hashes
+are required for packaging.
 
 Run the read-only preflight from the project root:
 

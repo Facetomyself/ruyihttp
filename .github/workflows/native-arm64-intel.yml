@@ -47,7 +47,20 @@ jobs:
           df -h "$RUNNER_TEMP"
           rustc -vV
           if [[ $RUNNER_OS == Linux ]]; then getconf GNU_LIBC_VERSION; else sw_vers; xcodebuild -version; fi
+      - name: Check slot state
+        id: slot
+        run: |
+          python - "${{ matrix.slot }}" "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          from pathlib import Path
+          state = json.loads(Path('ruyihttp/runtime-manifest.json').read_text())['platforms'][sys.argv[1]]['status']
+          assert state in ('ready', 'build-required'), state
+          with Path(sys.argv[2]).open('a') as output:
+              print(f'ready={str(state == "ready").lower()}', file=output)
+          print(f'Slot state: {state}')
+          PY
       - name: Fetch pinned public sources
+        if: steps.slot.outputs.ready == 'false'
         run: |
           donor="$RUNNER_TEMP/ff-ruyijs"
           git init -q "$donor"
@@ -70,13 +83,17 @@ jobs:
           { git -C "$donor" log -1 --format='%H %cI %s'; git -C "$donor/firefox" log -1 --format='%H %cI %s'; } > "$RUNNER_TEMP/native-evidence/sources.txt"
           df -h "$RUNNER_TEMP"
       - name: Compile native libraries
+        if: steps.slot.outputs.ready == 'false'
         run: |
           ci/build_native_target.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
-      - name: Stage and verify complete native candidate
-        id: candidate
+      - name: Stage locally compiled candidate
+        if: steps.slot.outputs.ready == 'false'
         run: |
           python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
             --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
+      - name: Verify complete native set and build wheel
+        id: candidate
+        run: |
           cp "native/${{ matrix.slot }}/"{SHA256SUMS,provenance.json} "$RUNNER_TEMP/native-evidence/"
           python -B tools/build_native.py --check
           python -m pip install 'setuptools>=77' 'wheel>=0.45'
@@ -107,6 +124,7 @@ jobs:
           unset NECKO_CORE_LIBRARY NECKO_QUIC_LIBRARY RUYIHTTP_MACHINE RUYIHTTP_PLATFORM PYTHONPATH LD_LIBRARY_PATH DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
           installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_local.py" | tee native-evidence/http1.txt
           installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_native_target.py" "${{ matrix.slot }}" | tee native-evidence/native-test.txt
+          installed-test/bin/python -I -c 'import pathlib, runpy, sys; ci = pathlib.Path(sys.argv[1]); sys.path.append(str(ci)); runpy.run_path(str(ci / "smoke_h2_close.py"), run_name="__main__")' "$GITHUB_WORKSPACE/ci" | tee native-evidence/h2-eof.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
