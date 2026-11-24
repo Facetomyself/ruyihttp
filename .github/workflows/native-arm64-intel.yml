@@ -1,0 +1,105 @@
+name: Native candidate (ARM64 Linux, Intel macOS)
+
+on:
+  push:
+    branches: ['native/arm64-intel-20261124-1321']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-arm64-intel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: ${{ matrix.slot }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slot: linux_aarch64
+            runner: ubuntu-24.04-arm
+            arch: aarch64
+            python: '3.14'
+          - slot: darwin_x86_64
+            runner: macos-15-intel
+            arch: x86_64
+            python: '3.12'
+    env:
+      DONOR_COMMIT: f557fcd437aae5f18f313eb330bd3ef50f5fc7df
+      FIREFOX_COMMIT: 2887d9de1f69c0e9776413da80e7ba0d1225dd9b
+      PIP_NO_CACHE_DIR: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Record target runner identity
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-evidence"
+          exec > >(tee "$RUNNER_TEMP/native-evidence/runner.txt") 2>&1
+          git rev-parse HEAD
+          uname -sm
+          python -c 'import platform, sys; print(sys.version); assert platform.machine() == "${{ matrix.arch }}"'
+          df -h "$RUNNER_TEMP"
+          rustc -vV
+          if [[ $RUNNER_OS == Linux ]]; then getconf GNU_LIBC_VERSION; else sw_vers; xcodebuild -version; fi
+      - name: Fetch pinned public sources
+        run: |
+          donor="$RUNNER_TEMP/ff-ruyijs"
+          git init -q "$donor"
+          git -C "$donor" fetch --depth=1 --no-tags https://github.com/cutetailbud/ff-ruyijs.git "$DONOR_COMMIT"
+          git -C "$donor" checkout -q --detach FETCH_HEAD
+          test "$(git -C "$donor" rev-parse HEAD)" = "$DONOR_COMMIT"
+          test "$(git -C "$donor" ls-tree HEAD firefox | awk '{print $3}')" = "$FIREFOX_COMMIT"
+          git init -q "$donor/firefox"
+          git -C "$donor/firefox" remote add origin https://github.com/mozilla-firefox/firefox.git
+          git -C "$donor/firefox" fetch --depth=1 --no-tags origin "$FIREFOX_COMMIT"
+          if [[ $RUNNER_OS == Linux ]]; then
+            git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust
+          fi
+          git -C "$donor/firefox" -c checkout.workers=0 checkout -q --detach FETCH_HEAD
+          test "$(git -C "$donor/firefox" rev-parse HEAD)" = "$FIREFOX_COMMIT"
+          { git -C "$donor" log -1 --format='%H %cI %s'; git -C "$donor/firefox" log -1 --format='%H %cI %s'; } > "$RUNNER_TEMP/native-evidence/sources.txt"
+      - name: Compile native libraries
+        run: |
+          ci/build_native_target.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
+      - name: Stage and verify complete native candidate
+        run: |
+          python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
+            --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
+          cp "native/${{ matrix.slot }}/"{SHA256SUMS,provenance.json} "$RUNNER_TEMP/native-evidence/"
+          python -B tools/build_native.py --check
+          python -m pip install 'setuptools>=77' 'wheel>=0.45'
+          python -m pip wheel --no-deps --no-build-isolation -w "$RUNNER_TEMP/wheelhouse" .
+          python -B tools/build_native.py --inspect-wheel "$RUNNER_TEMP"/wheelhouse/*.whl --platform "${{ matrix.slot }}" > "$RUNNER_TEMP/native-evidence/wheel.json"
+      - name: Install and exercise wheel on target
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv installed-test
+          installed-test/bin/python -m pip install wheelhouse/*.whl aioquic
+          unset NECKO_CORE_LIBRARY NECKO_QUIC_LIBRARY RUYIHTTP_MACHINE RUYIHTTP_PLATFORM PYTHONPATH LD_LIBRARY_PATH DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
+          installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_local.py" | tee native-evidence/http1.txt
+          installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_native_target.py" "${{ matrix.slot }}" | tee native-evidence/native-test.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-evidence-${{ matrix.slot }}
+          path: ${{ runner.temp }}/native-evidence/
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-native-wheel-${{ matrix.slot }}
+          path: ${{ runner.temp }}/wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 7

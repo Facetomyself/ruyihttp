@@ -1,6 +1,9 @@
 """Platform wheel tag. Native files are copied from native/<platform>/."""
 
+import hashlib
+import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -19,8 +22,17 @@ PLATFORMS = {
     "linux_x86_64": ("py3", "none", "manylinux_2_39_x86_64"),
     "linux_aarch64": ("py3", "none", "manylinux_2_39_aarch64"),
     "darwin_arm64": ("py3", "none", "macosx_26_0_arm64"),
-    "darwin_x86_64": ("py3", "none", "macosx_11_0_x86_64"),
+    "darwin_x86_64": ("py3", "none", None),
 }
+SOURCE_SLOTS = {"linux_aarch64", "darwin_x86_64"}
+
+
+def source_entry(name):
+    data = json.loads((ROOT / "ruyihttp/runtime-manifest.json").read_text(encoding="utf-8"))
+    entry = data["platforms"][name]
+    if entry.get("status") != "ready" or not entry.get("files"):
+        raise SystemExit(f"native runtime missing: native/{name} is build-required")
+    return entry
 
 
 def host_platform():
@@ -78,6 +90,13 @@ class BundleNative(build_py):
             for path in source.glob("*")
             if path.is_file() and path.suffix.lower() in {".dll", ".dylib", ".so"}
         ]
+        if host_name in SOURCE_SLOTS:
+            expected = source_entry(host_name)["files"]
+            if {path.name for path in files} != expected.keys() or any(
+                path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected[path.name]
+                for path in files
+            ):
+                raise SystemExit(f"native inventory mismatch: {source}")
         if not files:
             raise SystemExit(
                 f"native runtime missing: {source}. "
@@ -101,6 +120,13 @@ class PlatformWheel(bdist_wheel):
 
     def get_tag(self):
         name = host_platform()
+        if name in SOURCE_SLOTS:
+            tag = source_entry(name).get("wheel_platform_tag", "")
+            valid = (tag == "manylinux_2_39_aarch64" if name == "linux_aarch64" else
+                     bool(re.fullmatch(r"macosx_\d+_\d+_x86_64", tag)))
+            if not valid:
+                raise SystemExit(f"missing or invalid measured wheel platform tag: {name}")
+            return "py3", "none", tag
         if name.startswith("linux"):
             return "py3", "none", linux_tag(name)
         return PLATFORMS[name]

@@ -60,6 +60,10 @@ PLATFORM_FILES = {
     ],
 }
 
+# These two slots use the same native ABI/closure as their sibling architecture.
+PLATFORM_FILES["linux_aarch64"] = PLATFORM_FILES["linux_x86_64"]
+PLATFORM_FILES["darwin_x86_64"] = PLATFORM_FILES["darwin_arm64"]
+
 DEFAULT_RUNTIME = {
     "win_amd64": {"firefox": "159.0", "nss": "3.131", "nspr": "4.40", "neqo": "0.32.0"},
     "darwin_arm64": {"firefox": "159.0", "nss": "3.132", "nspr": "4.40", "neqo": "0.33.0"},
@@ -141,11 +145,22 @@ def inspect_wheel(wheel: Path, platform: str) -> dict[str, bytes]:
     if not expected:
         raise ValueError(f'{platform} is build-required; no wheel import list is defined')
     members = wheel_members(wheel, expected)
-    if platform == 'linux_x86_64':
-        for name, data in members.items():
-            if data[:7] != b'\x7fELF\x02\x01\x01' or data[16:20] != b'\x03\x00\x3e\x00':
-                raise ValueError('wheel member is not a little-endian x86_64 ELF shared library: ' + name)
+    for name, data in members.items():
+        check_architecture(platform, name, data)
     return members
+
+
+def check_architecture(platform: str, name: str, data: bytes) -> None:
+    if platform.startswith("linux_"):
+        machine = {"linux_x86_64": 62, "linux_aarch64": 183}[platform]
+        if (data[:7] != b'\x7fELF\x02\x01\x01' or
+                data[16:20] != struct.pack('<HH', 3, machine)):
+            raise ValueError(f'{name}: not a little-endian {platform} ELF shared library')
+    if platform == "darwin_x86_64":
+        # A thin amd64 MH_DYLIB, not an arm64 binary or a generic/fat claim.
+        if (data[:8] != struct.pack('<II', 0xFEEDFACF, 0x01000007) or
+                data[12:16] != struct.pack('<I', 6)):
+            raise ValueError(f'{name}: not a thin x86_64 Mach-O dylib')
 
 
 def inspect_stable_wheel(wheel: Path, platform: str) -> tuple[dict[str, bytes], str]:
@@ -159,6 +174,8 @@ def inspect_stable_wheel(wheel: Path, platform: str) -> tuple[dict[str, bytes], 
 
 
 def import_wheel(wheel: Path, platform: str) -> None:
+    if platform not in DEFAULT_RUNTIME:
+        raise ValueError(f'{platform}: use stage_native_candidate.py on the target host')
     members, wheel_sha256 = inspect_stable_wheel(wheel, platform)
     expected = PLATFORM_FILES[platform]
 
