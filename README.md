@@ -17,10 +17,9 @@ ff-ruyijs 产出的平台原生运行时。目标不是继续做 wheel 抽包，
 | `darwin_arm64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-macosx_26_0_arm64` | `native/darwin_arm64/*.dylib` |
 | `linux_x86_64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-manylinux_2_39_x86_64` | `native/linux_x86_64/*.so` |
 | `darwin_x86_64` | build-required | 159.0 / 3.132 / 0.33.0 | `py3-none-macosx_11_0_x86_64` | 空位 |
-| `linux_aarch64` | build-required | 159.0 / 3.132 / 0.33.0 | `py3-none-manylinux_2_39_aarch64` | 空位 |
+| `linux_aarch64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-manylinux_2_39_aarch64` | `native/linux_aarch64/*.so` |
 
-`darwin_arm64` 的 minos 是 26.0；`linux_x86_64` 的 floor 是 glibc 2.39。
-两个 `build-required` 平台已有代码路径和 manifest 槽位，但没有二进制。
+`darwin_arm64` 的最低系统版本为 macOS 26.0，两个 Linux wheel 均要求 glibc 2.39 或更高。各平台的编译、安装与实际网络测试分别记录在[平台验收说明](docs/platform-support.md)。
 
 ## 目录
 
@@ -81,8 +80,8 @@ wheel 装配和 Windows/macOS/Linux 原生布局。真正发请求的 smoke 建�
 - macOS arm64 / Linux x86_64：来自 `Facetomyself/ff-ruyijs` 0.4.1 的
   `ruyijs` wheel，NSS 3.132 / Neqo 0.33.0。core 和 QUIC 必须整组使用，不要和
   3.131 的 core 混搭。
-- 每个目录的 `provenance.json` 记录来源 wheel、wheel SHA-256、文件 hash 和
-  许可说明。`ruyihttp/runtime-manifest.json` 是代码实际读取的平台矩阵。
+- Linux ARM64：在原生 ARM64 runner 从固定的 ff-ruyijs 与 Firefox 源码构建；[来源记录](native/linux_aarch64/provenance.json)含提交、原生文件哈希及验收信息。
+- `ruyihttp/runtime-manifest.json` 是打包器和运行时使用的平台清单。
 
 ## 边界
 
@@ -90,7 +89,7 @@ wheel 装配和 Windows/macOS/Linux 原生布局。真正发请求的 smoke 建�
   浏览器 cache/HSTS/CRLite/partitioned cookie jars。
 - TLS ClientHello 的 cluster 表来自 Firefox release sources；macOS/Linux 复用
   同一 cluster，并按 NSS 3.132 的计数/布局做对照，不宣称字节级一致。
-- HTTP/3 需要 Alt-Svc；DNS HTTPS/ECH 没有集成。代理路径需要单独验收。
+- HTTP/3 需要 Alt-Svc；DNS HTTPS/ECH 没有集成。已验证 HTTP CONNECT、HTTPS CONNECT、SOCKS5h 三种 TCP 入口的双跳部署；这与 H3 经代理是两个场景。
 - `darwin_arm64` 只支持 macOS 26+；要支持更旧版本必须降 deployment target 重编。
 - `ruyijs/ff-ruyijs` 是 AGPL-3.0-only 或商业许可，Mozilla 派生部分是 MPL-2.0。
   分发二进制前先读 `docs/licensing.md`。

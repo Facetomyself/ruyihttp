@@ -8,7 +8,7 @@
 | macOS arm64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_26_0_arm64` | Core and QUIC imported from `ruyijs` 0.4.1. minos 26.0. |
 | Linux x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_x86_64` | Core and QUIC imported from `ruyijs` 0.4.1. glibc 2.39 floor. |
 | macOS x86_64 | build-required | expected NSS 3.132 / Neqo 0.33.0 | `py3-none-macosx_11_0_x86_64` | No binary in the tree. Build on Intel macOS. |
-| Linux aarch64 | build-required | expected NSS 3.132 / Neqo 0.33.0 | `py3-none-manylinux_2_39_aarch64` | No binary in the tree. Build on aarch64 Linux. |
+| Linux aarch64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_aarch64` | 14 source-built ELF libraries. See native ARM acceptance below. |
 
 `build-required` means the Python path, manifest slot and wheel tag exist, but
 `setup.py` raises `native runtime missing` rather than packaging another
@@ -83,3 +83,7 @@ Checked on 2026-11-17:
 To repeat H3, install the wheel and `aioquic==1.3.0`, then from outside the source tree run `RUYIHTTP_TEST_NATIVE_H3=1 python -m unittest discover -s /path/to/checkout/tests -p test_http3_native.py -v`.
 
 To reproduce the proxy cases, install the built wheel, PySocks and the OpenSSL CLI, then run `python ci/smoke_proxy_chain.py`. This measures a chained proxy deployment carrying TCP/TLS, not a list of proxy URLs in the client API, nor UDP/HTTP/3 through CONNECT.
+
+### Native ARM64 Linux wheel
+
+The [source build](https://github.com/Facetomyself/ruyihttp/actions/runs/45335744015) compiled the 14-library set on an ARM runner. A [separate validation](https://github.com/Facetomyself/ruyihttp/actions/runs/45336869695) rebuilt the wheel from the exact committed libraries, verified its manylinux policy and local library mappings, then installed and exercised HTTP/1, HTTP/2 and HTTP/3. On a second native ARM64 machine (Glibc 2.39), the installed wheel also passed the UDP-only IPv4/IPv6 H3 upgrade, three invalid-certificate controls, ten proxy-chain cases and the HTTP/2 peer-close regression. See [native provenance](../native/linux_aarch64/provenance.json).
