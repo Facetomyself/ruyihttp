@@ -133,23 +133,9 @@ class Connection:
     def submit(self, operation, exchange, **arguments):
         call = _Call(operation, exchange, exchange.timeout, **arguments)
         with self._command_lock:
-            closed = self.closed
-            if not closed:
-                self.commands.put(call)
-        if closed:
-            if exchange.ended and not exchange.error:
-                if operation == "read":
-                    size = arguments["size"]
-                    data = bytes(exchange.buffer[:size])
-                    del exchange.buffer[:size]
-                    return data
-                if operation in ("headers", "finish", "cancel"):
-                    return None
-            raise (
-                exchange.error
-                or self.error
-                or ProtocolError("HTTP/2 connection closed")
-            )
+            if self.closed:
+                return self._after_close(call)
+            self.commands.put(call)
         self.wake.set()
         if not call.done.wait(exchange.timeout):
             call.cancelled = True
@@ -158,6 +144,23 @@ class Connection:
         if call.error:
             raise call.error
         return call.result
+
+    def _after_close(self, call):
+        # The peer may send END_STREAM and TLS close_notify back-to-back. A
+        # queued headers/read operation has the same result as a later caller:
+        # serve the fully received response, never invent EOF for a partial one.
+        exchange = call.exchange
+        if call.cancelled:
+            raise TimeoutError("HTTP/2 request operation cancelled")
+        if exchange.ended and not exchange.error:
+            if call.operation == "read":
+                size = call.arguments["size"]
+                data = bytes(exchange.buffer[:size])
+                del exchange.buffer[:size]
+                return data
+            if call.operation in ("headers", "finish", "cancel"):
+                return None
+        raise exchange.error or self.error or ProtocolError("HTTP/2 connection closed")
 
     def cancel(self, exchange):
         with self._command_lock:
@@ -439,18 +442,22 @@ class Connection:
         finally:
             with self._command_lock:
                 self.closed = True
-            error = self.error or ProtocolError("HTTP/2 connection closed")
-            for exchange in self.streams.values():
-                if not exchange.ended:
-                    exchange.fail(error)
-            while True:
-                try:
-                    self.pending.append(self.commands.get_nowait())
-                except queue.Empty:
-                    break
-            for call in self.pending:
-                call.error = call.exchange.error or error
-                call.done.set()
+                error = self.error or ProtocolError("HTTP/2 connection closed")
+                for exchange in self.streams.values():
+                    if not exchange.ended:
+                        exchange.fail(error)
+                while True:
+                    try:
+                        self.pending.append(self.commands.get_nowait())
+                    except queue.Empty:
+                        break
+                for call in self.pending:
+                    if not call.done.is_set():
+                        try:
+                            call.result = self._after_close(call)
+                        except Exception as exc:
+                            call.error = exc
+                        call.done.set()
             self.transport._close_native()
 
     def close(self):
