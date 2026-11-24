@@ -2,7 +2,7 @@ name: Linux H3 and proxy-chain acceptance
 on:
   workflow_dispatch:
   push:
-    branches: [main, acceptance/end-stream-20261124]
+    branches: [main]
     paths:
       - 'ruyihttp/**'
       - 'native/**'
