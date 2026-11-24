@@ -73,6 +73,7 @@ jobs:
         run: |
           ci/build_native_target.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
       - name: Stage and verify complete native candidate
+        id: candidate
         run: |
           python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
             --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
@@ -113,6 +114,13 @@ jobs:
           path: ${{ runner.temp }}/native-evidence/
           if-no-files-found: ignore
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.candidate.outcome == 'success'
+        with:
+          name: unverified-diagnostic-wheel-${{ matrix.slot }}
+          path: ${{ runner.temp }}/wheelhouse/*.whl
+          if-no-files-found: ignore
+          retention-days: 3
       - uses: actions/upload-artifact@v4
         with:
           name: verified-native-wheel-${{ matrix.slot }}

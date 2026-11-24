@@ -5,6 +5,7 @@ import json
 import platform
 import re
 import shutil
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -15,15 +16,58 @@ from build_native import (NATIVE, PLATFORM_FILES, check_architecture, load_manif
 TARGETS = {"linux_aarch64": ("Linux", "aarch64"), "darwin_x86_64": ("Darwin", "x86_64")}
 
 
+def macho_deployment_and_rpaths(path):
+    """Read the thin Mach-O deployment command, not vtool's linker version."""
+    with path.open('rb') as stream:
+        header = stream.read(32)
+        check_architecture('darwin_x86_64', path.name, header)
+        if len(header) != 32:
+            raise ValueError(f'truncated Mach-O header: {path.name}')
+        count, length = struct.unpack_from('<II', header, 16)
+        if not 0 < count <= length // 8 or length > 1024**2:
+            raise ValueError(f'oversize Mach-O load commands: {path.name}')
+        commands = stream.read(length)
+        if len(commands) != length:
+            raise ValueError(f'truncated Mach-O load commands: {path.name}')
+    offset, floors, rpaths = 0, [], []
+    for _ in range(count):
+        if offset + 8 > length:
+            raise ValueError(f'truncated Mach-O load command: {path.name}')
+        command, size = struct.unpack_from('<II', commands, offset)
+        if size < 8 or size % 8 or offset + size > length:
+            raise ValueError(f'invalid Mach-O load command: {path.name}')
+        if command == 0x32:  # LC_BUILD_VERSION
+            if size < 24 or struct.unpack_from('<I', commands, offset + 8)[0] != 1:
+                raise ValueError(f'Mach-O does not specify macOS: {path.name}')
+            floors.append(struct.unpack_from('<I', commands, offset + 12)[0])
+        elif command == 0x24:  # LC_VERSION_MIN_MACOSX
+            if size != 16:
+                raise ValueError(f'invalid Mach-O deployment command: {path.name}')
+            floors.append(struct.unpack_from('<I', commands, offset + 8)[0])
+        elif command == 0x8000001C:  # LC_RPATH
+            if size < 16:
+                raise ValueError(f'invalid Mach-O RPATH command: {path.name}')
+            start = struct.unpack_from('<I', commands, offset + 8)[0]
+            if not 12 <= start < size:
+                raise ValueError(f'invalid Mach-O RPATH offset: {path.name}')
+            rpaths.append(commands[offset + start:offset + size].split(b'\0', 1)[0])
+        offset += size
+    if offset != length or len(floors) != 1 or not floors[0]:
+        raise ValueError(f'missing or ambiguous macOS deployment target: {path.name}')
+    floor = floors[0]
+    return (floor >> 16, (floor >> 8) & 255, floor & 255), rpaths
+
+
 def macos_deployment(libs):
     floors = []
     for path in libs:
         info = subprocess.check_output(["xcrun", "vtool", "-show-build", path], text=True)
-        versions = re.findall(r"^\s*(?:minos|version)\s+(\d+)\.(\d+)(?:\.(\d+))?$", info, re.M)
-        if len(versions) != 1 or ("LC_BUILD_VERSION" in info and not re.search(r"platform\s+MACOS\b", info)):
-            raise ValueError(f"missing or ambiguous macOS deployment target: {path.name}")
-        floor = tuple(int(piece or 0) for piece in versions[0])
+        print(info.strip(), flush=True)
+        floor, rpaths = macho_deployment_and_rpaths(path)
         floors.append(floor)
+        if (any(rpath != b'@loader_path' for rpath in rpaths) or
+                (path.name.startswith('libnecko_') and b'@loader_path' not in rpaths)):
+            raise ValueError(f'{path.name}: loader search path is not limited to the sibling directory')
         deps = subprocess.check_output(["otool", "-L", path], text=True).splitlines()[1:]
         for line in deps:
             dep = line.strip().split(" (", 1)[0]
@@ -32,7 +76,7 @@ def macos_deployment(libs):
             if not any(dep == f"{prefix}/{sibling.name}" for sibling in libs
                        for prefix in ("@rpath", "@loader_path")):
                 raise ValueError(f"{path.name}: non-system dependency outside bundle: {dep}")
-        print(info.strip(), *deps, sep="\n")
+        print(*deps, sep="\n", flush=True)
     major, minor, patch = max(floors)
     if patch:
         # The wheel format cannot express a patch-level minimum.
