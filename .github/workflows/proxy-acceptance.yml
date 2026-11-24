@@ -17,7 +17,7 @@ jobs:
       - name: Build and install wheel
         run: |
           python -m pip wheel --no-deps -w "$RUNNER_TEMP/wheels" .
-          python -m pip install "$RUNNER_TEMP"/wheels/*.whl 'PySocks==1.7.1' 'trustme==1.2.1'
+          python -m pip install "$RUNNER_TEMP"/wheels/*.whl 'PySocks==1.7.1'
           python -m pip check
       - name: Run isolated proxy chain with installed client
         working-directory: ${{ runner.temp }}

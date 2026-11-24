@@ -1,6 +1,6 @@
 """Installed-wheel integration test. All listeners are loopback-only and fixed-route.
 
-Requires trustme and ruyihttp[socks]. No outside service, DNS, or proxy credentials.
+Requires openssl and ruyihttp[socks]. No outside service, DNS, or proxy credentials.
 """
 import base64
 import contextlib
@@ -16,7 +16,7 @@ import threading
 from pathlib import Path
 
 import ruyihttp
-import trustme
+import subprocess
 from requests.exceptions import ProxyError, SSLError
 
 HOST = 'origin.invalid'
@@ -83,11 +83,24 @@ def listener(handle, tls=None):
             srv.shutdown(); thread.join()
 
 
-def context(cert):
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ctx.set_alpn_protocols(['http/1.1'])
-    cert.configure_cert(ctx)
-    return ctx
+def tls_fixtures(directory):
+    d = Path(directory)
+    def openssl(*args):
+        subprocess.run(['openssl', *args], cwd=d, capture_output=True, check=True)
+    openssl('req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
+            '-subj', '/CN=Proxy chain test CA', '-keyout', 'ca.key', '-out', 'ca.pem',
+            '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign,cRLSign')
+    def server(name, san):
+        (d/'leaf.ext').write_text('basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n'
+                                  'extendedKeyUsage=serverAuth\nauthorityKeyIdentifier=keyid\nsubjectAltName='+san+'\n')
+        openssl('req', '-new', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN='+name,
+                '-keyout', name+'.key', '-out', name+'.csr')
+        openssl('x509', '-req', '-in', name+'.csr', '-CA', 'ca.pem', '-CAkey', 'ca.key',
+                '-CAcreateserial', '-days', '1', '-extfile', 'leaf.ext', '-out', name+'.pem')
+        ctx=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.set_alpn_protocols(['http/1.1']); ctx.load_cert_chain(d/(name+'.pem'), d/(name+'.key'))
+        return ctx
+    return d/'ca.pem', server('proxy','IP:'+LOOP), server('origin','DNS:'+HOST), server('wrong','DNS:wrong.invalid')
 
 
 def run(scheme, mode, ca_file, proxy_tls, origin_tls):
@@ -150,9 +163,8 @@ def run(scheme, mode, ca_file, proxy_tls, origin_tls):
 
 def main():
     assert not os.environ.get('PYTHONOPTIMIZE') and __debug__, 'run with assertions enabled'
-    ca=trustme.CA(); proxy=context(ca.issue_cert(LOOP)); origin=context(ca.issue_cert(HOST)); wrong=context(ca.issue_cert('wrong.invalid'))
     with tempfile.TemporaryDirectory() as d:
-        p=Path(d)/'test-ca.pem'; ca.cert_pem.write_to_path(p)
+        p,proxy,origin,wrong = tls_fixtures(d)
         failed=[]
         for scheme in ('http','https','socks5h'):
             for mode in ('ok','cut','bad-origin'):
