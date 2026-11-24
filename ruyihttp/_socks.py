@@ -13,7 +13,7 @@ def negotiate(connection, proxy, target):
         import socks
     except ImportError as error:
         raise InvalidSchema(
-            "Install necko-standalone[socks] for SOCKS proxy support"
+            "Install ruyihttp[socks] for SOCKS proxy support"
         ) from error
 
     class Stream(io.RawIOBase):

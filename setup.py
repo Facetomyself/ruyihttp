@@ -62,15 +62,13 @@ def platform_machine():
 
 def linux_tag(name):
     arch = "aarch64" if name == "linux_aarch64" else "x86_64"
-    version = os.environ.get("RUYIHTTP_GLIBC")
-    if not version and hasattr(os, "confstr"):
-        try:
-            version = os.confstr("CS_GNU_LIBC_VERSION").split()[1]
-        except (AttributeError, OSError, ValueError):
-            version = None
-    version = version or "2.39"
-    major, minor = version.split(".")[:2]
-    return f"manylinux_{major}_{minor}_{arch}"
+    # Bundling prebuilt libraries does not change their compatibility floor.
+    # The builder's libc may even be on a completely different architecture.
+    version = os.environ.get("RUYIHTTP_GLIBC", "2.39")
+    match = re.fullmatch(r"(\d+)\.(\d+)", version)
+    if not match or tuple(map(int, match.groups())) < (2, 39):
+        raise SystemExit(f"RUYIHTTP_GLIBC must be major.minor >= 2.39, got {version!r}")
+    return f"manylinux_{match[1]}_{match[2]}_{arch}"
 
 
 class BinaryDistribution(Distribution):
@@ -90,13 +88,6 @@ class BundleNative(build_py):
             for path in source.glob("*")
             if path.is_file() and path.suffix.lower() in {".dll", ".dylib", ".so"}
         ]
-        if host_name in SOURCE_SLOTS:
-            expected = source_entry(host_name)["files"]
-            if {path.name for path in files} != expected.keys() or any(
-                path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected[path.name]
-                for path in files
-            ):
-                raise SystemExit(f"native inventory mismatch: {source}")
         if not files:
             raise SystemExit(
                 f"native runtime missing: {source}. "
@@ -104,6 +95,18 @@ class BundleNative(build_py):
                 "macOS needs libnecko_core.dylib and libnecko_quic.dylib "
                 "in native/darwin_arm64 or native/darwin_x86_64."
             )
+        manifest = json.loads((ROOT / 'ruyihttp' / 'runtime-manifest.json').read_text(encoding='utf-8'))
+        entry = manifest['platforms'][host_name]
+        if entry.get('status') != 'ready':
+            raise SystemExit(f"native runtime not ready: {host_name}")
+        expected = entry.get('files', {})
+        if {path.name for path in files} != set(expected):
+            raise SystemExit(f"native inventory differs from manifest: {host_name}")
+        for path in files:
+            if host_name in SOURCE_SLOTS and path.is_symlink():
+                raise SystemExit(f"native candidate is a symlink: {host_name}/{path.name}")
+            if hashlib.sha256(path.read_bytes()).hexdigest() != expected[path.name]:
+                raise SystemExit(f"native hash differs from manifest: {host_name}/{path.name}")
         destination = Path(self.build_lib) / "ruyihttp"
         destination.mkdir(parents=True, exist_ok=True)
         for stale in destination.iterdir():
@@ -126,7 +129,7 @@ class PlatformWheel(bdist_wheel):
                      bool(re.fullmatch(r"macosx_\d+_\d+_x86_64", tag)))
             if not valid:
                 raise SystemExit(f"missing or invalid measured wheel platform tag: {name}")
-            return "py3", "none", tag
+            return "py3", "none", linux_tag(name) if name == "linux_aarch64" else tag
         if name.startswith("linux"):
             return "py3", "none", linux_tag(name)
         return PLATFORMS[name]

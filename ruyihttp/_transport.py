@@ -1222,11 +1222,12 @@ class HTTPAdapter(RequestsAdapter):
             if not match:
                 continue
             authority, parameters = match.groups()
+            if authority.startswith(":"):
+                # urlsplit(...).hostname strips IPv6 brackets; URI authorities need them.
+                origin = f"[{host}]" if ":" in host else host
+                authority = origin + authority
             try:
-                endpoint = urlsplit(
-                    "https://"
-                    + (host + authority if authority.startswith(":") else authority)
-                )
+                endpoint = urlsplit("https://" + authority)
                 port = endpoint.port
                 if (
                     not endpoint.hostname
