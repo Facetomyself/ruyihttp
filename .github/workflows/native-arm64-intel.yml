@@ -62,9 +62,22 @@ jobs:
       - name: Fetch pinned public sources
         if: steps.slot.outputs.ready == 'false'
         run: |
+          retry_fetch() {
+            local checkout=$1 attempt
+            shift
+            for attempt in 1 2 3; do
+              if git -C "$checkout" -c http.version=HTTP/1.1 -c http.lowSpeedLimit=1024 \
+                  -c http.lowSpeedTime=60 fetch --depth=1 --no-tags "$@"; then
+                return 0
+              fi
+              printf 'Pinned fetch attempt %s/3 failed\n' "$attempt" >&2
+              if [[ $attempt != 3 ]]; then sleep "$((5 * attempt))"; fi
+            done
+            return 128
+          }
           donor="$RUNNER_TEMP/ff-ruyijs"
           git init -q "$donor"
-          git -C "$donor" fetch --depth=1 --no-tags https://github.com/cutetailbud/ff-ruyijs.git "$DONOR_COMMIT"
+          retry_fetch "$donor" https://github.com/cutetailbud/ff-ruyijs.git "$DONOR_COMMIT"
           git -C "$donor" checkout -q --detach FETCH_HEAD
           test "$(git -C "$donor" rev-parse HEAD)" = "$DONOR_COMMIT"
           test "$(git -C "$donor" ls-tree HEAD firefox | awk '{print $3}')" = "$FIREFOX_COMMIT"
@@ -73,10 +86,10 @@ jobs:
           if [[ $RUNNER_OS == Linux ]]; then
             git -C "$donor/firefox" config remote.origin.promisor true
             git -C "$donor/firefox" config remote.origin.partialclonefilter blob:none
-            git -C "$donor/firefox" fetch --depth=1 --filter=blob:none --no-tags origin "$FIREFOX_COMMIT"
+            retry_fetch "$donor/firefox" --filter=blob:none origin "$FIREFOX_COMMIT"
             git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust build/rust
           else
-            git -C "$donor/firefox" fetch --depth=1 --no-tags origin "$FIREFOX_COMMIT"
+            retry_fetch "$donor/firefox" origin "$FIREFOX_COMMIT"
           fi
           git -C "$donor/firefox" -c checkout.workers=0 checkout -q --detach FETCH_HEAD
           test "$(git -C "$donor/firefox" rev-parse HEAD)" = "$FIREFOX_COMMIT"
