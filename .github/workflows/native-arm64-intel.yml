@@ -15,21 +15,15 @@ concurrency:
 jobs:
   native:
     name: ${{ matrix.slot }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.slot == 'linux_aarch64' && 'ubuntu-24.04-arm' || 'macos-15-intel' }}
     timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - slot: linux_aarch64
-            runner: ubuntu-24.04-arm
-            arch: aarch64
-            python: '3.14'
-          - slot: darwin_x86_64
-            runner: macos-15-intel
-            arch: x86_64
-            python: '3.12'
+        # Narrow repair runs to a selected architecture via the push commit message.
+        slot: ${{ fromJSON(contains(github.event.head_commit.message, '[linux-only]') && '["linux_aarch64"]' || contains(github.event.head_commit.message, '[intel-only]') && '["darwin_x86_64"]' || '["linux_aarch64","darwin_x86_64"]') }}
     env:
+      TARGET_ARCH: ${{ matrix.slot == 'linux_aarch64' && 'aarch64' || 'x86_64' }}
       DONOR_COMMIT: f557fcd437aae5f18f313eb330bd3ef50f5fc7df
       FIREFOX_COMMIT: 2887d9de1f69c0e9776413da80e7ba0d1225dd9b
       PIP_NO_CACHE_DIR: '1'
@@ -42,14 +36,14 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "${{ matrix.slot == 'linux_aarch64' && '3.14' || '3.12' }}"
       - name: Record target runner identity
         run: |
           mkdir -p "$RUNNER_TEMP/native-evidence"
           exec > >(tee "$RUNNER_TEMP/native-evidence/runner.txt") 2>&1
           git rev-parse HEAD
           uname -sm
-          python -c 'import platform, sys; print(sys.version); assert platform.machine() == "${{ matrix.arch }}"'
+          python -c 'import os, platform, sys; print(sys.version); assert platform.machine() == os.environ["TARGET_ARCH"]'
           df -h "$RUNNER_TEMP"
           rustc -vV
           if [[ $RUNNER_OS == Linux ]]; then getconf GNU_LIBC_VERSION; else sw_vers; xcodebuild -version; fi

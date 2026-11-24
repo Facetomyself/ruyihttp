@@ -75,10 +75,14 @@ def certificate(directory):
     return leaf, key, root
 
 
-def serve_h2_once(listener, context, port, completed):
+def serve_h2_once(listener, context, port, completed, release):
     try:
         listener.settimeout(10)
         client, _ = listener.accept()
+        # Close the listener to make the second request's TCP fallback fail,
+        # while keeping this TLS session alive until the H2 reader consumes it.
+        listener.close()
+        client.settimeout(10)
         with client, context.wrap_socket(client, server_side=True) as tls:
             assert tls.selected_alpn_protocol() == 'h2'
             protocol = H2Connection(config=H2Configuration(client_side=False))
@@ -91,6 +95,9 @@ def serve_h2_once(listener, context, port, completed):
                             (b'alt-svc', f'h3="127.0.0.1:{port}"; ma=60'.encode())])
                         protocol.send_data(event.stream_id, b'h2', end_stream=True)
                         tls.sendall(protocol.data_to_send())
+                        completed.set()
+                        if not release.wait(25):
+                            raise TimeoutError('client did not finish native protocol smoke')
                         return
                 tls.sendall(protocol.data_to_send())
             raise AssertionError('no HTTP/2 request received')
@@ -125,13 +132,14 @@ async def test_transactions():
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.set_alpn_protocols(['h2'])
         context.load_cert_chain(leaf, key)
-        completed = threading.Event()
-        h2_worker = executor.submit(serve_h2_once, tcp, context, port, completed)
+        completed, release = threading.Event(), threading.Event()
+        h2_worker = executor.submit(serve_h2_once, tcp, context, port, completed, release)
         try:
             await asyncio.to_thread(fetch, f'https://localhost:{port}/', roots, completed)
-            h2_worker.result(10)
         finally:
+            release.set()
             server.close()
+        h2_worker.result(10)
 
 
 def main():
