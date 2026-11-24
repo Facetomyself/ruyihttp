@@ -71,4 +71,11 @@ Checked on 2026-11-17:
 | --- | --- | --- |
 | Windows x64 | Windows, Python 3.13.12 | local HTTP 200; `https://example.com/` 200, ALPN `h2`, NSS 3.131 |
 | macOS arm64 | Mac mini, macOS 26.5.2, Python 3.12.13 | local HTTP 200; `https://example.com/` 200, ALPN `h2`, NSS 3.132 |
-| Linux x86_64 | cross-built wheel | manifest/ELF/ABI checks pass; live smoke pending because no x86_64 Linux host is available in this environment |
+| Linux x86_64 | cross-built wheel | At this date manifest/ELF/ABI checks passed; runtime validation followed below. |
+
+### Linux x86_64 transport acceptance
+
+- 2026-11-20: on a native x86_64 CPU, the installed Linux wheel in an Ubuntu 24.04 container (glibc 2.39) completed a real request to `https://example.com/`: HTTP 200, TLS 1.3, ALPN `h2`, NSS 3.132.
+- 2026-11-24: [ten proxy-chain cases](https://github.com/Facetomyself/ruyihttp/actions/runs/45333462315) passed on Ubuntu 24.04 x86_64. The client selected a single HTTP CONNECT, HTTPS CONNECT or SOCKS5h ingress; that proxy used a second CONNECT hop. Positive cases recorded ingress, exit and TLS origin; the origin returned a fresh nonce and received no `Proxy-Authorization`. Refusing the second hop produced `ProxyError` and zero origin requests. A wrong origin certificate produced `SSLError`; a wrong HTTPS proxy certificate prevented even the first CONNECT. The fixture uses a private test CA and loopback sockets; all certificate checks remain enabled.
+
+To reproduce the latter, install the built wheel, PySocks and the OpenSSL CLI, then run `python ci/smoke_proxy_chain.py`. This measures a chained proxy deployment carrying TCP/TLS, not a list of proxy URLs in the client API, nor UDP/HTTP/3 through CONNECT.
