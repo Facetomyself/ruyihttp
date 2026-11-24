@@ -57,6 +57,7 @@ from urllib3.exceptions import (
 from urllib3.response import HTTPResponse
 from urllib3.util import Timeout
 
+from ._connect import Attempt, connect_tcp
 from ._firefox import PROFILES, firefox_version, wire_headers
 from ._nss import TLS as _TLS
 from ._nss import Context as _ssl_context
@@ -231,20 +232,23 @@ class _NativeSocket:
             )
         else:
             cancelled = _Cancel(lambda _: int(attempt.cancelled.is_set()))
+            remaining = attempt.remaining()
+            if remaining is not None:
+                timeout = remaining if timeout is None else min(timeout, remaining)
             result = library.necko_socket_open_cancellable(
                 host.encode("idna"),
                 port,
-                _milliseconds(attempt.remaining()),
+                _milliseconds(timeout),
                 cancelled,
                 None,
                 ctypes.byref(self.handle),
             )
-        if result == 5:
-            raise ConnectTimeout(f"Connection to {host}:{port} timed out")
-        if result:
-            error = ConnectionError(
-                f"Native connection error {result} for {host}:{port}"
-            )
+        if result or not self.handle:
+            self.close()
+            if result == 5:
+                raise ConnectTimeout(f"Connection to {host}:{port} timed out")
+            reason = f"error {result}" if result else "returned a null handle"
+            error = ConnectionError(f"Native connection {reason} for {host}:{port}")
             error._necko_connect = True
             raise error
         if attempt is not None:
@@ -712,16 +716,31 @@ class HTTPAdapter(RequestsAdapter):
         socks = endpoint.scheme in ("socks4", "socks4a", "socks5", "socks5h")
         if endpoint.scheme not in ("http", "https") and not socks:
             raise InvalidSchema(f"Unsupported proxy scheme: {endpoint.scheme}")
-        connection = _NativeSocket(
-            self.library,
-            endpoint.hostname,
-            endpoint.port
-            or (1080 if socks else 443 if endpoint.scheme == "https" else 80),
-            timeout,
-            attempt,
+        port = endpoint.port or (
+            1080 if socks else 443 if endpoint.scheme == "https" else 80
         )
+        own_attempt = attempt is None
+        if own_attempt:
+            attempt = Attempt(None if timeout is None else time.monotonic() + timeout)
+        library = self.library
+
+        def open_socket(address, limit, candidate):
+            return _NativeSocket(library, address, port, limit, candidate)
+
+        # Only resolve and race the TCP hop. Proxy tunnelling, SNI, and
+        # certificate validation still use the original endpoint or origin.
+        try:
+            connection = connect_tcp(endpoint.hostname, port, attempt, open_socket)
+        except socket.gaierror as error:
+            failure = ConnectionError(f"Could not resolve {endpoint.hostname}: {error}")
+            failure._necko_connect = True
+            raise failure from error
         socket_transport = connection
         try:
+            socket_transport.timeout = timeout
+            socket_transport.attempt = attempt
+            attempt.set_interrupt(socket_transport.interrupt)
+            attempt.remaining()
             if socks:
                 from ._socks import negotiate
 
@@ -777,6 +796,7 @@ class HTTPAdapter(RequestsAdapter):
                 connection.peer_address = getattr(
                     connection.transport, "peer_address", None
                 )
+            attempt.remaining()
             socket_transport.attempt = None
             return connection
         except TimeoutError as error:
@@ -785,6 +805,9 @@ class HTTPAdapter(RequestsAdapter):
         except Exception:
             connection.close()
             raise
+        finally:
+            if own_attempt:
+                attempt.detach()
 
     def _connect_alternative(self, request, key, alternate, verify, timeout):
         from ._connect import race
