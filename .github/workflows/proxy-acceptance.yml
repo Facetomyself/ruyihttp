@@ -1,0 +1,26 @@
+name: Linux proxy-chain acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: [acceptance/proxy-20261124]
+permissions:
+  contents: read
+jobs:
+  chain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and install wheel
+        run: |
+          python -m pip wheel --no-deps -w "$RUNNER_TEMP/wheels" .
+          python -m pip install "$RUNNER_TEMP"/wheels/*.whl 'PySocks==1.7.1' 'trustme==1.2.1'
+          python -m pip check
+      - name: Run isolated proxy chain with installed client
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -c 'import ruyihttp; print(ruyihttp.__file__)'
+          python -u "$GITHUB_WORKSPACE/ci/smoke_proxy_chain.py"
