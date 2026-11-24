@@ -2,12 +2,12 @@
 """Verify native versions and real loopback HTTP/2 and QUIC from an installed wheel."""
 import asyncio
 import ctypes
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import platform
 import socket
 import ssl
-import subprocess
 import sys
 import tempfile
 import threading
@@ -19,6 +19,10 @@ from aioquic.asyncio import QuicConnectionProtocol, serve
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.h3.events import HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1, generate_private_key
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import StreamEnded
@@ -42,19 +46,32 @@ def certificate(directory):
     key = directory / 'key.pem'
     leaf = directory / 'leaf.pem'
     root = directory / 'ca.pem'
-    req = directory / 'leaf.csr'
-    extensions = directory / 'leaf-extensions.cnf'
-    extensions.write_text('subjectAltName=DNS:localhost\nkeyUsage=digitalSignature,keyEncipherment\n'
-                          'extendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\n')
-    def run(*args):
-        subprocess.run(['openssl', *args], cwd=directory, check=True,
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    run('req', '-x509', '-nodes', '-newkey', 'rsa:2048', '-keyout', 'ca-key.pem', '-out', root,
-        '-days', '2', '-subj', '/CN=RuyiHttp native test CA', '-addext', 'basicConstraints=critical,CA:TRUE',
-        '-addext', 'keyUsage=critical,keyCertSign,cRLSign')
-    run('req', '-nodes', '-newkey', 'rsa:2048', '-keyout', key, '-out', req, '-subj', '/CN=localhost')
-    run('x509', '-req', '-in', req, '-CA', root, '-CAkey', 'ca-key.pem', '-set_serial', '1',
-        '-out', leaf, '-days', '1', '-extfile', extensions)
+    ca_key = generate_private_key(SECP256R1())
+    server_key = generate_private_key(SECP256R1())
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'RuyiHttp native test CA')])
+    server_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'localhost')])
+    now = datetime.now(timezone.utc)
+
+    def builder(subject, public_key, ca):
+        return (x509.CertificateBuilder().subject_name(subject).issuer_name(ca_name)
+                .public_key(public_key).serial_number(x509.random_serial_number())
+                .not_valid_before(now - timedelta(minutes=5)).not_valid_after(now + timedelta(days=1))
+                .add_extension(x509.BasicConstraints(ca=ca, path_length=None), critical=True)
+                .add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False)
+                .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+                .add_extension(x509.KeyUsage(digital_signature=not ca, content_commitment=False,
+                    key_encipherment=False, data_encipherment=False, key_agreement=False,
+                    key_cert_sign=ca, crl_sign=ca, encipher_only=False, decipher_only=False), critical=True))
+
+    ca = builder(ca_name, ca_key.public_key(), True).sign(ca_key, hashes.SHA256())
+    cert = (builder(server_name, server_key.public_key(), False)
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName('localhost')]), critical=False)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+            .sign(ca_key, hashes.SHA256()))
+    root.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+    leaf.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    key.write_bytes(server_key.private_bytes(serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
     return leaf, key, root
 
 
@@ -88,9 +105,11 @@ def fetch(url, roots, completed):
         for expected in ('h2', 'h3'):
             response = session.get(url)
             assert response.status_code == 200 and response.content == expected.encode(), response
-            assert response.tls.get('alpn') == expected, response.tls
-            assert response.tls.get('backend') == 'NSS' and response.tls.get('nss') == '3.132', response.tls
-            print(expected, response.status_code, response.tls, flush=True)
+            assert response.raw.version == (20 if expected == 'h2' else 30), response.raw.version
+            if expected == 'h2' or response.tls is not None:
+                assert response.tls.get('alpn') == expected, response.tls
+                assert response.tls.get('backend') == 'NSS' and response.tls.get('nss') == '3.132', response.tls
+            print(expected, response.status_code, response.raw.version, response.tls, flush=True)
             assert completed.wait(10)
 
 

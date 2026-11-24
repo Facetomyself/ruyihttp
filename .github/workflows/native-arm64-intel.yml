@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: native-arm64-intel-${{ github.ref }}
+  group: native-arm64-intel-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -63,13 +63,18 @@ jobs:
           test "$(git -C "$donor" ls-tree HEAD firefox | awk '{print $3}')" = "$FIREFOX_COMMIT"
           git init -q "$donor/firefox"
           git -C "$donor/firefox" remote add origin https://github.com/mozilla-firefox/firefox.git
-          git -C "$donor/firefox" fetch --depth=1 --no-tags origin "$FIREFOX_COMMIT"
           if [[ $RUNNER_OS == Linux ]]; then
-            git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust
+            git -C "$donor/firefox" config remote.origin.promisor true
+            git -C "$donor/firefox" config remote.origin.partialclonefilter blob:none
+            git -C "$donor/firefox" fetch --depth=1 --filter=blob:none --no-tags origin "$FIREFOX_COMMIT"
+            git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust build/rust
+          else
+            git -C "$donor/firefox" fetch --depth=1 --no-tags origin "$FIREFOX_COMMIT"
           fi
           git -C "$donor/firefox" -c checkout.workers=0 checkout -q --detach FETCH_HEAD
           test "$(git -C "$donor/firefox" rev-parse HEAD)" = "$FIREFOX_COMMIT"
           { git -C "$donor" log -1 --format='%H %cI %s'; git -C "$donor/firefox" log -1 --format='%H %cI %s'; } > "$RUNNER_TEMP/native-evidence/sources.txt"
+          df -h "$RUNNER_TEMP"
       - name: Compile native libraries
         run: |
           ci/build_native_target.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
@@ -82,6 +87,23 @@ jobs:
           python -m pip install 'setuptools>=77' 'wheel>=0.45'
           python -m pip wheel --no-deps --no-build-isolation -w "$RUNNER_TEMP/wheelhouse" .
           python -B tools/build_native.py --inspect-wheel "$RUNNER_TEMP"/wheelhouse/*.whl --platform "${{ matrix.slot }}" > "$RUNNER_TEMP/native-evidence/wheel.json"
+      - name: Check Linux manylinux policy
+        if: runner.os == 'Linux'
+        run: |
+          python -m pip install 'auditwheel>=6.4,<7'
+          auditwheel show "$RUNNER_TEMP"/wheelhouse/*.whl | tee "$RUNNER_TEMP/native-evidence/auditwheel.txt"
+          python - "$RUNNER_TEMP/native-evidence/auditwheel.txt" <<'PY'
+          import re, sys
+          from pathlib import Path
+          report = Path(sys.argv[1]).read_text()
+          match = re.search(r'following platform tag:\s+"manylinux_2_(\d+)_aarch64"', report)
+          if not match or int(match[1]) > 39:
+              raise SystemExit('auditwheel did not establish a compatible arm64 manylinux floor')
+          PY
+      - uses: actions/setup-python@v5
+        if: runner.os == 'Linux'
+        with:
+          python-version: '3.12'
       - name: Install and exercise wheel on target
         working-directory: ${{ runner.temp }}
         run: |

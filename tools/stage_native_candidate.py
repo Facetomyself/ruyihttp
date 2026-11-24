@@ -30,7 +30,7 @@ def macos_deployment(libs):
             if dep.startswith(("/usr/lib/", "/System/Library/")):
                 continue
             if not any(dep == f"{prefix}/{sibling.name}" for sibling in libs
-                       for prefix in ("@rpath", "@loader_path", "@executable_path")):
+                       for prefix in ("@rpath", "@loader_path")):
                 raise ValueError(f"{path.name}: non-system dependency outside bundle: {dep}")
         print(info.strip(), *deps, sep="\n")
     major, minor, patch = max(floors)
