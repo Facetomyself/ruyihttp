@@ -1,6 +1,6 @@
 # Native runtime matrix
 
-`ruyihttp` has ready native runtimes for four targets. Each ready directory is a complete
+`ruyihttp` has ready native runtimes for five targets. Each ready directory is a complete
 set; do not mix core/QUIC/NSS files across directories.
 
 | Directory | Status | Runtime | Source |
@@ -8,7 +8,7 @@ set; do not mix core/QUIC/NSS files across directories.
 | `win_amd64/` | ready | NSS 3.131 / Neqo 0.32.0 | original ruyihttp 0.9.0 wheel |
 | `darwin_arm64/` | ready | NSS 3.132 / Neqo 0.33.0 | ruyijs 0.4.1 macOS wheel |
 | `linux_x86_64/` | ready | NSS 3.132 / Neqo 0.33.0 | ruyijs 0.4.1 manylinux wheel |
-| `darwin_x86_64/` | build-required | expected NSS 3.132 | build on Intel macOS |
+| `darwin_x86_64/` | ready | NSS 3.132 / Neqo 0.33.0 | pinned source build on Intel macOS 15 |
 | `linux_aarch64/` | ready | NSS 3.132 / Neqo 0.33.0 | pinned source build on Ubuntu 24.04 ARM64 |
 
 `ruyihttp/runtime-manifest.json` is the authoritative list. Each ready directory
