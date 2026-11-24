@@ -309,13 +309,6 @@ class RuntimeContractTests(unittest.TestCase):
                 "libsoftokn3.dylib",
             },
         )
-        intel = [
-            path.name
-            for path in (ROOT / "native" / "darwin_x86_64").rglob("*")
-            if path.is_file() and path.suffix.lower() in {".dylib", ".so"}
-        ]
-        self.assertEqual(intel, [])
-
     def test_linux_native_layout(self):
         slot = ROOT / "native" / "linux_x86_64"
         names = {
@@ -348,9 +341,16 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(manifest["platforms"]["win_amd64"]["nss"], "3.131")
         self.assertEqual(manifest["platforms"]["darwin_arm64"]["nss"], "3.132")
         self.assertEqual(manifest["platforms"]["linux_x86_64"]["nss"], "3.132")
-        self.assertEqual(
-            manifest["platforms"]["darwin_x86_64"]["status"], "build-required"
-        )
+        for slot, suffix in (("darwin_x86_64", ".dylib"), ("linux_aarch64", ".so")):
+            with self.subTest(slot=slot):
+                entry = manifest["platforms"][slot]
+                actual = {p.name for p in (ROOT / "native" / slot).glob("*" + suffix)}
+                self.assertIn(entry["status"], ("ready", "build-required"))
+                if entry["status"] == "ready":
+                    self.assertTrue({"libnecko_core" + suffix, "libnecko_quic" + suffix} <= actual)
+                    self.assertEqual(actual, set(entry["files"]))
+                else:
+                    self.assertFalse(actual)
         self.assertIn("libnecko_quic.dylib", manifest["platforms"]["darwin_arm64"]["files"])
         self.assertIn("libnecko_quic.so", manifest["platforms"]["linux_x86_64"]["files"])
 
@@ -382,11 +382,11 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(selected, "darwin_x86_64")
         build_lib = self.root / selected
         command = _build_py(build_lib)
-        with self.assertRaises(SystemExit) as error:
+        with patch.object(setup, "ROOT", self.root), self.assertRaises(SystemExit) as error:
             command.bundle_native(selected)
         message = str(error.exception)
         self.assertIn("native runtime missing", message)
-        self.assertIn(str(ROOT / "native" / selected), message)
+        self.assertIn(str(self.root / "native" / selected), message)
         packaged = [
             path.name
             for path in build_lib.rglob("*")
@@ -450,10 +450,32 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertFalse((package / "libnecko_core.so").exists())
         self.assertTrue((package / "necko_core.dll").exists())
 
-    def test_linux_tag_uses_build_host_glibc(self):
-        with _env(RUYIHTTP_GLIBC="2.31"):
-            self.assertEqual(setup.linux_tag("linux_x86_64"), "manylinux_2_31_x86_64")
-            self.assertEqual(setup.linux_tag("linux_aarch64"), "manylinux_2_31_aarch64")
+    def test_linux_tag_respects_the_bundled_runtime_floor(self):
+        with patch.dict(os.environ, clear=True):
+            self.assertEqual(setup.linux_tag('linux_aarch64'), 'manylinux_2_39_aarch64')
+        with _env(RUYIHTTP_GLIBC='2.31'), self.assertRaisesRegex(SystemExit, '>= 2.39'):
+            setup.linux_tag('linux_x86_64')
+        with _env(RUYIHTTP_GLIBC='2.40'):
+            self.assertEqual(setup.linux_tag('linux_x86_64'), 'manylinux_2_40_x86_64')
+
+    def test_partial_and_mismatched_candidates_are_never_bundled(self):
+        slot = 'linux_aarch64'
+        src = self.root / 'native' / slot
+        src.mkdir(parents=True)
+        (src / 'libnecko_core.so').write_bytes(b'incomplete')
+        package = self.root / 'ruyihttp'
+        package.mkdir()
+        command = _build_py(self.root / 'out')
+        for status, files, error in [
+            ('build-required', {}, 'not ready'),
+            ('ready', {'libnecko_core.so': '0'*64, 'libnecko_quic.so': '0'*64}, 'inventory'),
+            ('ready', {'libnecko_core.so': '0'*64}, 'hash'),
+        ]:
+            manifest = {'platforms': {slot: {'status': status, 'files': files}}}
+            (package / 'runtime-manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+            with self.subTest(error=error), patch.object(setup, 'ROOT', self.root), self.assertRaisesRegex(SystemExit, error):
+                command.bundle_native(slot)
+            self.assertFalse((self.root / 'out').exists())
 
 
 def _build_py(build_lib):

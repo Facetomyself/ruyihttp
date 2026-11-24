@@ -1,6 +1,9 @@
 """Platform wheel tag. Native files are copied from native/<platform>/."""
 
+import hashlib
+import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -50,15 +53,13 @@ def platform_machine():
 
 def linux_tag(name):
     arch = "aarch64" if name == "linux_aarch64" else "x86_64"
-    version = os.environ.get("RUYIHTTP_GLIBC")
-    if not version and hasattr(os, "confstr"):
-        try:
-            version = os.confstr("CS_GNU_LIBC_VERSION").split()[1]
-        except (AttributeError, OSError, ValueError):
-            version = None
-    version = version or "2.39"
-    major, minor = version.split(".")[:2]
-    return f"manylinux_{major}_{minor}_{arch}"
+    # Bundling prebuilt libraries does not change their compatibility floor.
+    # The builder's libc may even be on a completely different architecture.
+    version = os.environ.get("RUYIHTTP_GLIBC", "2.39")
+    match = re.fullmatch(r"(\d+)\.(\d+)", version)
+    if not match or tuple(map(int, match.groups())) < (2, 39):
+        raise SystemExit(f"RUYIHTTP_GLIBC must be major.minor >= 2.39, got {version!r}")
+    return f"manylinux_{match[1]}_{match[2]}_{arch}"
 
 
 class BinaryDistribution(Distribution):
@@ -85,6 +86,16 @@ class BundleNative(build_py):
                 "macOS needs libnecko_core.dylib and libnecko_quic.dylib "
                 "in native/darwin_arm64 or native/darwin_x86_64."
             )
+        manifest = json.loads((ROOT / 'ruyihttp' / 'runtime-manifest.json').read_text(encoding='utf-8'))
+        entry = manifest['platforms'][host_name]
+        if entry.get('status') != 'ready':
+            raise SystemExit(f"native runtime not ready: {host_name}")
+        expected = entry.get('files', {})
+        if {path.name for path in files} != set(expected):
+            raise SystemExit(f"native inventory differs from manifest: {host_name}")
+        for path in files:
+            if hashlib.sha256(path.read_bytes()).hexdigest() != expected[path.name]:
+                raise SystemExit(f"native hash differs from manifest: {host_name}/{path.name}")
         destination = Path(self.build_lib) / "ruyihttp"
         destination.mkdir(parents=True, exist_ok=True)
         for stale in destination.iterdir():
