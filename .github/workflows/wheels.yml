@@ -18,6 +18,8 @@ jobs:
             os: windows-latest
           - platform: darwin_arm64
             os: macos-26
+          - platform: darwin_x86_64
+            os: macos-15-intel
           - platform: linux_x86_64
             os: ubuntu-24.04
           - platform: linux_aarch64

@@ -16,10 +16,10 @@ ff-ruyijs 产出的平台原生运行时。目标不是继续做 wheel 抽包，
 | `win_amd64` | ready | 159.0 / 3.131 / 0.32.0 | `py3-none-win_amd64` | `native/win_amd64/*.dll` |
 | `darwin_arm64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-macosx_26_0_arm64` | `native/darwin_arm64/*.dylib` |
 | `linux_x86_64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-manylinux_2_39_x86_64` | `native/linux_x86_64/*.so` |
-| `darwin_x86_64` | build-required | 159.0 / 3.132 / 0.33.0 | `py3-none-macosx_11_0_x86_64` | 空位 |
+| `darwin_x86_64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-macosx_15_0_x86_64` | `native/darwin_x86_64/*.dylib` |
 | `linux_aarch64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-manylinux_2_39_aarch64` | `native/linux_aarch64/*.so` |
 
-`darwin_arm64` 的最低系统版本为 macOS 26.0，两个 Linux wheel 均要求 glibc 2.39 或更高。各平台的编译、安装与实际网络测试分别记录在[平台验收说明](docs/platform-support.md)。
+Intel Mac 的最低系统版本为 macOS 15.0，Apple Silicon 为 macOS 26.0；两个 Linux wheel 均要求 glibc 2.39 或更高。各平台的编译、安装与实际网络测试分别记录在[平台验收说明](docs/platform-support.md)。
 
 ## 目录
 
@@ -80,6 +80,7 @@ wheel 装配和 Windows/macOS/Linux 原生布局。真正发请求的 smoke 建�
 - macOS arm64 / Linux x86_64：来自 `Facetomyself/ff-ruyijs` 0.4.1 的
   `ruyijs` wheel，NSS 3.132 / Neqo 0.33.0。core 和 QUIC 必须整组使用，不要和
   3.131 的 core 混搭。
+- Intel macOS：在 x86_64 Mac 从固定源码编译 6 个 dylib。QUIC 桥返回原生会话协商的 TLS 版本、ALPN 和 cipher；[来源和补丁记录](native/darwin_x86_64/provenance.json)。
 - Linux ARM64：在原生 ARM64 runner 从固定的 ff-ruyijs 与 Firefox 源码构建；[来源记录](native/linux_aarch64/provenance.json)含提交、原生文件哈希及验收信息。
 - `ruyihttp/runtime-manifest.json` 是打包器和运行时使用的平台清单。
 

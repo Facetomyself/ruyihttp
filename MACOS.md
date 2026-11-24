@@ -49,7 +49,7 @@ live smoke OK 200 {'backend': 'NSS', 'nss': '3.132', 'nspr': '4.40',
 ## Boundaries
 
 - macOS 26+ only; the deployment target is 26.0.
-- Intel macOS (`darwin_x86_64`) is a build-required slot.
+- Intel macOS uses a separate source-built x86_64 wheel, minimum macOS 15.0. See [Intel acceptance](docs/platform-support.md#native-intel-macos-wheel).
 - The 100–159 TLS cluster table is shared with Windows. macOS validates the
   cluster counts and live ALPN, not byte-identical ClientHello records.
 - HTTP/3 still requires Alt-Svc; DNS HTTPS/ECH is not integrated.

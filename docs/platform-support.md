@@ -7,7 +7,7 @@
 | Windows x64 | ready | NSS 3.131 / NSPR 4.40 / Neqo 0.32.0 | `py3-none-win_amd64` | Original 0.9.0 DLL set. Live HTTPS checked. |
 | macOS arm64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_26_0_arm64` | Core and QUIC imported from `ruyijs` 0.4.1. minos 26.0. |
 | Linux x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_x86_64` | Core and QUIC imported from `ruyijs` 0.4.1. glibc 2.39 floor. |
-| macOS x86_64 | build-required | expected NSS 3.132 / Neqo 0.33.0 | `py3-none-macosx_11_0_x86_64` | No binary in the tree. Build on Intel macOS. |
+| macOS x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_15_0_x86_64` | Six source-built thin Intel dylibs; deployment floor 15.0, tested on 15.7.9. |
 | Linux aarch64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_aarch64` | 14 source-built ELF libraries. See native ARM acceptance below. |
 
 `build-required` means the Python path, manifest slot and wheel tag exist, but
@@ -87,3 +87,7 @@ To reproduce the proxy cases, install the built wheel, PySocks and the OpenSSL C
 ### Native ARM64 Linux wheel
 
 The [source build](https://github.com/Facetomyself/ruyihttp/actions/runs/45335744015) compiled the 14-library set on an ARM runner. A [separate validation](https://github.com/Facetomyself/ruyihttp/actions/runs/45336869695) rebuilt the wheel from the exact committed libraries, verified its manylinux policy and local library mappings, then installed and exercised HTTP/1, HTTP/2 and HTTP/3. On a second native ARM64 machine (Glibc 2.39), the installed wheel also passed the UDP-only IPv4/IPv6 H3 upgrade, three invalid-certificate controls, ten proxy-chain cases and the HTTP/2 peer-close regression. See [native provenance](../native/linux_aarch64/provenance.json).
+
+### Native Intel macOS wheel
+
+On a native Intel runner (x86_64, macOS 15.7.9), the [strict source-built candidate](https://github.com/Facetomyself/ruyihttp/actions/runs/45341302623) loaded all six dylibs from the installed package. Each Mach-O load command reported minimum macOS 15.0. HTTP/1, H2 and H3 worked; H3 returned measured TLS 1.3/ALPN, cipher, resumption flag and the selected Firefox profile. Six native H3 tests (including nondefault Firefox 158), ten two-hop proxy tests and the H2 EOF controls passed. The earlier candidate transported H3 but returned a null TLS report; it was not admitted. The donor patch is recorded in [Intel build provenance](../native/darwin_x86_64/provenance.json).

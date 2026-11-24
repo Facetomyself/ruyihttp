@@ -1,8 +1,6 @@
 # Building and importing native runtimes
 
-This repository does not rebuild Firefox, NSS or Neqo by itself. The Python
-package is maintained here; the native runtimes are imported from a pinned
-`ruyijs` / `ff-ruyijs` build and recorded with hashes.
+The Python transport and packaging live here. The existing Windows x64, Linux x86_64 and macOS arm64 sets came from archived wheels. Linux ARM64 and Intel macOS use a separate native-runner build path: Necko, NSS/NSPR and Neqo are built from pinned upstream sources and verified on the requested CPU before admission. See the [support matrix](platform-support.md) for the status of each slot. Building a wheel from checked-in libraries is a packaging operation, not a native source rebuild.
 
 ## Fast path: import a pinned wheel
 
@@ -41,7 +39,16 @@ python tools/verify_runtime.py
 `verify_runtime.py` checks the required `necko_*` exports and NSS version
 markers.
 
-## Source rebuild path
+## Source-built targets: ARM64 Linux and Intel macOS
+
+The [native workflow](../.github/workflows/native-arm64-intel.yml) records the host architecture, upstream Git revisions and file inventory. It calls [the native build script](../ci/build_native_target.sh) on `ubuntu-24.04-arm` or `macos-15-intel`. Both the donor commit `f557fcd437aae5f18f313eb330bd3ef50f5fc7df` and its Firefox gitlink `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` are pinned; the runtime source version and the client-selected Firefox profile are distinct. Per-slot provenance is the authority for any additional patches.
+
+1. Compile on the target CPU. For Linux, inspect the entire ELF set, exported ABI, dependencies and `$ORIGIN` search paths. For macOS, check each Mach-O architecture, deployment load command and sibling install names. Derive the wheel minimum from the binaries, rather than the SDK version or the runner label.
+2. Build a candidate wheel, check its hashes against its manifest and inspect its members. Check Linux platform policy with `auditwheel show`. Linux packaging never lowers the 2.39 compatibility floor to match an older build machine.
+3. Install the wheel in a fresh target venv outside the checkout, clear all native library overrides, and verify that the process loads libraries from the installed package. Exercise real HTTP/1, TLS/HTTP/2, UDP/HTTP/3 and negative controls. A build job or a `dlopen` alone does not qualify the slot.
+4. Admit exactly the tested files, recording hashes, source revisions, build and verification receipts. Repack from the committed bytes and repeat the installed-wheel gate. The [Wheels workflow](../.github/workflows/wheels.yml) produces downloadable CI artifacts, not PyPI releases.
+
+## Historical rebuild path for imported libraries
 
 The native C/C++/Rust sources and build scripts live in the ff-ruyijs tree, not
 in this package by default. To rebuild from source:
@@ -71,8 +78,8 @@ Imported wheel pins:
 | Platform | NSS | NSPR | Neqo | Firefox profile |
 | --- | --- | --- | --- | --- |
 | Windows x64 | 3.131 | 4.40 | 0.32.0 | 159.0 |
-| macOS arm64 | 3.132 | 4.40 | 0.33.0 | 159.0 |
-| Linux x86_64 | 3.132 | 4.40 | 0.33.0 | 159.0 |
+| macOS arm64 / x86_64 | 3.132 | 4.40 | 0.33.0 | 159.0 |
+| Linux x86_64 / aarch64 | 3.132 | 4.40 | 0.33.0 | 159.0 |
 
 `ruyihttp/_nss.py` reads `ruyihttp/runtime-manifest.json` and rejects a library
 whose `necko_tls_nss_version()` does not match the platform entry.
