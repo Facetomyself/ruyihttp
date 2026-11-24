@@ -1,10 +1,9 @@
-# Intel macOS native runtime (build-required)
+# Intel macOS native runtime
 
-This slot is empty. The Python path, wheel tag and runtime manifest entry exist,
-but no `libnecko_core.dylib` or `libnecko_quic.dylib` is checked in.
-
-To populate it, build on an Intel macOS host with the ff-ruyijs native sources
-and copy the whole set here:
+The checked-in `macosx_15_0_x86_64` runtime was source-built on an Intel macOS 15
+runner. Every Mach-O file is thin x86_64 and records macOS 15.0 as its minimum.
+See [provenance.json](provenance.json) for the pinned sources, native QUIC TLS
+telemetry patch, runner evidence and wheel hash. The complete set is:
 
 - `libnecko_core.dylib`
 - `libnecko_quic.dylib`
@@ -13,5 +12,9 @@ and copy the whole set here:
 - `libfreebl3.dylib`
 - `libmozglue.dylib`
 
-The expected runtime is NSS 3.132 / NSPR 4.40 / Neqo 0.33.0. `setup.py` raises
-`native runtime missing` instead of packaging another platform's binary.
+The runtime is NSS 3.132 / NSPR 4.40 / Neqo 0.33.0. A clean installed-wheel
+run validated all [six native hashes](SHA256SUMS), package-local dynamic
+loading, HTTP/1.1, HTTP/2 and HTTP/3, six strict native H3 cases (including
+Firefox 158 telemetry and certificate negatives), 10 two-hop proxy cases,
+and 12 complete/3 truncated H2 EOF cases. The manifest requires these exact
+library hashes during wheel packaging.

@@ -46,7 +46,16 @@ jobs:
           python -c 'import os, platform, sys; print(sys.version); assert platform.machine() == os.environ["TARGET_ARCH"]'
           df -h "$RUNNER_TEMP"
           rustc -vV
-          if [[ $RUNNER_OS == Linux ]]; then getconf GNU_LIBC_VERSION; else sw_vers; xcodebuild -version; fi
+          if [[ $RUNNER_OS == Linux ]]; then
+            getconf GNU_LIBC_VERSION
+          else
+            sw_vers
+            xcodebuild -version
+            cpu=$(sysctl -n machdep.cpu.brand_string)
+            translated=$(sysctl -in sysctl.proc_translated || true)
+            printf 'CPU: %s; Rosetta translation: %s\n' "$cpu" "${translated:-0}"
+            [[ $cpu == *Intel* && ${translated:-0} == 0 ]]
+          fi
       - name: Check slot state
         id: slot
         run: |
