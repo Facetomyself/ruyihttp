@@ -89,8 +89,12 @@ jobs:
       - name: Stage locally compiled candidate
         if: steps.slot.outputs.ready == 'false'
         run: |
+          patch_args=()
+          if [[ $RUNNER_OS == macOS ]]; then
+            patch_args=(--source-patch native/patches/macos-necko-quic-tls-info.patch)
+          fi
           python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
-            --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
+            --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" "${patch_args[@]}" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
       - name: Verify complete native set and build wheel
         id: candidate
         run: |
@@ -120,11 +124,28 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           python -m venv installed-test
-          installed-test/bin/python -m pip install wheelhouse/*.whl aioquic
+          wheel=(wheelhouse/*.whl)
+          installed-test/bin/python -m pip install --prefer-binary "${wheel[0]}[socks]" aioquic
           unset NECKO_CORE_LIBRARY NECKO_QUIC_LIBRARY RUYIHTTP_MACHINE RUYIHTTP_PLATFORM PYTHONPATH LD_LIBRARY_PATH DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
+          if [[ $RUNNER_OS == macOS ]]; then export PATH="$(brew --prefix openssl@3)/bin:$PATH"; fi
+          openssl version
           installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_local.py" | tee native-evidence/http1.txt
           installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_native_target.py" "${{ matrix.slot }}" | tee native-evidence/native-test.txt
           installed-test/bin/python -I -c 'import pathlib, runpy, sys; ci = pathlib.Path(sys.argv[1]); sys.path.append(str(ci)); runpy.run_path(str(ci / "smoke_h2_close.py"), run_name="__main__")' "$GITHUB_WORKSPACE/ci" | tee native-evidence/h2-eof.txt
+      - name: Exercise Intel installed-wheel native H3 and proxy regressions
+        if: runner.os == 'macOS'
+        timeout-minutes: 6
+        working-directory: ${{ runner.temp }}
+        run: |
+          unset NECKO_CORE_LIBRARY NECKO_QUIC_LIBRARY RUYIHTTP_MACHINE RUYIHTTP_PLATFORM PYTHONPATH LD_LIBRARY_PATH DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
+          export PATH="$(brew --prefix openssl@3)/bin:$PATH"
+          set +e
+          RUYIHTTP_TEST_NATIVE_H3=1 installed-test/bin/python -I -m unittest discover -s "$GITHUB_WORKSPACE/tests" -p test_http3_native.py -v 2>&1 | tee native-evidence/full-h3.txt
+          h3_status=$?
+          installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_proxy_chain.py" 2>&1 | tee native-evidence/proxy.txt
+          proxy_status=$?
+          printf 'Full H3 status: %d; proxy status: %d\n' "$h3_status" "$proxy_status"
+          (( h3_status == 0 && proxy_status == 0 ))
       - uses: actions/upload-artifact@v4
         if: always()
         with:

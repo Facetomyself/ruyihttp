@@ -333,6 +333,7 @@ class Connection:
                 remote=_address(udp.getpeername()),
                 token=self.token,
                 profile=quic_profile(self.firefox),
+                firefox=self.firefox,
             )["handle"]
             self._call("attach", socket=udp.fileno())
             while not self._stopping.is_set():

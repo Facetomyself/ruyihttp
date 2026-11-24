@@ -260,7 +260,7 @@ class NativeHTTP3Tests(unittest.TestCase):
             with self.assertRaises(ConnectionRefusedError):
                 socket.create_connection(address[:2], timeout=1).close()
 
-    def _connect(self, origin, host=_HOST, cafile=None):
+    def _connect(self, origin, host=_HOST, cafile=None, firefox=None):
         connection = Connection(
             host,
             origin.address[1],
@@ -268,6 +268,7 @@ class NativeHTTP3Tests(unittest.TestCase):
             self.core,
             3,
             endpoint=origin.address,
+            firefox=firefox,
         )
         self.addCleanup(connection.close)
         return connection
@@ -317,6 +318,16 @@ class NativeHTTP3Tests(unittest.TestCase):
             f"GET/POST={len(_DATA)} bytes sha256={hashlib.sha256(_DATA).hexdigest()}",
             flush=True,
         )
+
+    def test_nondefault_profile_is_reported_by_native_session(self):
+        origin = self._origin()
+        connection = self._connect(origin, firefox="158")
+        self._assert_tls(connection.info)
+        self.assertEqual(connection.info["profile"], "firefox-158")
+        self.assertEqual(connection.info["nss"], "3.132")
+        self.assertEqual(self._read(self._exchange(connection, "/body")), _DATA)
+        self.assertEqual(origin.negotiated, [(0, "h3")])
+        print(f"native nondefault profile: {connection.info}", flush=True)
 
     def test_public_session_alt_svc_ipv4_upgrade_and_reuse(self):
         self._exercise_alt_svc(_IP, socket.AF_INET)

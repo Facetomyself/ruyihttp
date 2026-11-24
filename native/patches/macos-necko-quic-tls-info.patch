@@ -1,0 +1,50 @@
+diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
+--- a/native/necko_quic/src/lib.rs
++++ b/native/necko_quic/src/lib.rs
+@@ -44,6 +44,7 @@
+     local: SocketAddr,
+     remote: SocketAddr,
+     profile: String,
++    firefox: Option<String>,
+     tp_style: u8,
+     mtu_bonus: usize,
+ }
+@@ -795,6 +796,7 @@
+     let remote = parse_addr(body.get("remote").and_then(Value::as_str).unwrap_or(""))
+         .map_err(|_| "HTTP/3 remote address is invalid".to_string())?;
+     let profile = body.get("profile").cloned().unwrap_or_else(|| json!({}));
++    let firefox = body.get("firefox").and_then(Value::as_str).map(str::to_owned);
+     let (params, h3_datagram) = apply_profile(&profile);
+     let webtransport = body.get("webtransport").and_then(Value::as_bool).unwrap_or(false);
+     let http3 = Http3Parameters::default()
+@@ -828,6 +830,7 @@
+                 local,
+                 remote,
+                 profile: profile.to_string(),
++                firefox,
+                 tp_style,
+                 mtu_bonus,
+             },
+@@ -876,7 +879,21 @@
+             })
+         }
+         "info" => with_session(handle, |session| {
+-            Ok(json!({"tls": null, "certificates": certificates(&session.client)}))
++            let tls = session.client.tls_info().map(|info| {
++                let mut report = json!({
++                    "backend": "NSS",
++                    "nss": nss_text(),
++                    "alpn": info.alpn(),
++                    "version": info.version(),
++                    "cipher_suite": info.cipher_suite(),
++                    "resumed": info.resumed(),
++                });
++                if let Some(firefox) = &session.firefox {
++                    report["profile"] = json!(format!("firefox-{firefox}"));
++                }
++                report
++            });
++            Ok(json!({"tls": tls, "certificates": certificates(&session.client)}))
+         }),
+         "fetch" => with_session(handle, |session| {
+             let method = body.get("method").and_then(Value::as_str).unwrap_or("GET");

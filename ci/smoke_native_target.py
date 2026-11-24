@@ -113,9 +113,8 @@ def fetch(url, roots, completed):
             response = session.get(url)
             assert response.status_code == 200 and response.content == expected.encode(), response
             assert response.raw.version == (20 if expected == 'h2' else 30), response.raw.version
-            if expected == 'h2' or response.tls is not None:
-                assert response.tls.get('alpn') == expected, response.tls
-                assert response.tls.get('backend') == 'NSS' and response.tls.get('nss') == '3.132', response.tls
+            assert response.tls is not None and response.tls.get('alpn') == expected, response.tls
+            assert response.tls.get('backend') == 'NSS' and response.tls.get('nss') == '3.132', response.tls
             print(expected, response.status_code, response.raw.version, response.tls, flush=True)
             assert completed.wait(10)
 

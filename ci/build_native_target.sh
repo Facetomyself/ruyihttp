@@ -39,6 +39,10 @@ assert s.count(old) == 1
 p.write_text(s.replace(old, old.replace('arm64', 'x86_64')))
 PY
     python -B tools/build.py --necko-core-only --firefox-gfx-obj "$donor/obj/browser"
+    patch="$manifest_root/native/patches/macos-necko-quic-tls-info.patch"
+    shasum -a 256 "$patch"
+    git apply --check "$patch"
+    git apply "$patch"
     RUYIJS_DONOR_OBJ="$donor/obj/browser" python -B tools/build_necko_quic.py library
     input="$donor/dist/necko_tls"
     ;;

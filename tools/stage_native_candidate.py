@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from build_native import (NATIVE, PLATFORM_FILES, check_architecture, load_manifest,
+from build_native import (NATIVE, PLATFORM_FILES, ROOT, check_architecture, load_manifest,
                           sha256, write_manifest)
 
 TARGETS = {"linux_aarch64": ("Linux", "aarch64"), "darwin_x86_64": ("Darwin", "x86_64")}
@@ -90,11 +90,16 @@ def main():
     parser.add_argument("source", type=Path, help="directory holding the selected native libraries")
     parser.add_argument("--donor", required=True, help="donor Git commit")
     parser.add_argument("--firefox", required=True, help="Firefox Git commit")
+    parser.add_argument("--source-patch", type=Path, help="applied donor patch under this repository")
     args = parser.parse_args()
     if (platform.system(), platform.machine()) != TARGETS[args.platform]:
         parser.error("staging requires execution on the selected native build host")
     if any(not re.fullmatch(r"[0-9a-f]{40}", rev) for rev in (args.donor, args.firefox)):
         parser.error("full Git commits are required")
+    patch = None
+    if args.source_patch is not None:
+        path = args.source_patch.resolve(strict=True)
+        patch = {'path': path.relative_to(ROOT).as_posix(), 'sha256': sha256(path)}
     source = args.source.resolve(strict=True)
     dest = NATIVE / args.platform
     manifest = load_manifest()
@@ -121,6 +126,8 @@ def main():
     provenance = {"platform": args.platform, "source": "source-built candidate, native verification required",
                   "ff_ruyijs_commit": args.donor, "firefox_source_commit": args.firefox,
                   "wheel_platform_tag": tag, "runtime_expected": runtime, "files": inventory}
+    if patch:
+        provenance['source_patch'] = patch
     (dest / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     hashes = {name: item["sha256"] for name, item in inventory.items()}
     (dest / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in hashes.items()))
