@@ -2,7 +2,14 @@ name: Linux proxy-chain acceptance
 on:
   workflow_dispatch:
   push:
-    branches: [acceptance/proxy-20261124]
+    branches: [main, acceptance/proxy-20261124]
+    paths:
+      - 'ruyihttp/**'
+      - 'native/**'
+      - 'setup.py'
+      - 'pyproject.toml'
+      - 'ci/smoke_proxy_chain.py'
+      - '.github/workflows/proxy-acceptance.yml'
 permissions:
   contents: read
 jobs:
