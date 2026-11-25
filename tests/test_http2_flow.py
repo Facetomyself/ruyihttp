@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from h2.errors import ErrorCodes
-from h2.events import StreamReset, WindowUpdated
+from h2.events import RequestReceived, StreamReset, WindowUpdated
 from h2.settings import SettingCodes
 from hyperframe.frame import DataFrame, GoAwayFrame
 from urllib3.exceptions import ProtocolError
@@ -33,20 +33,23 @@ class ReceiveFlowTests(unittest.TestCase):
         self.conn = WireConnection()
         self.peer = self.conn.peer
 
-    def start(self, method="GET"):
-        exchange = Exchange(
+    def fetch(self, method="GET"):
+        return Exchange(
             self.conn.transport,
             method,
             "https://example.com/",
             {"Host": "example.com"},
             method == "POST",
         )
+
+    def start(self, method="GET"):
+        exchange = self.fetch(method)
         self.conn.flush()
         self.peer.send_headers(exchange.stream_id, [(b":status", b"200")])
         self.conn.receive()
         return exchange
 
-    def wire_data(self, exchange, size, block=16384):
+    def wire_data(self, exchange, size, block=16384, *, flush=False):
         while size:
             batch = min(size, 32768)
             left = batch
@@ -55,6 +58,8 @@ class ReceiveFlowTests(unittest.TestCase):
                 self.peer.send_data(exchange.stream_id, b"x" * n)
                 left -= n
             self.conn.receive()
+            if flush:
+                self.conn.flush()
             size -= batch
 
     def windows(self, sid):
@@ -72,11 +77,25 @@ class ReceiveFlowTests(unittest.TestCase):
 
     def test_advertised_stream_reservations_fit_even_when_every_body_is_unread(self):
         exchanges = [self.start() for _ in range(_MAX_STREAMS)]
+        first = exchanges[0]
+        # Leave more consumed credit pending than the 512 KiB reserve. The
+        # only subsequent progress comes from the peer's unread DATA; if the
+        # low-water check ran just on application reads, the connection would
+        # stall before all 64 reservations have been filled.
+        self.wire_data(first, first.receive_limit)
+        self.assertEqual(first.read(first.receive_limit), b"x" * first.receive_limit)
+        self.assertEqual(
+            self.update_windows(), [(first.stream_id, first.receive_limit)]
+        )
+        self.assertEqual(
+            self.peer.outbound_flow_control_window,
+            _CONNECTION_WINDOW - first.receive_limit,
+        )
         for i, exchange in enumerate(exchanges):
             limit = _STREAM_WINDOW + (_STREAM_BOOST if i < _MAX_BOOSTS else 0)
             self.assertEqual(exchange.receive_limit, limit)
             self.assertEqual(self.windows(exchange.stream_id)[1], limit)
-            self.wire_data(exchange, limit)
+            self.wire_data(exchange, limit, flush=True)
             self.assertEqual(
                 (len(exchange.buffer), self.windows(exchange.stream_id)[1]), (limit, 0)
             )
@@ -88,7 +107,6 @@ class ReceiveFlowTests(unittest.TestCase):
         blocked = _Call("fetch", SimpleNamespace(closed=False, error=None), None)
         self.assertFalse(self.conn._execute(blocked))
 
-        first = exchanges[0]
         self.conn._execute(_Call("cancel", first, None))
         self.assertEqual(self.conn._buffered, _BUFFER_LIMIT - first.receive_limit)
         self.assertEqual(self.update_windows(), [(0, first.receive_limit)])
@@ -114,7 +132,11 @@ class ReceiveFlowTests(unittest.TestCase):
             self.assertEqual(self.conn._buffered, 0)
             self.assertLessEqual(self.windows(sid)[0], original[0])
             self.assertLessEqual(self.windows(sid)[1], original[1])
-        self.assertEqual(released, 32 * 192 * 256)
+        self.assertEqual(
+            released, 0, "healthy connection should avoid standalone updates"
+        )
+        self.assertEqual(self.windows(sid)[0], original[0] - 32 * 192 * 256)
+        self.start()
         self.assertEqual(self.windows(sid)[0], original[0])
         waiting = _Call("read", exchange, None, size=1)
         self.assertFalse(self.conn._execute(waiting), "padding must not appear as EOF")
@@ -136,11 +158,43 @@ class ReceiveFlowTests(unittest.TestCase):
         self.assertEqual(exchange.read(1), b"x")
         self.assertEqual(self.update_windows(), [])
         self.assertEqual(exchange.read(_CREDIT_BATCH - 1), b"x" * (_CREDIT_BATCH - 1))
-        self.assertEqual(
-            self.update_windows(), [(0, _CREDIT_BATCH), (sid, _CREDIT_BATCH)]
-        )
+        self.assertEqual(self.update_windows(), [(sid, _CREDIT_BATCH)])
+        self.assertEqual(self.windows(sid), (root, _CREDIT_BATCH))
+        self.start()
         self.assertEqual(self.windows(sid), (root + _CREDIT_BATCH, _CREDIT_BATCH))
         self.assertEqual(self.conn._buffered, limit - _CREDIT_BATCH)
+
+    def test_sequential_bulk_returns_connection_credit_with_next_headers(self):
+        first = self.start()
+        size = 256 * 1024
+        self.wire_data(first, size)
+        self.peer.end_stream(first.stream_id)
+        self.conn.receive()
+        self.assertTrue(first.ended)
+        for _ in range(size // _CREDIT_BATCH):
+            self.assertEqual(first.read(_CREDIT_BATCH), b"x" * _CREDIT_BATCH)
+            self.assertFalse(self.conn.protocol.data_to_send())
+        self.assertEqual(first.read(1), b"")
+        self.assertEqual(
+            self.peer.outbound_flow_control_window, _CONNECTION_WINDOW - size
+        )
+        second = self.fetch()
+        output = self.conn.flush()
+        self.assertTrue(
+            any(
+                isinstance(e, RequestReceived) and e.stream_id == second.stream_id
+                for e in output
+            )
+        )
+        self.assertEqual(
+            [
+                (e.stream_id, e.delta)
+                for e in output
+                if isinstance(e, WindowUpdated) and e.stream_id == 0
+            ],
+            [(0, size)],
+        )
+        self.assertEqual(self.peer.outbound_flow_control_window, _CONNECTION_WINDOW)
 
     def test_cancel_and_late_data_return_connection_credit_once(self):
         exchange = self.start(method="POST")
@@ -164,10 +218,13 @@ class ReceiveFlowTests(unittest.TestCase):
             self.update_windows(), [], "fourth frame straddles the TLS read"
         )
         self.conn.receive()
-        self.assertEqual(self.update_windows(), [(0, _CREDIT_BATCH)])
-        self.assertEqual(self.peer.outbound_flow_control_window, _CONNECTION_WINDOW)
+        self.assertEqual(self.update_windows(), [])
+        self.assertEqual(
+            self.peer.outbound_flow_control_window, _CONNECTION_WINDOW - _CREDIT_BATCH
+        )
         self.assertEqual((self.conn._buffered, self.conn._boosted_streams), (0, 0))
         self.assertEqual(self.start().receive_limit, _STREAM_WINDOW + _STREAM_BOOST)
+        self.assertEqual(self.peer.outbound_flow_control_window, _CONNECTION_WINDOW)
 
     def test_reset_discards_unread_data_but_does_not_kill_the_other_stream(self):
         reset = self.start()
@@ -176,11 +233,13 @@ class ReceiveFlowTests(unittest.TestCase):
         self.peer.reset_stream(reset.stream_id, ErrorCodes.CANCEL)
         self.peer.send_data(keep.stream_id, b"ok", end_stream=True)
         self.conn.receive()
-        self.assertEqual(self.update_windows(), [(0, _CREDIT_BATCH)])
+        self.assertEqual(self.update_windows(), [])
         self.assertEqual((self.conn._buffered, len(reset.buffer)), (2, 0))
         with self.assertRaisesRegex(ProtocolError, "stream reset: 8"):
             reset.read(10)
         self.assertEqual(keep.read(10), b"ok")
+        self.start()
+        self.assertEqual(self.peer.outbound_flow_control_window, _CONNECTION_WINDOW)
 
     def test_cancel_after_remote_end_still_resets_unfinished_upload(self):
         exchange = self.start(method="POST")
@@ -212,7 +271,7 @@ class ReceiveFlowTests(unittest.TestCase):
         )
         self.conn.receive()
         self.assertFalse(self.conn.idle())
-        self.assertEqual(self.update_windows(), [(0, _CREDIT_BATCH)])
+        self.assertEqual(self.update_windows(), [])
         with self.assertRaises(Rejected):
             rejected.read(64)
         self.assertEqual(accepted.read(64), b"ok")

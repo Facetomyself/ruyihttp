@@ -44,6 +44,7 @@ _MAX_STREAMS = 64  # also counts completed responses until their bodies are rele
 _STREAM_BOOST = 512 * 1024
 _MAX_BOOSTS = 7
 _CREDIT_BATCH = 64 * 1024
+_CONNECTION_REFILL = _CONNECTION_WINDOW // 2
 # Reserve each stream's whole receive window, rather than betting on a peer's
 # DATA scheduling. Leave 512 KiB of the Firefox connection window unassigned.
 _BUFFER_LIMIT = _MAX_STREAMS * _STREAM_WINDOW + _MAX_BOOSTS * _STREAM_BOOST
@@ -94,10 +95,19 @@ class FirefoxEncoder(Encoder):
 
 class _ConnectionWindow(WindowManager):
     def _maybe_update_window(self):
-        # Use the same bookkeeping for application reads and the late DATA
-        # hyper-h2 itself discards after RST_STREAM. Its default half-window
-        # batching would let several MiB of consumed credit obscure our reserve.
-        if self._bytes_processed < _CREDIT_BATCH:
+        return self.release_processed()
+
+    def release_processed(self, *, piggyback=False):
+        # Keep healthy-window credit for the next outgoing frame instead of
+        # sending tiny TLS records at the end of every response. On Nagle
+        # transports those can delay the next HEADERS behind TCP delayed ACK.
+        # Under pressure, return credit promptly, including for late DATA
+        # that hyper-h2 acknowledges after RST_STREAM.
+        if not self._bytes_processed:
+            return None
+        if self.current_window_size > _CONNECTION_REFILL and not piggyback:
+            return None
+        if self._bytes_processed < _CREDIT_BATCH and self.current_window_size:
             return None
         increment = min(
             self._bytes_processed, self.max_window_size - self.current_window_size
@@ -122,8 +132,17 @@ class _Protocol(H2Connection):
             self.inbound_flow_control_window
         )
 
-    def release_connection_credit(self, count):
-        increment = self._inbound_flow_control_window_manager.process_bytes(count)
+    def release_connection_credit(self, count=0):
+        self._queue_connection_update(
+            self._inbound_flow_control_window_manager.process_bytes(count)
+        )
+
+    def piggyback_connection_credit(self):
+        self._queue_connection_update(
+            self._inbound_flow_control_window_manager.release_processed(piggyback=True)
+        )
+
+    def _queue_connection_update(self, increment):
         if increment:
             frame = WindowUpdateFrame(0)
             frame.window_increment = increment
@@ -387,6 +406,9 @@ class Connection:
                             )
                     elif isinstance(event, StreamEnded):
                         exchange.ended = True
+            # New unread DATA can cross the low-water mark without any reads
+            # or padding to trigger a refund. Recheck after every TLS batch.
+            self.protocol.release_connection_credit()
         except H2Error as error:
             raise ProtocolError(str(error)) from error
 
@@ -479,6 +501,7 @@ class Connection:
                 )
                 exchange.receive_limit += _STREAM_BOOST
                 self._boosted_streams += 1
+            self.protocol.piggyback_connection_credit()
             self.streams[exchange.stream_id] = exchange
         elif operation == "write":
             window = self.protocol.local_flow_control_window(exchange.stream_id)
@@ -509,6 +532,7 @@ class Connection:
         elif operation == "cancel":
             if self.streams.pop(exchange.stream_id, None) is not None:
                 self._boosted_streams -= exchange.receive_limit > _STREAM_WINDOW
+            reset = False
             if exchange.stream_id is not None and not (
                 exchange.ended and exchange.sent_end
             ):
@@ -516,9 +540,12 @@ class Connection:
                     self.protocol.reset_stream(
                         exchange.stream_id, error_code=ErrorCodes.CANCEL
                     )
+                    reset = True
                 except H2Error:
                     pass
             self._fail_exchange(exchange, ProtocolError("HTTP/2 response closed"))
+            if reset:
+                self.protocol.piggyback_connection_credit()
         return True
 
     def _run(self):
