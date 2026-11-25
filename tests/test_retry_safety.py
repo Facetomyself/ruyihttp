@@ -141,11 +141,14 @@ class RetryClassificationTests(unittest.TestCase):
             for kind in ("reset", "stop_sending"):
                 with self.subTest(code=code, kind=kind):
                     exchange = Mock(sent_data=True, received_data=False)
-                    connection = Mock(streams={4: exchange})
-                    connection._call.return_value = {
-                        "events": [{"type": kind, "stream": 4, "error": code}]
-                    }
-                    H3Connection._events(connection)
+                    connection = object.__new__(H3Connection)
+                    connection.streams = {4: exchange}
+                    connection._call = Mock(
+                        return_value={
+                            "events": [{"type": kind, "stream": 4, "error": code}]
+                        }
+                    )
+                    connection._events()
                     error = exchange.fail.call_args.args[0]
                     self.assertIsInstance(error, expected)
                     self.assertEqual(restartable(error, "POST", exchange), can_restart)
@@ -153,11 +156,14 @@ class RetryClassificationTests(unittest.TestCase):
     def test_http3_goaway_rejects_at_and_beyond_threshold(self):
         accepted = Mock()
         later = Mock(sent_data=True, received_data=False)
-        connection = Mock(streams={0: accepted, 4: later})
-        connection._call.return_value = {
-            "events": [{"type": "state", "state": "going_away", "last": 4}]
-        }
-        H3Connection._events(connection)
+        connection = object.__new__(H3Connection)
+        connection.streams = {0: accepted, 4: later}
+        connection._call = Mock(
+            return_value={
+                "events": [{"type": "state", "state": "going_away", "last": 4}]
+            }
+        )
+        connection._events()
         accepted.fail.assert_not_called()
         self.assertTrue(restartable(later.fail.call_args.args[0], "POST", later))
 
