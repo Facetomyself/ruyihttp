@@ -52,7 +52,14 @@ def benchmark(d, ports):
         s.trust_env = False
         return s
 
-    def req(s, proto, path=b"/small", chunk=65536, expected=True):
+    def bootstrap(s):
+        with s.get(
+            f"https://127.0.0.1:{ports['bootstrap']}/advertise", allow_redirects=False
+        ) as r:
+            assert r.status_code == 200 and r.raw.version == 11 and r.content == b""
+            assert 'h3="' in r.headers["Alt-Svc"]
+
+    def req(s, proto, path=b"/small", chunk=65536):
         url = (
             f"https://127.0.0.1:{ports['bootstrap' if proto == 'h3' else proto]}"
             + path.decode()
@@ -63,14 +70,8 @@ def benchmark(d, ports):
             for data in r.iter_content(chunk):
                 sha.update(data)
                 byte_count += len(data)
-            assert r.status_code == 200 and (
-                (not expected)
-                or (
-                    r.raw.version == v[proto]
-                    and r.tls["alpn"]
-                    == {"h1": "http/1.1", "h2": "h2", "h3": "h3"}[proto]
-                )
-            )
+            assert (r.status_code, r.raw.version) == (200, v[proto])
+            assert r.tls["alpn"] == {"h1": "http/1.1", "h2": "h2", "h3": "h3"}[proto]
             assert sha.digest() == EXPECTED[path]
             return byte_count, r.headers["x-conn"]
 
@@ -78,7 +79,7 @@ def benchmark(d, ports):
         for proto in v:
             s = sessions[proto] = new(ca)
             if proto == "h3":
-                req(s, proto, expected=False)
+                bootstrap(s)
             for _ in range(3):
                 _, last_conn[proto] = req(s, proto)
 
@@ -118,12 +119,17 @@ def benchmark(d, ports):
                 (ca, "fixture-ca"),
                 (full, "fixture-plus-packaged-roots"),
             ):
+                for proto in protos:
 
-                def fresh():
-                    with new(root) as s:
-                        return req(s, "h1")[0]
+                    def fresh():
+                        with new(root) as session:
+                            if proto == "h3":
+                                # This timed sample includes an empty H1 bootstrap before QUIC.
+                                bootstrap(session)
+                            return req(session, proto)[0]
 
-                measure("h1:new-session:small:" + lab, 8, fresh)
+                    kind = "bootstrap-and-small" if proto == "h3" else "small"
+                    measure(f"{proto}:new-session:{kind}:{lab}", 8, fresh)
         output = {}
         for k, row in rows.items():
             w = row["wall_ms"]

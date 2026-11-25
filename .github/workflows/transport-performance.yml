@@ -6,6 +6,8 @@ on:
         description: Measure the frozen pre-optimization wheel in this job for comparison
         type: boolean
         default: true
+  pull_request:
+    paths: ['benchmarks/**', '.github/workflows/transport-performance.yml']
   schedule:
     - cron: '17 3 * * 1'
 permissions:
@@ -15,16 +17,18 @@ concurrency:
   cancel-in-progress: false
 jobs:
   trend:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 16
     env:
       BASELINE: ea44f8fe4468bbee80996e4e73745d6d53c072cc
-      COMPARE: ${{ github.event_name == 'schedule' || inputs.compare_reference }}
+      COMPARE: ${{ github.event_name != 'workflow_dispatch' || inputs.compare_reference }}
       PIP_DISABLE_PIP_VERSION_CHECK: '1'
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12.16'
@@ -50,7 +54,9 @@ jobs:
             [[ ${#wheel[@]} -eq 1 ]]
             "$py" -m pip install --force-reinstall --no-deps "${wheel[0]}"
             "$py" -m pip check
-            "$py" "$GITHUB_WORKSPACE/benchmarks/transport.py" --wheel "${wheel[0]}" --commit "$sha" --output "perf-results/$label.json"
+            local cpu
+            cpu=$("$py" -c 'import os;print(min(os.sched_getaffinity(0)))')
+            taskset -c "$cpu" "$py" "$GITHUB_WORKSPACE/benchmarks/transport.py" --wheel "${wheel[0]}" --commit "$sha" --output "perf-results/$label.json"
           }
           ref=()
           if [[ "$COMPARE" == true ]]; then
