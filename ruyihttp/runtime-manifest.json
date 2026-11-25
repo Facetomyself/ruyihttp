@@ -23,6 +23,10 @@
         "necko_quic.dll": "bba3edc283a339f3b391e6590b942a6d250b8c7e9520484380d7f41c3b88dd62",
         "nss3.dll": "b6b44e3cbd731e1c1cd95e53b5266dae7f346267668124e5cd687b8355bee683",
         "softokn3.dll": "303c91b2f2ec4042c269a2196fbfaee2683db5e710a300112b7053285fa57a46"
+      },
+      "h3_version_export": {
+        "type": "ascii",
+        "value": "neqo-0.32.0/nss-3.131"
       }
     },
     "darwin_arm64": {
@@ -40,6 +44,10 @@
         "libnecko_quic.dylib": "e193b1b03eee922c2e5e2b57add26578a634454d121b40a3bdcba11f7fa5061d",
         "libnss3.dylib": "f3be1b0373e5731372c953d92a0c42fb12b7119545564476c84fcf5f5592ca14",
         "libsoftokn3.dylib": "abef8c026f47fee828f2b11cccf650091a0d8bcc9522126d242e1d341f4d33ba"
+      },
+      "h3_version_export": {
+        "type": "ascii",
+        "value": "neqo-0.33.0/nss-3.132"
       }
     },
     "linux_x86_64": {
@@ -63,6 +71,11 @@
         "libsqlite3.so": "dde33a2c3c529f5ed63549cb940951cb65b9b2b411f6b810a1b51d42030aa267",
         "libnssckbi.so": "35db0e5d296e852c1e3f6f24c0a5b7c14eee4427a290d394ecd9b8faa285fe73",
         "libnsssysinit.so": "2b855312d9582fce29dcc81ed552deed4a33803fa4802171a26348ab062116cb"
+      },
+      "h3_tls": "nss",
+      "h3_version_export": {
+        "type": "u32",
+        "value": 32
       }
     },
     "darwin_x86_64": {
@@ -79,7 +92,12 @@
         "libfreebl3.dylib": "ee816e9dec66edc52ba44b67bdb6844a49839d838a84e9a3c2b0d8148475e502",
         "libmozglue.dylib": "52a7bb0803ec133312c7e895d0c5e33b23b8c1e8d2a8660f3d51d6b61c350cc8"
       },
-      "wheel_platform_tag": "macosx_15_0_x86_64"
+      "wheel_platform_tag": "macosx_15_0_x86_64",
+      "h3_tls": "nss",
+      "h3_version_export": {
+        "type": "ascii",
+        "value": "neqo-0.33.0/nss-3.132"
+      }
     },
     "linux_aarch64": {
       "status": "ready",
@@ -103,7 +121,12 @@
         "libnssckbi.so": "81f5217ece8f88714ae9a1f7315609b9b0a41e505e557ba77c581b8c0932c774",
         "libnsssysinit.so": "ce4f0ddc9300a1732af10e22813a775b0c835810c9232b1b6ffc7e0110e95566"
       },
-      "wheel_platform_tag": "manylinux_2_39_aarch64"
+      "wheel_platform_tag": "manylinux_2_39_aarch64",
+      "h3_tls": "nss",
+      "h3_version_export": {
+        "type": "u32",
+        "value": 32
+      }
     }
   }
 }

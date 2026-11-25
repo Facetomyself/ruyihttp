@@ -26,6 +26,7 @@ def main():
         env.pop(key, None)
     env["RUYIHTTP_TEST_NATIVE_H3"] = "1"
     env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONFAULTHANDLER"] = "1"
     if sys.platform == "darwin":
         prefix = subprocess.check_output(["brew", "--prefix", "openssl@3"], text=True).strip()
         env["PATH"] = str(Path(prefix) / "bin") + os.pathsep + env["PATH"]
@@ -66,7 +67,8 @@ def main():
             failed.append(module)
     python("proxy", ROOT / "ci/smoke_proxy_chain.py")
     python("h2-eof", ROOT / "ci/smoke_h2_close.py")
-    run("request-boundaries", ["bash", str(ROOT / "ci/verify_request_boundaries.sh")])
+    bash = Path(os.environ['ProgramFiles']) / 'Git/bin/bash.exe' if os.name == 'nt' else 'bash'
+    run("request-boundaries", [str(bash), str(ROOT / "ci/verify_request_boundaries.sh")])
     if slot == "win_amd64":
         python("upgrade-0.9.0", "-I", ROOT / "ci/upgrade_from_090.py", wheel)
     if failed:

@@ -262,8 +262,11 @@ class NativeHTTP3Tests(unittest.TestCase):
 
     def _assert_no_tcp(self, *addresses):
         for address in addresses:
-            with self.assertRaises(ConnectionRefusedError):
-                socket.create_connection(address[:2], timeout=1).close()
+            with self.subTest(tcp_negative=address[:2]):
+                # The Windows loopback refusal arrives after its initial TCP
+                # retransmit interval. A timeout is not proof of refusal.
+                with self.assertRaises(ConnectionRefusedError):
+                    socket.create_connection(address[:2], timeout=5).close()
 
     def _connect(self, origin, host=_HOST, cafile=None, firefox=None):
         connection = Connection(
@@ -299,15 +302,14 @@ class NativeHTTP3Tests(unittest.TestCase):
         return result
 
     def _assert_tls(self, info, firefox=None):
-        shape = self.runtime.get("h3_tls", "nss")
+        shape = self.runtime["h3_tls"]
         if shape == "null":
             # Historical Apple Silicon bridge reports certificates, but no TLS
             # metadata. The UDP origin must independently observe negotiated h3.
             self.assertIsNone(info)
         elif shape == "windows-legacy":
-            self.assertEqual(info["backend"], "NSS/Neqo", info)
-            self.assertEqual(info["alpn"], "h3", info)
-            self.assertEqual(info["version"], 0x0304, info)
+            self.assertEqual(info, {"backend": "NSS/Neqo", "alpn": "h3", "version": 0x0304,
+                                    "cipher_suite": 0x1302, "resumed": False})
         else:
             self.assertEqual(shape, "nss")
             self.assertEqual(info["alpn"], "h3", info)
