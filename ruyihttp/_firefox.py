@@ -6,6 +6,7 @@ import copy
 import ipaddress
 import os
 import platform as _platform
+import re
 import sys
 from http.cookiejar import DefaultCookiePolicy
 from pathlib import Path
@@ -249,9 +250,51 @@ def firefox_version(value):
 ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
 
+_IPV4_NUMBER = re.compile(r"(?:[0-9]+|0[xX][0-9a-fA-F]*)")
+
+
+def _ip_host(host):
+    """Canonical IP host, or the full spelling of an ambiguous numeric host."""
+    if ":" in host:
+        try:
+            return str(ipaddress.IPv6Address(host))
+        except ValueError:
+            return host
+
+    # URL IPv4 hosts can have a single final dot and legacy decimal, octal,
+    # or hex components. Never reduce an ambiguous numeric host through PSL.
+    parts = host.removesuffix(".").split(".")
+    if not any(parts) or any(p and not _IPV4_NUMBER.fullmatch(p) for p in parts):
+        return None
+    if len(parts) > 4 or not all(parts):
+        return host
+
+    address = 0
+    for index, part in enumerate(parts):
+        if part.startswith(("0x", "0X")):
+            base, digits = 16, part[2:]
+            if not digits:
+                return host
+        else:
+            base, digits = (8 if part.startswith("0") else 10), part
+        digits = digits.lstrip("0") or "0"
+        if len(digits) > 11:  # Even 32-bit octal fits in 11 digits.
+            return host
+        try:
+            value = int(digits, base)
+        except ValueError:
+            return host
+        bits = 8 if index < len(parts) - 1 else 8 * (5 - len(parts))
+        if value >= 1 << bits:
+            return host
+        address = (address << bits) | value
+    return str(ipaddress.IPv4Address(address))
+
+
 def origin(url):
     parsed = urlsplit(url)
     host = parsed.hostname or ""
+    host = _ip_host(host) or host
     if ":" in host:
         host = f"[{host}]"
     port = parsed.port
@@ -263,7 +306,8 @@ def origin(url):
 def site(url):
     parsed = urlsplit(url)
     host = parsed.hostname or ""
-    return parsed.scheme, _SUFFIXES.privatesuffix(host) or host
+    # Only DNS names have registrable domains; an IP site's host is the full address.
+    return parsed.scheme, _ip_host(host) or _SUFFIXES.privatesuffix(host) or host
 
 
 def relation(source, target):
