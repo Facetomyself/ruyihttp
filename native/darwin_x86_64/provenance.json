@@ -1,6 +1,6 @@
 {
   "platform": "darwin_x86_64",
-  "source": "Native source build verified by an installed-wheel runner",
+  "source": "Pinned native source build; runtime-qualified on GitHub Actions; evidence upload timed out",
   "ff_ruyijs_commit": "f557fcd437aae5f18f313eb330bd3ef50f5fc7df",
   "firefox_source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
   "wheel_platform_tag": "macosx_15_0_x86_64",
@@ -10,14 +10,46 @@
     "nspr": "4.40",
     "neqo": "0.33.0"
   },
+  "source_patches": [
+    {
+      "path": "native/patches/macos-necko-quic-tls-info.patch",
+      "sha256": "9bfd07f9132938f3709d2142d3facc286908838333c74cd6628c9a04824efa1e"
+    },
+    {
+      "path": "native/patches/h3-body-abi-v1.patch",
+      "sha256": "58f2c3eeb7664f721a82e0742289d58ae09b844ed1e6c32f69fbf960a3922a19"
+    },
+    {
+      "path": "native/patches/macos-h3-global-handles.patch",
+      "sha256": "a48d77b35df26abc8418a4dafa2895593167d30d3ec473e709742c1064ec61c4"
+    }
+  ],
+  "h3_body_abi_expected": 1,
+  "minimum_macos": "15.0.0",
+  "macho_minimum_macos": {
+    "libnecko_core.dylib": "15.0.0",
+    "libnecko_quic.dylib": "15.0.0",
+    "libnss3.dylib": "15.0.0",
+    "libsoftokn3.dylib": "15.0.0",
+    "libfreebl3.dylib": "15.0.0",
+    "libmozglue.dylib": "15.0.0"
+  },
   "files": {
+    "libfreebl3.dylib": {
+      "size": 1457592,
+      "sha256": "ee816e9dec66edc52ba44b67bdb6844a49839d838a84e9a3c2b0d8148475e502"
+    },
+    "libmozglue.dylib": {
+      "size": 659200,
+      "sha256": "52a7bb0803ec133312c7e895d0c5e33b23b8c1e8d2a8660f3d51d6b61c350cc8"
+    },
     "libnecko_core.dylib": {
       "size": 31752,
       "sha256": "16257c1cf9cf44f90a96d52c3e069ae8f4f439723afbc8085b741adf257ac06c"
     },
     "libnecko_quic.dylib": {
-      "size": 3026584,
-      "sha256": "c2fc134ad5f152d5ceb1dcee92a55a6e87e714a53391abb5ea83e5fa9951f77d"
+      "size": 3036632,
+      "sha256": "5dd0347c2f0d3e8f3b41466739726756c815a0e51d05b13329e5f7672c3cc00a"
     },
     "libnss3.dylib": {
       "size": 3384840,
@@ -26,34 +58,25 @@
     "libsoftokn3.dylib": {
       "size": 408824,
       "sha256": "e17b78deede206e5702108ca59106ff7f455523bf09908f2264bcc0dd5ec9bf0"
-    },
-    "libfreebl3.dylib": {
-      "size": 1457592,
-      "sha256": "ee816e9dec66edc52ba44b67bdb6844a49839d838a84e9a3c2b0d8148475e502"
-    },
-    "libmozglue.dylib": {
-      "size": 659200,
-      "sha256": "52a7bb0803ec133312c7e895d0c5e33b23b8c1e8d2a8660f3d51d6b61c350cc8"
     }
   },
-  "source_patch": {
-    "path": "native/patches/macos-necko-quic-tls-info.patch",
-    "sha256": "9bfd07f9132938f3709d2142d3facc286908838333c74cd6628c9a04824efa1e"
-  },
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45341302623",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45341302623/job/138265337250",
-    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45341302623/artifacts/14896329696",
-    "ruyihttp_commit": "c5138c5ef3554dbba29f5a850d63017904878e50",
-    "wheel_sha256": "444e8fb65d60e9af8e9889cff93e5cd71a13a3982fa9c4c822a5ebe9b87fa820",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657947543",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657947543/job/139359628552",
+    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
+    "job_conclusion": "failure (evidence upload only, GitHub CreateArtifact timeout after five attempts)",
+    "qualification_step_conclusions": {
+      "CPython 3.10": "success",
+      "CPython 3.14": "success"
+    },
+    "diagnostic_wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657947543/artifacts/15044654167",
+    "wheel_sha256": "c7e54c837f2243a7ce9b0ae4c26b009a8c1204a8e6673c2d3d46c9eed8e14515",
+    "job_log_sha256": "ccf2614ed7419e9e1c1aecba445a77acdc383ba67129cbb51f5d1441278483e6",
     "tested_http": [
       "http/1.1",
       "h2",
       "h3"
     ],
-    "native_h3_cases": 6,
-    "proxy_cases": 10,
-    "h2_eof_complete": 12,
-    "h2_eof_truncated": 3
+    "h3_body_abi": 1
   }
 }
