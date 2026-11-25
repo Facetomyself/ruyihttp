@@ -16,6 +16,7 @@ from h2.events import (
     ConnectionTerminated,
     DataReceived,
     InformationalResponseReceived,
+    PushedStreamReceived,
     RemoteSettingsChanged,
     ResponseReceived,
     StreamEnded,
@@ -24,16 +25,31 @@ from h2.events import (
     UnknownFrameReceived,
 )
 from h2.exceptions import H2Error
-from h2.settings import Settings
-
-from ._firefox import DEFAULT_FIREFOX, PROFILES
+from h2.settings import SettingCodes, Settings
+from h2.windows import WindowManager
 from hpack import Encoder
 from hpack.hpack import INDEX_INCREMENTAL, INDEX_NEVER
+from hyperframe.frame import WindowUpdateFrame
 from urllib3._collections import HTTPHeaderDict
 from urllib3.exceptions import ProtocolError
 
+from ._firefox import DEFAULT_FIREFOX, PROFILES
 from ._http3 import _Call
 from ._retry import Http1Required, Http1RequiredUnprocessed, Rejected, Reset
+
+
+_CONNECTION_WINDOW = 12 * 1024**2
+_STREAM_WINDOW = 128 * 1024  # Firefox SETTINGS_INITIAL_WINDOW_SIZE
+_MAX_STREAMS = 64  # also counts completed responses until their bodies are released
+_STREAM_BOOST = 512 * 1024
+_MAX_BOOSTS = 7
+_CREDIT_BATCH = 64 * 1024
+# Reserve each stream's whole receive window, rather than betting on a peer's
+# DATA scheduling. Leave 512 KiB of the Firefox connection window unassigned.
+_BUFFER_LIMIT = _MAX_STREAMS * _STREAM_WINDOW + _MAX_BOOSTS * _STREAM_BOOST
+_OUTPUT_LIMIT = 64 * 1024
+_ACTIVE_POLL = (0.001, 0.008)
+_PASSIVE_POLL = (0.005, 0.040)
 
 
 class FirefoxEncoder(Encoder):
@@ -76,7 +92,43 @@ class FirefoxEncoder(Encoder):
         return encoded
 
 
+class _ConnectionWindow(WindowManager):
+    def _maybe_update_window(self):
+        # Use the same bookkeeping for application reads and the late DATA
+        # hyper-h2 itself discards after RST_STREAM. Its default half-window
+        # batching would let several MiB of consumed credit obscure our reserve.
+        if self._bytes_processed < _CREDIT_BATCH:
+            return None
+        increment = min(
+            self._bytes_processed, self.max_window_size - self.current_window_size
+        )
+        self._bytes_processed = 0
+        self.window_opened(increment)
+        return increment
+
+
+class _LocalSettings(Settings):
+    @Settings.enable_push.getter
+    def enable_push(self):
+        # Older profiles omit the setting. RFC 9113 gives that omission the
+        # value 1; preserve the wire profile without leaving a lookup hole.
+        return self.get(SettingCodes.ENABLE_PUSH, 1)
+
+
 class _Protocol(H2Connection):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._inbound_flow_control_window_manager = _ConnectionWindow(
+            self.inbound_flow_control_window
+        )
+
+    def release_connection_credit(self, count):
+        increment = self._inbound_flow_control_window_manager.process_bytes(count)
+        if increment:
+            frame = WindowUpdateFrame(0)
+            frame.window_increment = increment
+            self._prepare_for_sending([frame])
+
     def _receive_goaway_frame(self, frame):
         event = ConnectionTerminated()
         event.error_code = frame.error_code
@@ -98,23 +150,35 @@ class Connection:
         self.protocol.encoder = FirefoxEncoder()
         profile = PROFILES[getattr(transport, "firefox", None) or DEFAULT_FIREFOX]
         wanted = dict(profile["h2_settings"])
-        self.protocol.local_settings = Settings(client=True, initial_values=wanted)
+        self.protocol.local_settings = _LocalSettings(
+            client=True, initial_values=wanted
+        )
         # hyper-h2 adds defaults Firefox omits; keep exactly the profile's.
         for code in list(self.protocol.local_settings):
             if code not in wanted:
                 del self.protocol.local_settings[code]
         self.protocol.decoder.max_allowed_table_size = 65536
         self.protocol.initiate_connection()
-        self.protocol.increment_flow_control_window(12517377)
+        self.protocol.increment_flow_control_window(_CONNECTION_WINDOW - 65535)
         # Firefox before 132 (except 128) groups streams under idle "class"
         # streams 3-13: (stream, depends_on, weight).
         self.priority_tree = profile["h2_priority_tree"]
         if self.priority_tree:
             for stream, depends_on, weight in (
-                (3, 0, 201), (5, 0, 101), (7, 0, 1), (9, 7, 1), (11, 3, 1), (13, 0, 241),
+                (3, 0, 201),
+                (5, 0, 101),
+                (7, 0, 1),
+                (9, 7, 1),
+                (11, 3, 1),
+                (13, 0, 241),
             ):
                 self.protocol.prioritize(stream, weight=weight, depends_on=depends_on)
         self.streams = {}
+        self._boosted_streams = 0
+        self._buffered = 0
+        # Permit one lease before peer SETTINGS, so the initial request can
+        # still be written alongside the preface. Only the worker updates this.
+        self._peer_stream_limit = 1
         self.closed = False
         self.goaway = False
         self.goaway_error = 0
@@ -155,10 +219,7 @@ class Connection:
             raise TimeoutError("HTTP/2 request operation cancelled")
         if exchange.ended and not exchange.error:
             if call.operation == "read":
-                size = call.arguments["size"]
-                data = bytes(exchange.buffer[:size])
-                del exchange.buffer[:size]
-                return data
+                return self._take_body(exchange, call.arguments["size"])
             if call.operation == "write" and exchange.upload_stopped:
                 return 0
             if call.operation in ("headers", "finish", "cancel"):
@@ -170,12 +231,37 @@ class Connection:
             if exchange.closed:
                 return
             exchange.closed = True
-            if not self.closed:
-                self.commands.put(_Call("cancel", exchange, None))
+            if self.closed:
+                self._discard_body(exchange)
+                return
+            self.commands.put(_Call("cancel", exchange, None))
         self.wake.set()
+
+    def _take_body(self, exchange, size):
+        data = bytes(memoryview(exchange.buffer)[:size])
+        del exchange.buffer[: len(data)]
+        self._buffered -= len(data)
+        return data
+
+    def _discard_body(self, exchange):
+        count = len(exchange.buffer)
+        exchange.buffer.clear()
+        self._buffered -= count
+        return count
+
+    def _fail_exchange(self, exchange, error):
+        exchange.fail(error)
+        count = self._discard_body(exchange)
+        if count:
+            self.protocol.release_connection_credit(count)
+
+    def _output_size(self):
+        return len(self._output) + len(self._write_buffer)
 
     def flush(self):
         self._output.extend(self.protocol.data_to_send())
+        if not (self._output or self._write_buffer or self._tls_pending):
+            return
         for _ in range(32):
             if not self._write_buffer:
                 if not self._output:
@@ -197,9 +283,11 @@ class Connection:
             self._write_buffer = self._write_buffer[count:]
 
     def receive(self):
+        # A TLS read can produce ciphertext (e.g. a key update) even if no
+        # HTTP/2 control frame is due. Give the native transport one flush.
+        self._tls_pending = True
         data = self.transport.read(65536)
         if not data:
-            self.closed = True
             raise Reset("HTTP/2 connection ended before stream completion")
         try:
             events = self.protocol.receive_data(data)
@@ -214,7 +302,9 @@ class Connection:
                                 if event.error_code == 13
                                 else Rejected
                             )
-                            exchange.fail(error("HTTP/2 GOAWAY rejected this request"))
+                            self._fail_exchange(
+                                exchange, error("HTTP/2 GOAWAY rejected this request")
+                            )
                 elif isinstance(event, StreamReset):
                     exchange = self.streams.get(event.stream_id)
                     if exchange is not None:
@@ -236,11 +326,25 @@ class Connection:
                             if event.error_code in (0, 8)
                             else Reset
                         )
-                        exchange.fail(error(f"HTTP/2 stream reset: {event.error_code}"))
+                        self._fail_exchange(
+                            exchange, error(f"HTTP/2 stream reset: {event.error_code}")
+                        )
                         if event.error_code == 9:
                             self.goaway = True
                 elif isinstance(event, RemoteSettingsChanged):
+                    self._peer_stream_limit = min(
+                        _MAX_STREAMS,
+                        self.protocol.remote_settings.max_concurrent_streams,
+                    )
                     self.received_settings = True
+                elif isinstance(event, PushedStreamReceived):
+                    # Older profiles omit ENABLE_PUSH; the Requests API has
+                    # no consumer for pushes. Never grant them receive budget.
+                    stream = self.protocol.streams.get(event.pushed_stream_id)
+                    if stream is not None and not stream.closed:
+                        self.protocol.reset_stream(
+                            event.pushed_stream_id, ErrorCodes.CANCEL
+                        )
                 elif (
                     isinstance(event, UnknownFrameReceived) and event.frame.type == 0xC
                 ):
@@ -256,24 +360,34 @@ class Connection:
                     ),
                 ):
                     exchange = self.streams.get(event.stream_id)
-                    if exchange is None or exchange.closed:
+                    if exchange is None or exchange.closed or exchange.error:
                         if isinstance(event, DataReceived):
-                            self.protocol.acknowledge_received_data(
-                                event.flow_controlled_length, event.stream_id
+                            self.protocol.release_connection_credit(
+                                event.flow_controlled_length
                             )
                         continue
                     exchange.received_data = True
                     if isinstance(event, ResponseReceived):
                         exchange.response_headers(event.headers)
                     elif isinstance(event, DataReceived):
+                        size = len(event.data)
+                        if (
+                            len(exchange.buffer) + size > exchange.receive_limit
+                            or self._buffered + size > _BUFFER_LIMIT
+                        ):
+                            raise ProtocolError("HTTP/2 receive buffer limit exceeded")
                         exchange.buffer.extend(event.data)
-                        # Credit is returned only after the caller consumes body data.
-                        exchange.credit += event.flow_controlled_length
+                        self._buffered += size
+                        # Padding occupies wire credit but never occupies the body
+                        # buffer. Return it even when the application does not read.
+                        padding = event.flow_controlled_length - size
+                        if padding:
+                            self.protocol.acknowledge_received_data(
+                                padding, event.stream_id
+                            )
                     elif isinstance(event, StreamEnded):
                         exchange.ended = True
-            self.flush()
         except H2Error as error:
-            self.closed = True
             raise ProtocolError(str(error)) from error
 
     def receive_origins(self, frame):
@@ -304,7 +418,12 @@ class Connection:
         self.origins = frozenset(origins)
 
     def idle(self):
-        return not self.closed and not self.goaway
+        return not (self.closed or self.goaway or self._stopping.is_set())
+
+    def has_capacity(self, leased):
+        # The pool counts leases before a fetch is enqueued and until the body
+        # is released. The worker rechecks actual wire capacity after SETTINGS.
+        return leased < self._peer_stream_limit
 
     def _execute(self, call):
         exchange = call.exchange
@@ -321,8 +440,9 @@ class Connection:
             return True
         if call.deadline is not None and time.monotonic() >= call.deadline:
             raise TimeoutError("HTTP/2 stream timed out")
-        if operation in ("fetch", "write", "finish") and (
-            len(self._output) + len(self._write_buffer) >= 65536
+        if (
+            operation in ("fetch", "write", "finish")
+            and self._output_size() >= _OUTPUT_LIMIT
         ):
             return False
         if operation == "fetch":
@@ -330,12 +450,16 @@ class Connection:
                 if self.goaway_error == 13:
                     raise Http1RequiredUnprocessed("HTTP/2 peer requires HTTP/1.1")
                 raise Rejected("HTTP/2 connection is draining")
-            maximum = min(100, self.protocol.remote_settings.max_concurrent_streams)
-            if self.protocol.open_outbound_streams >= maximum:
+            if (
+                len(self.streams) >= _MAX_STREAMS
+                or self.protocol.open_outbound_streams >= self._peer_stream_limit
+            ):
                 return False
             # Requests follow the priority tree's idle streams when there is one.
             first = 15 if self.priority_tree else 3
-            exchange.stream_id = max(first, self.protocol.get_next_available_stream_id())
+            exchange.stream_id = max(
+                first, self.protocol.get_next_available_stream_id()
+            )
             exchange.sent_data = True
             self.protocol.send_headers(
                 exchange.stream_id,
@@ -349,9 +473,12 @@ class Connection:
                 ),
                 priority_exclusive=False,
             )
-            self.protocol.increment_flow_control_window(
-                12582912 - 131072, exchange.stream_id
-            )
+            if self._boosted_streams < _MAX_BOOSTS:
+                self.protocol.increment_flow_control_window(
+                    _STREAM_BOOST, exchange.stream_id
+                )
+                exchange.receive_limit += _STREAM_BOOST
+                self._boosted_streams += 1
             self.streams[exchange.stream_id] = exchange
         elif operation == "write":
             window = self.protocol.local_flow_control_window(exchange.stream_id)
@@ -369,46 +496,44 @@ class Connection:
             if exchange.status is None:
                 return False
         elif operation == "read":
-            if not exchange.buffer and not exchange.ended:
-                return False
             size = call.arguments["size"]
-            call.result = bytes(exchange.buffer[:size])
-            del exchange.buffer[:size]
-            credit = (
-                min(len(call.result), exchange.credit)
-                if exchange.buffer
-                else exchange.credit
-            )
-            if credit:
-                self.protocol.acknowledge_received_data(credit, exchange.stream_id)
-                exchange.credit -= credit
+            if size and not exchange.buffer and not exchange.ended:
+                return False
+            call.result = self._take_body(exchange, size)
+            count = len(call.result)
+            if count:
+                if exchange.ended:
+                    self.protocol.release_connection_credit(count)
+                else:
+                    self.protocol.acknowledge_received_data(count, exchange.stream_id)
         elif operation == "cancel":
-            self.streams.pop(exchange.stream_id, None)
-            exchange.buffer.clear()
-            if exchange.stream_id is not None:
-                if exchange.credit:
-                    self.protocol.acknowledge_received_data(
-                        exchange.credit, exchange.stream_id
+            if self.streams.pop(exchange.stream_id, None) is not None:
+                self._boosted_streams -= exchange.receive_limit > _STREAM_WINDOW
+            if exchange.stream_id is not None and not (
+                exchange.ended and exchange.sent_end
+            ):
+                try:
+                    self.protocol.reset_stream(
+                        exchange.stream_id, error_code=ErrorCodes.CANCEL
                     )
-                    exchange.credit = 0
-                if not exchange.ended:
-                    try:
-                        self.protocol.reset_stream(exchange.stream_id, error_code=8)
-                    except H2Error:
-                        pass
-            exchange.fail(ProtocolError("HTTP/2 response closed"))
+                except H2Error:
+                    pass
+            self._fail_exchange(exchange, ProtocolError("HTTP/2 response closed"))
         return True
 
     def _run(self):
+        delay = 0
         try:
             while not self._stopping.is_set():
                 self.wake.clear()
                 while True:
                     try:
                         self.pending.append(self.commands.get_nowait())
+                        delay = 0
                     except queue.Empty:
                         break
                 waiting = []
+                completed = False
                 for call in self.pending:
                     try:
                         if not self._execute(call):
@@ -416,11 +541,18 @@ class Connection:
                             continue
                     except Exception as error:
                         call.error = error
+                    # Count queued control/data against the same output limit
+                    # before running another call, without flushing per call.
+                    self._output.extend(self.protocol.data_to_send())
                     call.done.set()
-                    self.flush()
+                    completed = True
                 self.pending = waiting
                 self.flush()
+                received = False
                 for _ in range(32):
+                    # Bound control replies when a peer sends but stops reading.
+                    if self._output_size() >= _OUTPUT_LIMIT or self._stopping.is_set():
+                        break
                     pending = self.transport.library.necko_tls_pending(
                         self.transport.handle
                     )
@@ -437,17 +569,37 @@ class Connection:
                         self.receive()
                     except BlockingIOError:
                         break
+                    received = True
+                    self.flush()
                 else:
+                    delay = 0
                     continue
-                if (
-                    self.pending
-                    or self._output
-                    or self._write_buffer
-                    or self._tls_pending
-                ):
-                    self.wake.wait(0.001)
-                else:
-                    self.wake.wait(0.01)
+                if self._stopping.is_set():
+                    break
+                if received or completed:
+                    delay = 0
+                    if self.pending:
+                        # Headers, END_STREAM, SETTINGS, and upload credit can
+                        # satisfy already queued calls without another poll.
+                        continue
+                active = bool(self.pending or self._output_size() or self._tls_pending)
+                minimum, maximum = _ACTIVE_POLL if active else _PASSIVE_POLL
+                delay = min(maximum, max(minimum, delay * 2))
+                deadline = min(
+                    (
+                        call.deadline
+                        for call in self.pending
+                        if call.deadline is not None
+                    ),
+                    default=None,
+                )
+                remaining = (
+                    delay if deadline is None else max(0, deadline - time.monotonic())
+                )
+                # Native TLS exposes a nonblocking pending probe, not a socket
+                # descriptor. Commands and close interrupt the bounded wait.
+                if self.wake.wait(min(delay, remaining)):
+                    delay = 0
             if self._stopping.is_set() and not self.closed:
                 self.protocol.close_connection(error_code=0)
                 self.flush()
@@ -464,6 +616,10 @@ class Connection:
                 for exchange in self.streams.values():
                     if not exchange.ended:
                         exchange.fail(error)
+                    if exchange.closed or exchange.error:
+                        self._discard_body(exchange)
+                self.streams.clear()
+                self._boosted_streams = 0
                 while True:
                     try:
                         self.pending.append(self.commands.get_nowait())
@@ -500,7 +656,7 @@ class Exchange:
         self.sent_data = False
         self.closed = False
         self.buffer = bytearray()
-        self.credit = 0
+        self.receive_limit = _STREAM_WINDOW
         self.ended = False
         self.sent_end = not has_body
         self.upload_stopped = False

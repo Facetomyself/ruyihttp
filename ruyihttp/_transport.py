@@ -376,6 +376,12 @@ class _Pool:
         self.closed = False
         self.condition = threading.Condition()
 
+    def _has_capacity(self, connection):
+        # Check under condition; a lease occupies a slot even before its
+        # Exchange submits HEADERS, so concurrent callers cannot double-book.
+        h2 = getattr(connection, "h2", None)
+        return h2 is None or h2.has_capacity(self.shared.get(connection, 0))
+
     def acquire(self, prefer=None, http3=True, *, attempt=None):
         with self.condition:
             while True:
@@ -388,6 +394,7 @@ class _Pool:
                         connection.idle()
                         and (prefer is None or connection.alpn == prefer)
                         and (http3 or connection.alpn != "h3")
+                        and self._has_capacity(connection)
                     ):
                         self.shared[connection] += 1
                         self.leased += 1
@@ -424,7 +431,7 @@ class _Pool:
                 if (
                     connection.alpn == "h2"
                     and connection.idle()
-                    and self._can_borrow(connection)
+                    and self._has_capacity(connection)
                 ):
                     self.shared[connection] += 1
                     self.leased += 1
@@ -437,11 +444,6 @@ class _Pool:
                 connection.close()
             return None
 
-    def _can_borrow(self, connection):
-        # Stream admission is optional for multiplexed transports.
-        capacity = getattr(self, "_has_capacity", None)
-        return capacity is None or capacity(connection)
-
     def borrow(self, host, port, addresses, prefer=None, http3=True):
         result = None
         with self.condition:
@@ -452,11 +454,11 @@ class _Pool:
                     continue
                 if not http3 and connection.alpn == "h3":
                     continue
-                if not self._can_borrow(connection):
-                    continue
                 if getattr(connection, "origin_port", None) != port:
                     continue
                 if host in getattr(connection, "coalescing_denied", set()):
+                    continue
+                if not self._has_capacity(connection):
                     continue
                 protocol = getattr(connection, "h2", None)
                 origin_allowed = False
@@ -491,8 +493,18 @@ class _Pool:
             if connection in self.shared:
                 self.shared[connection] -= 1
                 if self.shared[connection] == 0 and (
-                    self.closed or not connection.idle()
+                    self.closed
+                    or not connection.idle()
+                    or (
+                        getattr(connection, "h2", None) is not None
+                        and sum(
+                            not leases and getattr(peer, "h2", None) is not None
+                            for peer, leases in self.shared.items()
+                        ) > self.maximum
+                    )
                 ):
+                    # Nonblocking pools may spill to extra live connections,
+                    # but retain at most pool_maxsize idle H2 connections.
                     self.shared.pop(connection)
                     connection.close()
                 self.condition.notify_all()

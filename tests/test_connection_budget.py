@@ -41,7 +41,7 @@ class ConnectionBudgetTests(unittest.TestCase):
             certificate_chain=b"fixture",
         )
         candidate.h2 = SimpleNamespace(
-            received_settings=True, origins=origins, has_capacity=lambda _leased: True
+            received_settings=True, origins=origins, has_capacity=lambda leased: leased < 100
         )
         candidate.idle.return_value = True
         self.adapter._pool(key("other.test")).shared[candidate] = 0

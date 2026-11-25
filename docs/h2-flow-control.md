@@ -1,0 +1,20 @@
+# HTTP/2 receive flow and connection reuse
+
+HTTP/2 response bodies are buffered before a streaming caller reads them. The receive window on each stream is also its maximum unread payload reservation. A slow reader stops replenishing its own stream; it does not monopolize the connection window.
+
+| Budget | Policy |
+| --- | --- |
+| Connection wire window | 12 MiB, including the initial connection `WINDOW_UPDATE`; unchanged |
+| Base receive credit per admitted stream | 128 KiB, as advertised in the Firefox `SETTINGS_INITIAL_WINDOW_SIZE`; unchanged |
+| Extra stream credit | The first seven current reservations can receive a 512 KiB `WINDOW_UPDATE` each (640 KiB total per boosted stream). Later streams keep the 128 KiB base. An extra slot is reused on release. |
+| Retained streams and payload | Up to 64 reservations, including finished but unread responses. The combined unread payload ceiling is 11.5 MiB per connection: `64 × 128 KiB + 7 × 512 KiB`. At least 512 KiB of the connection window is left unassigned. |
+
+The payload limit covers bytes retained by the H2 worker, including complete responses that still await application reads. Python allocation overhead, transient TLS/H2 frame parsing and caller-owned response bytes are separate. `stream=False` or reading a full body explicitly still collects the body in application memory. Socket buffers and limits on the number of live TCP connections are separate from the per-connection payload budget.
+
+Within the reserve, connection credit is returned in 64 KiB batches. Stream credit is replenished as the application consumes payload. Padding consumes wire credit but is discarded and acknowledged immediately; unread body bytes are never acknowledged as padding. On cancellation or a terminal stream error, discard buffered bytes and restore connection credit without granting more credit to that stream. Late DATA for reset streams uses the same connection credit accounting. Completed bodies remain readable after TLS EOF; partial bodies fail on EOF. Firefox profiles that omit `ENABLE_PUSH` still omit it on the wire; unsolicited pushes are cancelled because the Requests API has no consumer for them.
+
+These are intentional wire differences from the previous policy: the per-stream boost is smaller and no longer issued on every request, and connection credit returns are batched more tightly. The Firefox client preface, settings and their order, initial connection window update, priority, and HPACK behavior remain unchanged. On a high-RTT path, a smaller per-stream window can limit single-stream throughput, especially when the boosted slots are occupied.
+
+The pool checks the latest peer `SETTINGS_MAX_CONCURRENT_STREAMS` and the local reservation limit before leasing an H2 connection, including borrowed/coalesced connections. A slot is counted from pool acquisition, before HEADERS are queued, through response release. This is intentionally conservative: a complete response whose caller has not released it can still occupy a slot. When existing H2 connections are full, a default nonblocking pool may open another connection and retains at most `pool_maxsize` idle H2 connections. A blocking pool waits for release when its normal new-dial limit is reached, bounded by the caller’s connect deadline when one is set. The H2 worker also checks the wire limit; if SETTINGS shrinks after a lease is taken, that fetch can wait for a stream slot or fail at its read deadline. At most one lease is offered before peer SETTINGS arrives.
+
+The native bridge exposes a nonblocking TLS pending probe, not a pollable descriptor. Each connection worker continues servicing unsolicited SETTINGS, ORIGIN, PING and GOAWAY when idle. During an active wait the probe interval backs off from 1 ms to 8 ms without progress; with no waiting call or writes it backs off from 5 ms to 40 ms. Commands and local close wake the worker immediately, and received frames trigger immediate rechecking of waiting calls. Interval caps describe scheduling intent, not guarantees about OS scheduling latency.

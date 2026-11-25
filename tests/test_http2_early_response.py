@@ -4,32 +4,43 @@
 
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.errors import ErrorCodes
 from h2.events import DataReceived, StreamEnded
 
-from ruyihttp._http2 import Connection, Exchange, _Call, _Protocol
+from ruyihttp._http2 import Connection, Exchange, _Call
 from ruyihttp._retry import Reset
 
 
 class WireConnection(Connection):
     """Pump real H2 frames against a peer, with no native thread or socket."""
 
-    def __init__(self):
-        self.protocol = _Protocol(H2Configuration(client_side=True))
+    def __init__(self, firefox=None, settings=None):
         self.peer = H2Connection(H2Configuration(client_side=False))
-        self.transport = SimpleNamespace(h2=self, read=self.peer.data_to_send)
-        self._output = bytearray()
-        self._write_buffer = b""
-        self.streams = {}
-        self.priority_tree = self.goaway = self.closed = False
-        self.error = None
-        self.protocol.initiate_connection()
+        self.wire = bytearray()
+        transport = SimpleNamespace(
+            h2=self,
+            read=self.read_wire,
+            enable_nonblocking=lambda: None,
+            firefox=firefox,
+        )
+        with patch("threading.Thread.start"):
+            super().__init__(transport)
         self.peer.initiate_connection()
+        if settings:
+            self.peer.update_settings(settings)
         self.flush()
         self.receive()
+        self.flush()
+
+    def read_wire(self, size):
+        self.wire.extend(self.peer.data_to_send())
+        data = bytes(self.wire[:size])
+        del self.wire[:size]
+        return data
 
     def submit(self, operation, exchange, **arguments):
         call = _Call(operation, exchange, None, **arguments)
@@ -91,9 +102,12 @@ class EarlyResponseTests(unittest.TestCase):
         for operation in ("finish", "headers"):
             self.assertIsNone(connection._after_close(_Call(operation, exchange, None)))
         self.assertEqual(
-            connection._after_close(_Call("read", exchange, None, size=64)), b"too large"
+            connection._after_close(_Call("read", exchange, None, size=64)),
+            b"too large",
         )
-        self.assertEqual(connection._after_close(_Call("read", exchange, None, size=64)), b"")
+        self.assertEqual(
+            connection._after_close(_Call("read", exchange, None, size=64)), b""
+        )
 
     def test_early_end_stream_without_reset_leaves_upload_open(self):
         self.complete_response(reset=False)
@@ -101,6 +115,8 @@ class EarlyResponseTests(unittest.TestCase):
         self.exchange.write(b"upload")
         self.exchange.receive()
         events = self.connection.flush()
-        self.assertEqual([e.data for e in events if isinstance(e, DataReceived)], [b"upload", b""])
+        self.assertEqual(
+            [e.data for e in events if isinstance(e, DataReceived)], [b"upload", b""]
+        )
         self.assertTrue(any(isinstance(e, StreamEnded) for e in events))
         self.assertTrue(self.exchange.sent_end)

@@ -86,15 +86,22 @@ class RetryPolicyTests(unittest.TestCase):
 
 
 class RetryClassificationTests(unittest.TestCase):
+    def receive_h2(self, streams, event):
+        connection = object.__new__(H2Connection)
+        connection.streams = streams
+        connection._buffered = 0
+        connection.protocol = Mock()
+        connection.protocol.receive_data.return_value = [event]
+        connection.transport = SimpleNamespace(read=lambda n: b"frames")
+        connection.receive()
+
     def test_http2_goaway_at_processing_boundary_preserves_http1_fallback(self):
         accepted = Mock(ended=False)
-        later = Mock(ended=False, sent_data=True, received_data=False)
+        later = Mock(ended=False, sent_data=True, received_data=False, buffer=bytearray())
         event = ConnectionTerminated()
         event.error_code = ErrorCodes.HTTP_1_1_REQUIRED
         event.last_stream_id = 3
-        connection = Mock(streams={3: accepted, 5: later})
-        connection.protocol.receive_data.return_value = [event]
-        H2Connection.receive(connection)
+        self.receive_h2({3: accepted, 5: later}, event)
         accepted.fail.assert_not_called()
         error = later.fail.call_args.args[0]
         self.assertIsInstance(error, Http1Required)
@@ -105,14 +112,12 @@ class RetryClassificationTests(unittest.TestCase):
         call = SimpleNamespace(
             exchange=exchange, operation="fetch", cancelled=False, deadline=None
         )
-        connection = SimpleNamespace(
-            goaway=True,
-            goaway_error=ErrorCodes.HTTP_1_1_REQUIRED,
-            _output=b"",
-            _write_buffer=b"",
-        )
+        connection = object.__new__(H2Connection)
+        connection.goaway = True
+        connection.goaway_error = ErrorCodes.HTTP_1_1_REQUIRED
+        connection._output = connection._write_buffer = b""
         with self.assertRaises(Http1RequiredUnprocessed) as exception:
-            H2Connection._execute(connection, call)
+            connection._execute(call)
         self.assertTrue(restartable(exception.exception, "POST", None))
 
     def test_http2_refused_stream_is_distinct_from_http1_required_reset(self):
@@ -122,11 +127,9 @@ class RetryClassificationTests(unittest.TestCase):
             (ErrorCodes.CANCEL, ProtocolError, False),
         ):
             with self.subTest(code=code):
-                exchange = Mock(sent_data=True, received_data=False)
-                connection = Mock(streams={3: exchange})
+                exchange = Mock(sent_data=True, received_data=False, buffer=bytearray())
                 event = StreamReset(stream_id=3, error_code=code)
-                connection.protocol.receive_data.return_value = [event]
-                H2Connection.receive(connection)
+                self.receive_h2({3: exchange}, event)
                 error = exchange.fail.call_args.args[0]
                 self.assertIsInstance(error, expected)
                 self.assertEqual(restartable(error, "POST", exchange), can_restart)
