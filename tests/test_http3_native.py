@@ -10,6 +10,7 @@ Set NECKO_CORE_LIBRARY if running from source rather than an installed wheel.
 import asyncio
 import hashlib
 import ipaddress
+import json
 import os
 import socket
 import ssl
@@ -28,6 +29,7 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from urllib3.exceptions import ProtocolError
 
 import ruyihttp
+from ruyihttp._firefox import runtime_platform
 from ruyihttp._http3 import Connection, Exchange
 from ruyihttp._nss import Context
 from ruyihttp._transport import _load_library
@@ -229,6 +231,9 @@ class NativeHTTP3Tests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.directory = Path(directory.name)
         self.core = _load_library()._name
+        self.runtime = json.loads(
+            Path(ruyihttp.__file__).with_name("runtime-manifest.json").read_text(encoding="utf-8")
+        )["platforms"][runtime_platform()]
         now = datetime.now(timezone.utc)
         ca, ca_key = _ca("RuyiHttp H3 test CA", now)
         other_ca, _ = _ca("RuyiHttp unrelated test CA", now)
@@ -293,16 +298,29 @@ class NativeHTTP3Tests(unittest.TestCase):
         exchange.close()
         return result
 
-    def _assert_tls(self, info):
-        self.assertEqual(info["alpn"], "h3")
-        self.assertEqual(info["backend"], "NSS")
-        self.assertEqual(info["version"], 0x0304)
+    def _assert_tls(self, info, firefox=None):
+        shape = self.runtime.get("h3_tls", "nss")
+        if shape == "null":
+            # Historical Apple Silicon bridge reports certificates, but no TLS
+            # metadata. The UDP origin must independently observe negotiated h3.
+            self.assertIsNone(info)
+        elif shape == "windows-legacy":
+            self.assertEqual(info["backend"], "NSS/Neqo", info)
+            self.assertEqual(info["alpn"], "h3", info)
+            self.assertEqual(info["version"], 0x0304, info)
+        else:
+            self.assertEqual(shape, "nss")
+            self.assertEqual(info["alpn"], "h3", info)
+            self.assertEqual(info["backend"], "NSS", info)
+            self.assertEqual(info["version"], 0x0304, info)
+            self.assertEqual(info["nss"], self.runtime["nss"], info)
+            if firefox is not None:
+                self.assertEqual(info["profile"], f"firefox-{firefox}", info)
 
     def test_udp_only_handshake_get_and_post(self):
         origin = self._origin()
         self._assert_no_tcp(origin.address)
         connection = self._connect(origin)
-        self._assert_tls(connection.info)
         response = self._exchange(connection, "/body")
         self.assertEqual((response.status, response.version), (200, 30))
         self.assertEqual(response.headers.getlist("x-repeat"), ["one", "two"])
@@ -319,15 +337,15 @@ class NativeHTTP3Tests(unittest.TestCase):
             flush=True,
         )
 
-    def test_nondefault_profile_is_reported_by_native_session(self):
+        self._assert_tls(connection.info, firefox="159")
+
+    def test_nondefault_profile_connects_and_reports_native_telemetry(self):
         origin = self._origin()
         connection = self._connect(origin, firefox="158")
-        self._assert_tls(connection.info)
-        self.assertEqual(connection.info["profile"], "firefox-158")
-        self.assertEqual(connection.info["nss"], "3.132")
         self.assertEqual(self._read(self._exchange(connection, "/body")), _DATA)
         self.assertEqual(origin.negotiated, [(0, "h3")])
         print(f"native nondefault profile: {connection.info}", flush=True)
+        self._assert_tls(connection.info, firefox="158")
 
     def test_public_session_alt_svc_ipv4_upgrade_and_reuse(self):
         self._exercise_alt_svc(_IP, socket.AF_INET)
@@ -400,6 +418,7 @@ class NativeHTTP3Tests(unittest.TestCase):
                 server.shutdown()
                 thread.join(5)
         self._assert_no_tcp(address, origin.address)
+        tls_reports = []
         for path, payload in [("/body", _DATA), ("/empty", b"")]:
             with session.get(
                 url + path, timeout=3, allow_redirects=False, stream=True
@@ -407,7 +426,7 @@ class NativeHTTP3Tests(unittest.TestCase):
                 self.assertEqual(
                     (response.status_code, response.raw.version), (200, 30)
                 )
-                self._assert_tls(response.tls)
+                tls_reports.append(response.tls)
                 self.assertEqual(response.headers["X-Origin"], "udp-only-h3")
                 self.assertEqual(b"".join(response.iter_content(16384)), payload)
         self.assertEqual(tcp_requests, ["/advertise"])
@@ -418,9 +437,11 @@ class NativeHTTP3Tests(unittest.TestCase):
             self.assertEqual(headers[b"alt-used"], f"{host}:{port}".encode())
         print(
             f"public Session {host}: HTTP/1.1 Alt-Svc → TCP listeners closed → HTTP/3 "
-            "versions=30,30; origin observed one h3 connection with streams 0,4",
+            f"versions=30,30; origin observed one h3 connection with streams 0,4; TLS={tls_reports!r}",
             flush=True,
         )
+        for info in tls_reports:
+            self._assert_tls(info)
 
     def test_strict_certificate_rejections(self):
         for case, host, ca, expired, reason in [

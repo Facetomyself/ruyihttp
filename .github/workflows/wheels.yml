@@ -10,59 +10,68 @@ jobs:
   wheel:
     name: ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: win_amd64
-            os: windows-latest
+            os: windows-2025
+            arch: x64
           - platform: darwin_arm64
             os: macos-26
+            arch: arm64
           - platform: darwin_x86_64
             os: macos-15-intel
+            arch: x64
           - platform: linux_x86_64
             os: ubuntu-24.04
+            arch: x64
           - platform: linux_aarch64
             os: ubuntu-24.04-arm
+            arch: arm64
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      PIP_NO_CACHE_DIR: '1'
+      PYTHONUTF8: '1'
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Build wheel
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip wheel --no-build-isolation --no-deps -w wheelhouse .
-      - name: Install and smoke
-        run: |
-          python -c "import glob,subprocess,sys; wheel,=glob.glob('wheelhouse/*.whl'); subprocess.check_call([sys.executable,'-m','pip','install',wheel])"
-          python -m pip check
-          python -I ci/verify_installed.py ${{ matrix.platform }}
-          python -I ci/smoke_local.py
-      - name: Verify retry, site, connect deadline and H2 early-response boundaries
+          python-version: '3.10'
+          architecture: ${{ matrix.arch }}
+      - name: Build and identify one wheel for both endpoints
+        id: build
         shell: bash
-        working-directory: ${{ runner.temp }}
         run: |
-          python -m pip install 'PySocks==1.7.1'
-          bash "$GITHUB_WORKSPACE/ci/verify_request_boundaries.sh"
-      - name: Exercise the built native candidate before uploading it
-        if: matrix.platform == 'linux_aarch64' || matrix.platform == 'darwin_x86_64'
-        shell: bash
-        working-directory: ${{ runner.temp }}
-        env:
-          RUYIHTTP_TEST_NATIVE_H3: '1'
-          SLOT: ${{ matrix.platform }}
-        run: |
-          set -euo pipefail
-          if [[ "$RUNNER_OS" == macOS ]]; then export PATH="$(brew --prefix openssl@3)/bin:$PATH"; fi
-          python -m pip install 'aioquic==1.3.0' 'PySocks==1.7.1'
-          python -I "$GITHUB_WORKSPACE/ci/smoke_native_target.py" "$SLOT"
-          python -m unittest discover -s "$GITHUB_WORKSPACE/tests" -p test_http3_native.py -v
-          python "$GITHUB_WORKSPACE/ci/smoke_proxy_chain.py"
-          python "$GITHUB_WORKSPACE/ci/smoke_h2_close.py"
+          mkdir -p native-evidence
+          git rev-parse HEAD | tee native-evidence/commit.txt
+          python -B tools/build_native.py --check
+          python -m pip wheel --no-deps -w wheelhouse .
+          python -B tools/build_native.py --inspect-wheel wheelhouse/*.whl --platform '${{ matrix.platform }}' | tee native-evidence/wheel.json
+      - name: Installed native runtime on CPython 3.10
+        run: python -I ci/qualify_wheel.py ${{ matrix.platform }} 3.10 wheelhouse native-evidence
+      - uses: actions/setup-python@v5
+        id: python314
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        with:
+          python-version: '3.14'
+          architecture: ${{ matrix.arch }}
+      - name: Installed native runtime on CPython 3.14
+        if: ${{ !cancelled() && steps.python314.outcome == 'success' }}
+        run: python -I ci/qualify_wheel.py ${{ matrix.platform }} 3.14 wheelhouse native-evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wheel-evidence-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: native-evidence/
+          if-no-files-found: warn
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
-          name: ruyihttp-${{ matrix.platform }}
+          name: verified-ruyihttp-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: wheelhouse/*.whl
           if-no-files-found: error
           retention-days: 14

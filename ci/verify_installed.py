@@ -1,6 +1,7 @@
 """Verify that a wheel job installed the native set for its actual runner."""
 
 import hashlib
+import importlib.metadata
 import json
 import platform
 import sys
@@ -25,9 +26,19 @@ def main(target):
         "darwin_x86_64": {"x86_64"},
     }
     assert machine in arches[target], (target, machine)
-    entry = json.loads((root / "runtime-manifest.json").read_text(encoding="utf-8"))[
-        "platforms"
-    ][target]
+    manifest = json.loads((root / "runtime-manifest.json").read_text(encoding="utf-8"))
+    version = importlib.metadata.version("ruyihttp")
+    assert ruyihttp.__version__ == manifest["version"] == version
+    assert set(importlib.metadata.metadata("ruyihttp").get_all("Project-URL")) == {
+        "Homepage, https://github.com/Facetomyself/ruyihttp",
+        "Repository, https://github.com/Facetomyself/ruyihttp",
+        "Issues, https://github.com/Facetomyself/ruyihttp/issues",
+        "Releases, https://github.com/Facetomyself/ruyihttp/releases",
+    }
+    if len(sys.argv) > 2:
+        wheel_version = Path(sys.argv[2]).name.split("-")[1]
+        assert version == wheel_version, (version, wheel_version)
+    entry = manifest["platforms"][target]
     assert entry["status"] == "ready" and entry["files"], target
     libs = {
         p.name for p in root.iterdir() if p.suffix.lower() in (".dll", ".so", ".dylib")
@@ -36,7 +47,7 @@ def main(target):
     for name, digest in entry["files"].items():
         assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest, name
     print(
-        f"installed {target} on {platform.system()} {machine}: {len(libs)} native hashes verified in {root}"
+        f"installed ruyihttp {version} {target} on {platform.system()} {machine}: {len(libs)} native hashes verified in {root}"
     )
 
 
