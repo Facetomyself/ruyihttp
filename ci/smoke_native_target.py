@@ -95,6 +95,10 @@ def serve_h2_once(listener, context, port, completed, release):
                         protocol.send_headers(event.stream_id, [(b':status', b'200'), (b'content-length', b'2'),
                             (b'alt-svc', f'h3="127.0.0.1:{port}"; ma=60'.encode())])
                         protocol.send_data(event.stream_id, b'h2', end_stream=True)
+                        # A closed listener alone does not retire this warm H2
+                        # session. We intentionally stop serving new streams:
+                        # drain it explicitly so H3 is the only valid next route.
+                        protocol.close_connection(error_code=0, last_stream_id=event.stream_id)
                         tls.sendall(protocol.data_to_send())
                         completed.set()
                         if not release.wait(25):
