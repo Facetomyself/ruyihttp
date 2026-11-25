@@ -134,6 +134,26 @@ class TrustTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             _nss.Context(True, None, self.d)
 
+    def test_bad_constraints_never_replace_or_fall_back_to_good_snapshot(self):
+        f = self.d / "constraints.json"
+        digest = "ab" * 32
+        for data in [
+            b"[]",
+            b'{"bad":"210101000000Z"}',
+            json.dumps({digest: "211901000000Z"}).encode(),
+            (
+                '{"%s":"210101000000Z","%s":"220101000000Z"}' % (digest, digest.upper())
+            ).encode(),
+        ]:
+            with self.subTest(data=data):
+                f.write_bytes(b"{}")
+                good = self.cache.load(self.roots, f)
+                f.write_bytes(data)
+                with self.assertRaises(ValueError):
+                    self.cache.load(self.roots, f)
+                f.write_bytes(b"{}")
+                self.assertIs(self.cache.load(self.roots, f), good)
+
     def test_directory_membership_and_bounded_entries(self):
         ca_dir = self.d / "cas"
         ca_dir.mkdir()

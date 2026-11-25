@@ -6,10 +6,12 @@
 
 from collections import OrderedDict
 from dataclasses import dataclass
+from datetime import datetime
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import threading
 from types import MappingProxyType
 
@@ -23,6 +25,29 @@ class TrustMaterial:
     constraints: MappingProxyType
     identity: bytes
     source_bytes: int
+
+
+def _parse_constraints(data):
+    def checked_pairs(pairs):
+        result = {}
+        for key, cutoff in pairs:
+            if not (
+                re.fullmatch(r"[0-9a-fA-F]{64}", key)
+                and isinstance(cutoff, str)
+                and re.fullmatch(r"[0-9]{12}Z", cutoff)
+            ):
+                raise ValueError("invalid root fingerprint or cutoff")
+            key = key.lower()
+            if key in result:
+                raise ValueError("duplicate root constraint")
+            datetime.strptime(cutoff, "%y%m%d%H%M%SZ")
+            result[key] = cutoff
+        return result
+
+    constraints = json.loads(data, object_pairs_hook=checked_pairs)
+    if not isinstance(constraints, dict):
+        raise ValueError("invalid root constraints mapping")
+    return MappingProxyType(constraints)
 
 
 class TrustCache:
@@ -70,17 +95,13 @@ class TrustCache:
         # Disk I/O, X.509 parsing and store construction run outside the cache
         # lock. Two concurrent first handshakes may parse once each; only one
         # material is kept. Malformed/missing inputs never reuse an old result.
-        constraints = json.loads(constraints_data)
-        if not isinstance(constraints, dict) or not all(
-            isinstance(k, str) and isinstance(v, str) for k, v in constraints.items()
-        ):
-            raise ValueError("invalid root constraints mapping")
+        constraints = _parse_constraints(constraints_data)
         roots = [
             root for data in chunks for root in x509.load_pem_x509_certificates(data)
         ]
         material = TrustMaterial(
             Store(roots),
-            MappingProxyType(constraints),
+            constraints,
             key,
             sum(map(len, chunks)) + len(constraints_data),
         )
