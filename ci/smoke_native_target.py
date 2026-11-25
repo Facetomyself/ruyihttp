@@ -106,20 +106,27 @@ def serve_h2_once(listener, context, port, completed, release):
         completed.set()
 
 
-def fetch(url, roots, completed):
+def fetch(url, roots, completed, manifest):
     with ruyihttp.Session(firefox='159', verify=str(roots), timeout=10) as session:
         session.trust_env = False
         for expected in ('h2', 'h3'):
             response = session.get(url)
             assert response.status_code == 200 and response.content == expected.encode(), response
             assert response.raw.version == (20 if expected == 'h2' else 30), response.raw.version
-            assert response.tls is not None and response.tls.get('alpn') == expected, response.tls
-            assert response.tls.get('backend') == 'NSS' and response.tls.get('nss') == '3.132', response.tls
             print(expected, response.status_code, response.raw.version, response.tls, flush=True)
+            shape = manifest.get('h3_tls', 'nss') if expected == 'h3' else 'nss'
+            if shape == 'null':
+                assert response.tls is None, response.tls
+            elif shape == 'windows-legacy':
+                assert response.tls['backend'] == 'NSS/Neqo' and response.tls['alpn'] == 'h3', response.tls
+            else:
+                assert shape == 'nss', shape
+                assert response.tls['alpn'] == expected and response.tls['backend'] == 'NSS', response.tls
+                assert response.tls['nss'] == manifest['nss'], response.tls
             assert completed.wait(10)
 
 
-async def test_transactions():
+async def test_transactions(manifest):
     with tempfile.TemporaryDirectory() as temp, socket.socket() as tcp, ThreadPoolExecutor(1) as executor:
         leaf, key, roots = certificate(Path(temp))
         tcp.bind(('127.0.0.1', 0))
@@ -134,7 +141,7 @@ async def test_transactions():
         completed, release = threading.Event(), threading.Event()
         h2_worker = executor.submit(serve_h2_once, tcp, context, port, completed, release)
         try:
-            await asyncio.to_thread(fetch, f'https://localhost:{port}/', roots, completed)
+            await asyncio.to_thread(fetch, f'https://localhost:{port}/', roots, completed, manifest)
         finally:
             release.set()
             server.close()
@@ -142,7 +149,23 @@ async def test_transactions():
 
 
 def check_loaded_libraries(root, target, files):
-    if target == 'linux_aarch64':
+    if target == 'win_amd64':
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+        kernel.GetModuleHandleW.restype = wintypes.HMODULE
+        kernel.GetModuleFileNameW.argtypes = [wintypes.HMODULE, wintypes.LPWSTR, wintypes.DWORD]
+        kernel.GetModuleFileNameW.restype = wintypes.DWORD
+        paths = set()
+        for name in files:
+            module = kernel.GetModuleHandleW(name)
+            if module:
+                dest = ctypes.create_unicode_buffer(32768)
+                assert 0 < kernel.GetModuleFileNameW(module, dest, len(dest)) < len(dest)
+                paths.add(Path(dest.value).resolve())
+        required = {'necko_core.dll', 'necko_quic.dll', 'nss3.dll', 'mozglue.dll'}
+    elif target.startswith('linux_'):
         maps = Path('/proc/self/maps').read_text().splitlines()
         paths = {Path(row.split(maxsplit=5)[5]).resolve() for row in maps
                  if len(row.split(maxsplit=5)) == 6 and row.split(maxsplit=5)[5].startswith('/')}
@@ -163,10 +186,17 @@ def check_loaded_libraries(root, target, files):
 
 def main():
     target = sys.argv[1]
-    expected = {'linux_aarch64': ('Linux', 'aarch64', '.so', 14),
-                'darwin_x86_64': ('Darwin', 'x86_64', '.dylib', 6)}
-    os_name, arch, suffix, count = expected[target]
-    assert (platform.system(), platform.machine()) == (os_name, arch)
+    expected = {'win_amd64': ('Windows', {'amd64', 'x86_64'}, '.dll', 6),
+                'linux_aarch64': ('Linux', {'aarch64'}, '.so', 14),
+                'linux_x86_64': ('Linux', {'x86_64'}, '.so', 14),
+                'darwin_x86_64': ('Darwin', {'x86_64'}, '.dylib', 6),
+                'darwin_arm64': ('Darwin', {'arm64'}, '.dylib', 6)}
+    os_name, arches, suffix, count = expected[target]
+    assert platform.system() == os_name and platform.machine().lower() in arches
+    if os_name == 'Darwin':
+        translated = __import__('subprocess').check_output(['sysctl', '-in', 'sysctl.proc_translated'], text=True).strip()
+        assert translated in ('', '0'), translated
+        print(f'Rosetta translation: {translated or 0}', flush=True)
     root = Path(ruyihttp.__file__).resolve().parent
     assert root.is_relative_to(Path(sys.prefix).resolve()), root
     manifest = json.loads((root / 'runtime-manifest.json').read_text())['platforms'][target]
@@ -175,14 +205,20 @@ def main():
     for name, digest in files.items():
         assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest, name
     library = _load_library()
-    assert Path(library._name).resolve() == root / ('libnecko_core' + suffix)
-    assert library.necko_tls_nss_version().decode() == manifest['nss']
-    assert library.necko_tls_nspr_version().decode() == manifest['nspr']
-    quic = ctypes.CDLL(str(root / ('libnecko_quic' + suffix)))
+    prefix = '' if os_name == 'Windows' else 'lib'
+    assert Path(library._name).resolve() == root / (prefix + 'necko_core' + suffix)
+    nss = library.necko_tls_nss_version().decode()
+    nspr = library.necko_tls_nspr_version().decode()
+    assert (nss, nspr) == (manifest['nss'], manifest['nspr']), (nss, nspr)
+    quic = ctypes.CDLL(str(root / (prefix + 'necko_quic' + suffix)))
     assert quic.necko_quic_call and quic.necko_quic_set_decoder
-    print(target, sys.version.split()[0], root, manifest['wheel_platform_tag'],
-          'native hashes', count, 'NSS', manifest['nss'], 'NSPR', manifest['nspr'], flush=True)
-    asyncio.run(test_transactions())
+    quic.necko_quic_version.argtypes = []
+    quic.necko_quic_version.restype = ctypes.c_char_p
+    quic_version = quic.necko_quic_version().decode()
+    print(target, sys.version.split()[0], root, manifest.get('wheel_platform_tag'),
+          'native hashes', count, 'NSS', nss, 'NSPR', nspr, 'QUIC', quic_version, flush=True)
+    assert quic_version == f"neqo-{manifest['neqo']}/nss-{nss}", quic_version
+    asyncio.run(test_transactions(manifest))
     check_loaded_libraries(root, target, files)
 
 

@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""Test one built wheel under the selected native CPython interpreter."""
+
+import hashlib
+import os
+from pathlib import Path
+import platform
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main():
+    slot, expected_python, wheel_dir, evidence_dir = sys.argv[1:]
+    assert platform.python_implementation() == "CPython"
+    assert ".".join(map(str, sys.version_info[:2])) == expected_python, sys.version
+    wheel, = Path(wheel_dir).resolve(strict=True).glob("*.whl")
+    evidence = Path(evidence_dir).resolve() / expected_python
+    evidence.mkdir(parents=True, exist_ok=True)
+    print(f"{slot}: Python {sys.version} on {platform.platform()}", flush=True)
+    print(f"{wheel.name} sha256={hashlib.sha256(wheel.read_bytes()).hexdigest()}", flush=True)
+    env = os.environ.copy()
+    for key in ("NECKO_CORE_LIBRARY", "NECKO_QUIC_LIBRARY", "RUYIHTTP_MACHINE", "RUYIHTTP_PLATFORM",
+                "PYTHONPATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH"):
+        env.pop(key, None)
+    env["RUYIHTTP_TEST_NATIVE_H3"] = "1"
+    env["PYTHONUNBUFFERED"] = "1"
+    if sys.platform == "darwin":
+        prefix = subprocess.check_output(["brew", "--prefix", "openssl@3"], text=True).strip()
+        env["PATH"] = str(Path(prefix) / "bin") + os.pathsep + env["PATH"]
+    failed = []
+
+    def run(name, command, required=False):
+        print(f"::group::{name} (Python {expected_python})", flush=True)
+        with (evidence / f"{name}.txt").open("w", encoding="utf-8") as log:
+            proc = subprocess.Popen(command, env=env, cwd=evidence, stderr=subprocess.STDOUT,
+                                    stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                print(line, end="", flush=True)
+                log.write(line)
+            status = proc.wait()
+            log.write(f"Exit status: {status}\n")
+        print(f"Exit status: {status}\n::endgroup::", flush=True)
+        if status:
+            failed.append(name)
+        if required and status:
+            raise SystemExit(f"{name} failed: {status}")
+
+    def python(name, *args, **kwargs):
+        run(name, [sys.executable, *map(str, args)], **kwargs)
+
+    python("install", "-m", "pip", "install", f"{wheel}[socks]", "aioquic==1.3.0", required=True)
+    python("pip-check", "-m", "pip", "check")
+    python("installed-identity", "-I", ROOT / "ci/verify_installed.py", slot, wheel)
+    python("http1", "-I", ROOT / "ci/smoke_local.py")
+    python("native-transactions", "-I", ROOT / "ci/smoke_native_target.py", slot)
+    python("full-h3", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_http3_native.py", "-v")
+    python("proxy", ROOT / "ci/smoke_proxy_chain.py")
+    python("h2-eof", ROOT / "ci/smoke_h2_close.py")
+    run("request-boundaries", ["bash", str(ROOT / "ci/verify_request_boundaries.sh")])
+    if slot == "win_amd64":
+        python("upgrade-0.9.0", "-I", ROOT / "ci/upgrade_from_090.py", wheel)
+    if failed:
+        raise SystemExit("Failed runtime gates: " + ", ".join(failed))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,5 @@
 {
-  "version": "0.9.0",
+  "version": "0.9.1",
   "default": "win_amd64",
   "data": {
     "firefox-profile.json": "76aa49d27f91281e678b1e8bcc56a4a64fa04802d42647a91d8740920fe0c4c0",
@@ -14,6 +14,8 @@
       "nss": "3.131",
       "nspr": "4.40",
       "neqo": "0.32.0",
+      "h3_tls": "windows-legacy",
+      "wheel_platform_tag": "win_amd64",
       "files": {
         "freebl3.dll": "9bc57db64c16fd51efc769e43c69c072c5fbdb05b979c54c640510fc802f215c",
         "mozglue.dll": "5674da87e99554812cda2e952711e539df47fe938b7ce96a6c15b41f218ee4f8",
@@ -29,6 +31,8 @@
       "nss": "3.132",
       "nspr": "4.40",
       "neqo": "0.33.0",
+      "h3_tls": "null",
+      "wheel_platform_tag": "macosx_26_0_arm64",
       "files": {
         "libfreebl3.dylib": "862b612837a50adc76c3e6bf9ad555f020023b19c21227f193367c7e384d6eea",
         "libmozglue.dylib": "291a407d029281d8898e4e05cdce69be962dda16fdbf0a68d31e330c57fee2b3",
