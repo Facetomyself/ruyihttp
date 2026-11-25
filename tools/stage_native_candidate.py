@@ -116,6 +116,7 @@ def main():
     names_expected = ['h3-body-abi-v1.patch']
     if args.platform.startswith('darwin_'):
         names_expected.insert(0, 'macos-necko-quic-tls-info.patch')
+        names_expected.append('macos-h3-global-handles.patch')
     if [p['path'] for p in patches] != [f'native/patches/{name}' for name in names_expected]:
         parser.error('expected pinned patches in build application order')
     source = args.source.resolve(strict=True)

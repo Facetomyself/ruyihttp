@@ -33,6 +33,7 @@ case "$slot" in
     fi
     apply_patch macos-necko-quic-tls-info.patch
     apply_patch h3-body-abi-v1.patch
+    apply_patch macos-h3-global-handles.patch
     export MOZCONFIG="$donor/ci/firefox/macos/mozconfig.browser"
     cd firefox
     mach() { ./mach --no-interactive "$@" </dev/null; }
