@@ -80,6 +80,19 @@ _Read = ctypes.CFUNCTYPE(
 _Write = ctypes.CFUNCTYPE(ctypes.c_int, _Pointer, _Bytes, ctypes.c_uint32)
 _Cancel = ctypes.CFUNCTYPE(ctypes.c_int, _Pointer)
 
+_ALT_SVC_LIMIT = 256
+_ALT_SVC_MAX_AGE = 86400
+_ALT_SVC_COOLDOWN = 5
+_ALT_SVC_RACE_DELAY = 0.1
+_QUIC_TOKEN_LIMIT = 128
+_QUIC_TOKEN_BYTES = 512 * 1024
+_QUIC_TOKEN_MAX_SIZE = 16 * 1024
+_QUIC_TOKEN_MAX_AGE = 86400
+
+
+def _expired_records(cache, now):
+    return [key for key, (_, expiry) in cache.items() if expiry <= now]
+
 
 def _socket_error(result, operation):
     """Build an OSError for a failed native socket call, with the OS reason.
@@ -340,6 +353,18 @@ class _NativeSocket:
 _NEEDS_DNS = object()
 
 
+class _BorrowedConnection:
+    """An existing lease returned by a race lane. A losing lane returns it to its pool."""
+
+    def __init__(self, pool, connection):
+        self.pool = pool
+        self.connection = connection
+        self.alpn = connection.alpn
+
+    def close(self):
+        self.pool.release(self.connection)
+
+
 class _Pool:
     def __init__(self, maximum, block):
         self.maximum = maximum
@@ -390,6 +415,33 @@ class _Pool:
             self.connecting = False
             self.condition.notify_all()
 
+    def borrow_tcp(self):
+        """Take a live TCP lease without waiting for or replacing the dial reservation."""
+        with self.condition:
+            if self.closed:
+                return None
+            for connection in self.shared:
+                if (
+                    connection.alpn == "h2"
+                    and connection.idle()
+                    and self._can_borrow(connection)
+                ):
+                    self.shared[connection] += 1
+                    self.leased += 1
+                    return connection
+            for index in range(len(self.idle) - 1, -1, -1):
+                connection = self.idle.pop(index)
+                if connection.idle():
+                    self.leased += 1
+                    return connection
+                connection.close()
+            return None
+
+    def _can_borrow(self, connection):
+        # Stream admission is optional for multiplexed transports.
+        capacity = getattr(self, "_has_capacity", None)
+        return capacity is None or capacity(connection)
+
     def borrow(self, host, port, addresses, prefer=None, http3=True):
         result = None
         with self.condition:
@@ -399,6 +451,8 @@ class _Pool:
                 if not connection.idle() or prefer and connection.alpn != prefer:
                     continue
                 if not http3 and connection.alpn == "h3":
+                    continue
+                if not self._can_borrow(connection):
                     continue
                 if getattr(connection, "origin_port", None) != port:
                     continue
@@ -431,7 +485,7 @@ class _Pool:
                 return connection
         return result
 
-    def release(self, connection):
+    def release(self, connection, *, reuse=True):
         with self.condition:
             self.leased -= 1
             if connection in self.shared:
@@ -444,13 +498,16 @@ class _Pool:
                 self.condition.notify_all()
                 return
             if connection is None:
+                # Only a dial reservation is returned as None. A discarded H1
+                # lease must not clear another request's in-progress dial.
                 self.connecting = False
-            if connection is not None:
-                if self.closed or len(self.idle) >= self.maximum:
+                self.condition.notify_all()
+            else:
+                if not reuse or self.closed or len(self.idle) >= self.maximum:
                     connection.close()
                 else:
                     self.idle.append(connection)
-            self.condition.notify()
+                self.condition.notify()
 
     def close(self):
         with self.condition:
@@ -635,13 +692,7 @@ class _Body(io.RawIOBase):
             connection = exchange.transport
             reusable = reuse and exchange.reusable()
             exchange.close()
-            if getattr(exchange, "multiplexed", False):
-                self.pool.release(connection)
-                super().close()
-                return
-            if not reusable:
-                connection.close()
-            self.pool.release(connection if reusable else None)
+            self.pool.release(connection, reuse=reusable)
             super().close()
 
 
@@ -689,15 +740,19 @@ class HTTPAdapter(RequestsAdapter):
         self._pools = OrderedDict()
         self._lock = threading.Lock()
         self._tls_partition = uuid.uuid4().hex
-        self._alt_svc = {}
-        self._quic_tokens = {}
+        self._alt_svc = OrderedDict()
+        self._alt_cooldowns = OrderedDict()
+        self._quic_tokens = OrderedDict()
+        self._quic_token_bytes = 0
         self._token_lock = threading.Lock()
         super().__init__(pool_connections, pool_maxsize, max_retries, pool_block)
 
     def __setstate__(self, state):
         self._tls_partition = uuid.uuid4().hex
-        self._alt_svc = {}
-        self._quic_tokens = {}
+        self._alt_svc = OrderedDict()
+        self._alt_cooldowns = OrderedDict()
+        self._quic_tokens = OrderedDict()
+        self._quic_token_bytes = 0
         self._token_lock = threading.Lock()
         self._library = None
         self._pools = OrderedDict()
@@ -854,17 +909,31 @@ class HTTPAdapter(RequestsAdapter):
             if own_attempt:
                 attempt.detach()
 
-    def _connect_alternative(self, request, key, alternate, verify, budget, resolved):
+    def _connect_alternative(
+        self, request, key, alternate, verify, budget, resolved, *, pool=None
+    ):
         from ._connect import race
         from ._http3 import Connection as H3Connection
 
         target = urlsplit(request.url)
+        endpoint = alternate[0]
+        token_key = (key, endpoint)
 
         def quic(attempt):
+            if pool is not None and verify:
+                try:
+                    other, connection, _ = self._coalesce(pool, key, "h3", True, attempt)
+                except ConnectionError:
+                    # Origin DNS is optional for the advertised alternate hop.
+                    pass
+                else:
+                    if connection is not None:
+                        return _BorrowedConnection(other, connection)
             last_error = None
-            alt_host, alt_port = alternate[0]
+            alt_host, alt_port = endpoint
             answers = resolve_addresses(alt_host, alt_port, attempt, socket.SOCK_DGRAM)
             for address in (ip for family in answers.values() for ip in family):
+                token = self._quic_token_record(token_key)
                 try:
                     connection = H3Connection(
                         target.hostname,
@@ -873,32 +942,48 @@ class HTTPAdapter(RequestsAdapter):
                         self.library._name,
                         attempt.remaining(),
                         (address, alt_port),
-                        self._quic_token(key),
-                        lambda token, age: self._save_quic_token(key, token, age),
+                        token[0] if token is not None else "",
+                        lambda value, age: self._save_quic_token(token_key, value, age),
                         attempt=attempt,
                         firefox=self.firefox,
                     )
                     connection.origin_port = target.port or 443
-                    connection.alternate_endpoint = alternate[0]
+                    connection.alternate_endpoint = endpoint
                     return connection
-                except (OSError, ProtocolError, TimeoutError) as error:
-                    self._save_quic_token(key, "", 0)
-                    last_error = error
+                except (OSError, ProtocolError) as error:
                     if attempt.cancelled.is_set():
                         raise
+                    self._forget_quic_token(token_key, token)
+                    last_error = error
             raise last_error or OSError("No HTTP/3 endpoint addresses")
 
-        connection = race(
-            quic,
-            lambda attempt: self._connect(
-                request.url, None, verify, None, attempt.remaining(), attempt, resolved=resolved
-            ),
-            deadline=budget.deadline,
-        )
+        def tcp(attempt):
+            answers = resolved
+            if pool is not None:
+                connection = pool.borrow_tcp()
+                if connection is not None:
+                    return _BorrowedConnection(pool, connection)
+                if verify:
+                    other, connection, coalescing_answers = self._coalesce(
+                        pool, key, "h2", False, attempt
+                    )
+                    if connection is not None:
+                        return _BorrowedConnection(other, connection)
+                    if coalescing_answers is not None:
+                        answers = coalescing_answers
+            return self._connect(
+                request.url, None, verify, None, attempt.remaining(), attempt, resolved=answers
+            )
+
+        remaining = budget.remaining()
+        delay = _ALT_SVC_RACE_DELAY
+        if remaining is not None:
+            delay = min(delay, remaining / 2)
+        # The deadline covers both lanes; a cancelled loser releases any late
+        # lease/result itself rather than delaying the usable winner.
+        connection = race(quic, tcp, delay=delay, parent=budget)
         if connection.alpn != "h3":
-            with self._lock:
-                if self._alt_svc.get(key) == alternate:
-                    self._alt_svc.pop(key, None)
+            self._cool_alternative(key, alternate)
         return connection
 
     def send(
@@ -1048,53 +1133,58 @@ class HTTPAdapter(RequestsAdapter):
             http1,
         )
         pool = self._pool(key)
-        with self._lock:
-            alternate = self._alt_svc.get(key)
-        if not http3 or http1 or alternate and alternate[1] <= time.monotonic():
-            alternate = None
-        prefer = "h3" if alternate else None
+        direct_tls = target.scheme == "https" and not (proxy or cert or http1)
+        prefer = "h3" if direct_tls and http3 and self._active_alternative(key) else None
         transport = pool.acquire(prefer, http3=http3, attempt=budget)
         coalesced = False
-        resolved = None
         exchange = None
         try:
-            if transport is None and target.scheme == "https" and verify and not (proxy or cert or http1):
-                other, transport, resolved = self._coalesce(pool, key, prefer, http3, budget)
-                if other is not None:
-                    pool.release(None)
-                    pool = other
-                    coalesced = True
-            budget.remaining()
             if transport is None:
                 try:
-                    if (
-                        alternate
-                        and not proxy
-                        and not cert
-                        and target.scheme == "https"
-                        and not http1
-                    ):
-                        transport = self._connect_alternative(
-                            request, key, alternate, verify, budget, resolved
+                    # acquire() may have waited behind a handshake which cooled
+                    # the route, or the advertised route may have expired meanwhile.
+                    alternate = self._active_alternative(key) if prefer else None
+                    if alternate:
+                        candidate = self._connect_alternative(
+                            request, key, alternate, verify, budget, None, pool=pool
                         )
-                    if transport is None:
-                        transport = self._connect(
-                            request.url,
-                            proxy,
-                            verify,
-                            cert,
-                            budget.remaining(),
-                            attempt=budget,
-                            http2=not http1,
-                            resolved=resolved,
+                    else:
+                        resolved = None
+                        warm = pool.borrow_tcp() if prefer else None
+                        candidate = (
+                            _BorrowedConnection(pool, warm) if warm is not None else None
                         )
-                    pool.register(transport)
+                        if candidate is None and direct_tls and verify:
+                            other, connection, resolved = self._coalesce(
+                                pool, key, None, http3, budget
+                            )
+                            if connection is not None:
+                                candidate = _BorrowedConnection(other, connection)
+                        if candidate is None:
+                            candidate = self._connect(
+                                request.url,
+                                proxy,
+                                verify,
+                                cert,
+                                budget.remaining(),
+                                attempt=budget,
+                                http2=not http1,
+                                resolved=resolved,
+                            )
+                    if isinstance(candidate, _BorrowedConnection):
+                        pool.release(None)
+                        coalesced = pool is not candidate.pool
+                        pool, transport = candidate.pool, candidate.connection
+                    else:
+                        transport = candidate
+                        pool.register(transport)
                 except ConnectionError as error:
                     if proxy and not isinstance(error, (SSLError, ProxyError)):
                         raise ProxyError(error, request=request) from error
                     raise
                 finally:
                     budget.detach()
+            budget.remaining()
             read_timeout = timeouts.read_timeout
             if read_timeout is not None and read_timeout <= 0:
                 raise ReadTimeout(
@@ -1209,14 +1299,7 @@ class HTTPAdapter(RequestsAdapter):
             should_restart = restartable(error, request.method, exchange)
             if exchange is not None:
                 exchange.close()
-            if transport is not None:
-                if getattr(transport, "multiplexed", False):
-                    pool.release(transport)
-                else:
-                    transport.close()
-                    pool.release(None)
-            else:
-                pool.release(None)
+            pool.release(transport, reuse=False)
             if isinstance(error, ssl.SSLError):
                 raise SSLError(error, request=request) from error
             if isinstance(error, TimeoutError):
@@ -1236,22 +1319,88 @@ class HTTPAdapter(RequestsAdapter):
                     raise ConnectionError(error, request=request) from error
             raise
 
-    def _quic_token(self, key):
+    def _drop_quic_token(self, key):
+        record = self._quic_tokens.pop(key, None)
+        if record is not None:
+            self._quic_token_bytes -= len(record[0])
+
+    def _expire_quic_tokens(self, now):
+        for key in _expired_records(self._quic_tokens, now):
+            self._drop_quic_token(key)
+
+    def _quic_token_record(self, key):
         with self._token_lock:
-            token, expiry = self._quic_tokens.get(key, ("", 0))
-            return token if expiry > time.monotonic() else ""
+            self._expire_quic_tokens(time.monotonic())
+            record = self._quic_tokens.get(key)
+            if record is not None:
+                self._quic_tokens.move_to_end(key)
+            return record
+
+    def _quic_token(self, key):
+        record = self._quic_token_record(key)
+        return record[0] if record is not None else ""
 
     def _save_quic_token(self, key, token, age):
+        # Neqo supplies an ASCII base64 string; account for its encoded size.
+        if (
+            not isinstance(token, str)
+            or not token
+            or len(token) > _QUIC_TOKEN_MAX_SIZE
+            or not token.isascii()
+            or not age > 0
+        ):
+            return
         with self._token_lock:
-            if age > 0:
-                self._quic_tokens[key] = (token, time.monotonic() + age)
-            else:
-                self._quic_tokens.pop(key, None)
+            now = time.monotonic()
+            self._expire_quic_tokens(now)
+            self._drop_quic_token(key)
+            self._quic_tokens[key] = (token, now + min(age, _QUIC_TOKEN_MAX_AGE))
+            self._quic_token_bytes += len(token)
+            while (
+                len(self._quic_tokens) > _QUIC_TOKEN_LIMIT
+                or self._quic_token_bytes > _QUIC_TOKEN_BYTES
+            ):
+                self._drop_quic_token(next(iter(self._quic_tokens)))
+
+    def _forget_quic_token(self, key, record):
+        with self._token_lock:
+            # Another handshake/connection may have replaced the token while
+            # this handshake was in flight, even with an identical value.
+            if record is not None and self._quic_tokens.get(key) is record:
+                self._drop_quic_token(key)
+
+    def _expire_alternatives(self, now):
+        for cache in (self._alt_svc, self._alt_cooldowns):
+            for key in _expired_records(cache, now):
+                del cache[key]
+
+    def _active_alternative(self, key):
+        with self._lock:
+            self._expire_alternatives(time.monotonic())
+            alternate = self._alt_svc.get(key)
+            if alternate is not None:
+                self._alt_svc.move_to_end(key)
+                if (key, alternate[0]) not in self._alt_cooldowns:
+                    return alternate
+            return None
+
+    def _cool_alternative(self, key, alternate):
+        with self._lock:
+            now = time.monotonic()
+            self._expire_alternatives(now)
+            route = (key, alternate[0])
+            # Keep failures separate from announcements: the hint can expire
+            # during the race, and another authority can be advertised meanwhile.
+            # Repeated announcements/failures do not extend an active cooldown.
+            self._alt_cooldowns.setdefault(route, (None, now + _ALT_SVC_COOLDOWN))
+            if len(self._alt_cooldowns) > _ALT_SVC_LIMIT:
+                self._alt_cooldowns.popitem(last=False)
 
     def _remember_alternative(self, key, host, headers):
         value = headers.get("Alt-Svc", "")
         if value.strip() == "clear":
             with self._lock:
+                self._expire_alternatives(time.monotonic())
                 self._alt_svc.pop(key, None)
             return
         for entry in re.split(r",(?=\s*[a-zA-Z0-9-]+=)", value):
@@ -1268,9 +1417,12 @@ class HTTPAdapter(RequestsAdapter):
                 port = endpoint.port
                 if (
                     not endpoint.hostname
+                    or len(endpoint.hostname) > 253
                     or not port
-                    or endpoint.username
+                    or endpoint.username is not None
                     or endpoint.path
+                    or endpoint.query
+                    or endpoint.fragment
                 ):
                     continue
                 age_match = re.search(r";\s*ma\s*=\s*(\d+)", parameters)
@@ -1278,11 +1430,16 @@ class HTTPAdapter(RequestsAdapter):
             except ValueError:
                 continue
             with self._lock:
+                now = time.monotonic()
+                self._expire_alternatives(now)
                 if age:
                     self._alt_svc[key] = (
                         (endpoint.hostname, port),
-                        time.monotonic() + min(age, 86400),
+                        now + min(age, _ALT_SVC_MAX_AGE),
                     )
+                    self._alt_svc.move_to_end(key)
+                    if len(self._alt_svc) > _ALT_SVC_LIMIT:
+                        self._alt_svc.popitem(last=False)
                 else:
                     self._alt_svc.pop(key, None)
             return
@@ -1293,6 +1450,8 @@ class HTTPAdapter(RequestsAdapter):
                 pool.close()
             self._pools.clear()
             self._alt_svc.clear()
+            self._alt_cooldowns.clear()
             with self._token_lock:
                 self._quic_tokens.clear()
+                self._quic_token_bytes = 0
         super().close()

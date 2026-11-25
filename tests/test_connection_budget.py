@@ -40,7 +40,9 @@ class ConnectionBudgetTests(unittest.TestCase):
             coalescing_denied=set(),
             certificate_chain=b"fixture",
         )
-        candidate.h2 = SimpleNamespace(received_settings=True, origins=origins)
+        candidate.h2 = SimpleNamespace(
+            received_settings=True, origins=origins, has_capacity=lambda _leased: True
+        )
         candidate.idle.return_value = True
         self.adapter._pool(key("other.test")).shared[candidate] = 0
         return candidate
