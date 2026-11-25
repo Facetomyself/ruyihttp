@@ -74,8 +74,8 @@ def main():
     python("h2-eof", ROOT / "ci/smoke_h2_close.py")
     bash = Path(os.environ['ProgramFiles']) / 'Git/bin/bash.exe' if os.name == 'nt' else 'bash'
     run("request-boundaries", [str(bash), str(ROOT / "ci/verify_request_boundaries.sh")])
-    if slot == "win_amd64":
-        python("upgrade-0.9.0", "-I", ROOT / "ci/upgrade_from_090.py", wheel)
+    if slot == "win_amd64" or env.get("RUYIHTTP_PREVIOUS_BUILD"):
+        python("upgrade-0.9.0", "-I", ROOT / "ci/upgrade_from_090.py", wheel, slot)
     if failed:
         raise SystemExit("Failed runtime gates: " + ", ".join(failed))
 

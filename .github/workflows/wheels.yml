@@ -51,6 +51,20 @@ jobs:
           python -B tools/build_native.py --check
           python -m pip wheel --no-deps -w wheelhouse .
           python -B tools/build_native.py --inspect-wheel wheelhouse/*.whl --platform '${{ matrix.platform }}' | tee native-evidence/wheel.json
+      - name: Reconstruct the previous POSIX distribution from its exact commit
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          BASELINE: ea44f8fe4468bbee80996e4e73745d6d53c072cc
+        run: |
+          set -euo pipefail
+          old="$RUNNER_TEMP/ruyihttp-previous"
+          git init -q "$old/source"
+          git -C "$old/source" fetch --depth=1 --no-tags https://github.com/Facetomyself/ruyihttp.git "$BASELINE"
+          git -C "$old/source" checkout -q --detach FETCH_HEAD
+          test "$(git -C "$old/source" rev-parse HEAD)" = "$BASELINE"
+          python -m pip wheel --no-deps -w "$old/wheels" "$old/source"
+          echo "RUYIHTTP_PREVIOUS_BUILD=$old" >> "$GITHUB_ENV"
       - name: Installed native runtime on CPython 3.10
         run: python -I ci/qualify_wheel.py ${{ matrix.platform }} 3.10 wheelhouse native-evidence
       - uses: actions/setup-python@v5
