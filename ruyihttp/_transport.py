@@ -1148,6 +1148,7 @@ class HTTPAdapter(RequestsAdapter):
         direct_tls = target.scheme == "https" and not (proxy or cert or http1)
         prefer = "h3" if direct_tls and http3 and self._active_alternative(key) else None
         transport = pool.acquire(prefer, http3=http3, attempt=budget)
+        unused_pooled_lease = transport is not None
         coalesced = False
         exchange = None
         try:
@@ -1187,6 +1188,7 @@ class HTTPAdapter(RequestsAdapter):
                         pool.release(None)
                         coalesced = pool is not candidate.pool
                         pool, transport = candidate.pool, candidate.connection
+                        unused_pooled_lease = True
                     else:
                         transport = candidate
                         pool.register(transport)
@@ -1241,6 +1243,8 @@ class HTTPAdapter(RequestsAdapter):
                 host = f"[{host}]" if ":" in host and not host.startswith("[") else host
                 headers["Alt-Used"] = host if port == 443 else f"{host}:{port}"
             headers = wire_headers(headers, protocol == "h2")
+            # A constructor can start writing before it returns an Exchange.
+            unused_pooled_lease = False
             if protocol in ("h2", "h3"):
                 if protocol == "h3":
                     from ._http3 import Exchange
@@ -1311,7 +1315,12 @@ class HTTPAdapter(RequestsAdapter):
             should_restart = restartable(error, request.method, exchange)
             if exchange is not None:
                 exchange.close()
-            pool.release(transport, reuse=False)
+            pool.release(
+                transport,
+                reuse=unused_pooled_lease
+                and isinstance(error, (ConnectTimeout, ReadTimeout))
+                and transport.idle(),
+            )
             if isinstance(error, ssl.SSLError):
                 raise SSLError(error, request=request) from error
             if isinstance(error, TimeoutError):

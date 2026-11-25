@@ -12,10 +12,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from requests import Request
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, ConnectTimeout
 from urllib3.exceptions import ProtocolError
 
-from ruyihttp import _transport
+from ruyihttp import _connect, _transport
 from ruyihttp._connect import Attempt
 
 
@@ -260,6 +260,80 @@ class AltSvcTests(unittest.TestCase):
             probe.assert_not_called()
             dial.assert_not_called()
             self.assertIs(exchange.call_args.args[1], tcp)
+        self.assertEqual(pool.leased, 0)
+        self.assertFalse(pool.connecting)
+
+    def test_deadline_after_warm_selection_preserves_unused_h1(self):
+        route = key()
+        self.advertise(route)
+        pool = self.adapter._pool(route)
+        tcp = Mock(alpn="http/1.1", multiplexed=False)
+        tcp.idle.return_value = True
+        pool.idle.append(tcp)
+        clock = SimpleNamespace(monotonic=time.monotonic)
+        cool = self.adapter._cool_alternative
+
+        def expire_after_warm_wins(*args):
+            cool(*args)
+            clock.monotonic = lambda: time.monotonic() + 5
+
+        with (
+            patch.object(_connect, "time", clock),
+            patch.object(
+                self.adapter, "_cool_alternative", side_effect=expire_after_warm_wins
+            ),
+            patch.object(self.adapter, "_connect") as dial,
+            patch.object(_transport, "_ssl_context"),
+            patch.object(_transport, "_Exchange") as exchange,
+            patch(
+                "ruyihttp._http3.Connection", side_effect=ProtocolError("UDP failed")
+            ),
+        ):
+            with self.assertRaises(ConnectTimeout):
+                self.adapter._send_once(self.request, False, (1, 2), True, None, None)
+        dial.assert_not_called()
+        exchange.assert_not_called()
+        tcp.close.assert_not_called()
+        self.assertEqual(pool.leased, 0)
+        self.assertFalse(pool.connecting)
+        self.assertIs(pool.acquire(), tcp)
+        pool.release(tcp)
+
+    def test_constructor_timeout_drops_h1_even_without_exchange_object(self):
+        pool = self.adapter._pool(key())
+        tcp = Mock(alpn="http/1.1", multiplexed=False)
+        tcp.idle.return_value = True
+        pool.idle.append(tcp)
+        request = Request("POST", "https://127.0.0.1/", data=b"once").prepare()
+        with (
+            patch.object(self.adapter, "_connect") as dial,
+            patch.object(
+                _transport, "_Exchange", side_effect=ConnectTimeout("after write")
+            ) as exchange,
+        ):
+            with self.assertRaises(ConnectTimeout):
+                self.adapter.send(request, timeout=(1, 2))
+        dial.assert_not_called()
+        exchange.assert_called_once()
+        tcp.close.assert_called_once()
+        self.assertFalse(pool.idle)
+        self.assertEqual(pool.leased, 0)
+        self.assertFalse(pool.connecting)
+
+    def test_warm_h2_at_capacity_does_not_displace_idle_h1(self):
+        pool = self.adapter._pool(key())
+        h2 = Mock(alpn="h2", multiplexed=True)
+        h2.h2.has_capacity.side_effect = lambda leased: leased < 1
+        pool.shared[h2] = pool.leased = 1
+        tcp = Mock(alpn="http/1.1", multiplexed=False)
+        tcp.idle.return_value = True
+        pool.idle.append(tcp)
+        self.assertIsNone(pool.acquire("h3"))
+        self.assertIs(pool.borrow_tcp(), tcp)
+        self.assertEqual(pool.shared[h2], 1)
+        pool.release(None)
+        pool.release(tcp)
+        pool.release(h2)
         self.assertEqual(pool.leased, 0)
         self.assertFalse(pool.connecting)
 
