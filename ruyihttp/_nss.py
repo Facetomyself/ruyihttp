@@ -16,7 +16,7 @@ from pathlib import Path
 import brotli
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from cryptography.x509.verification import PolicyBuilder, Store
+from cryptography.x509.verification import PolicyBuilder
 
 from ._firefox import (
     DEFAULT_FIREFOX,
@@ -24,7 +24,9 @@ from ._firefox import (
     require_profile_platform,
     runtime_platform,
 )
+from ._native_buffer import read_bytes
 from ._tls_profiles import PLATFORM_PROFILES
+from ._trust import TRUST_MATERIALS
 
 TLS_PROFILES = PLATFORM_PROFILES["win_amd64"]
 
@@ -195,18 +197,14 @@ class Context:
             )
             if not path.exists():
                 raise OSError(f"Invalid TLS CA certificate bundle path: {path}")
-            roots = []
-            for candidate in sorted(path.iterdir()) if path.is_dir() else [path]:
-                if candidate.is_file():
-                    content = candidate.read_bytes()
-                    if b"-----BEGIN CERTIFICATE-----" in content:
-                        roots.extend(x509.load_pem_x509_certificates(content))
-            self.store = Store(roots)
-            trust = b"".join(_certificate_bytes(root) for root in roots)
-            if not isinstance(verify, (str, os.PathLike)):
-                self.constraints = json.loads(
-                    roots_path.with_name("firefox-root-constraints.json").read_text()
-                )
+            constraints = (
+                None if isinstance(verify, (str, os.PathLike))
+                else roots_path.with_name("firefox-root-constraints.json")
+            )
+            material = TRUST_MATERIALS.load(path, constraints)
+            self.store = material.store
+            self.constraints = material.constraints
+            trust = material.identity
         if cert:
             certificate, key = cert if isinstance(cert, (tuple, list)) else (cert, cert)
             certificates = x509.load_pem_x509_certificates(
@@ -433,7 +431,7 @@ class TLS:
         self._check(
             self.library.necko_tls_read(self.handle, buffer, size, ct.byref(length))
         )
-        return bytes(buffer[: length.value])
+        return read_bytes(buffer, length.value)
 
     def write(self, data):
         buffer = (ct.c_uint8 * len(data)).from_buffer_copy(data)

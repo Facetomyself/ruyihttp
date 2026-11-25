@@ -59,6 +59,7 @@ from urllib3.util import Timeout
 
 from ._connect import Attempt, connect_tcp, resolve_addresses
 from ._firefox import PROFILES, firefox_version, wire_headers
+from ._native_buffer import read_bytes
 from ._nss import TLS as _TLS
 from ._nss import Context as _ssl_context
 from ._nss import configure_library
@@ -281,7 +282,7 @@ class _NativeSocket:
             raise TimeoutError("Read timed out")
         if result:
             raise _socket_error(result, "read")
-        return bytes(buffer[: length.value])
+        return read_bytes(buffer, length.value)
 
     def write(self, data):
         buffer = (ctypes.c_uint8 * len(data)).from_buffer_copy(data)
@@ -303,7 +304,7 @@ class _NativeSocket:
             raise BlockingIOError("Socket read would block")
         if result:
             raise _socket_error(result, "read")
-        return bytes(buffer[: length.value])
+        return read_bytes(buffer, length.value)
 
     def write_some(self, data):
         buffer = (ctypes.c_uint8 * len(data)).from_buffer_copy(data)
@@ -561,7 +562,7 @@ class _Exchange:
                 self.handle, buffer, size, ctypes.byref(length)
             )
         )
-        return bytes(buffer[: length.value])
+        return read_bytes(buffer, length.value)
 
     def close(self):
         if self.handle:
