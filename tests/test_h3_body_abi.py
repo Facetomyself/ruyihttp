@@ -9,8 +9,10 @@ import hashlib
 import io
 import json
 import os
+import queue
 import ssl
 import threading
+import time
 import unittest
 from collections import Counter
 from contextlib import ExitStack
@@ -61,6 +63,61 @@ class BodyABIContracts(unittest.TestCase):
         abi._read = lambda *args: b"native stream error"
         with self.assertRaisesRegex(ProtocolError, "native stream error"):
             abi.read(7, 4, 8)
+
+    def test_pump_wakes_blocked_read_and_write_before_next_select(self):
+        connection = object.__new__(_http3.Connection)
+        connection._input_epoch = 0
+        connection._stopping = threading.Event()
+        connection._wake_read = object()
+        connection.commands = queue.Queue()
+        connection.handle = 1
+        udp = object()
+        exchange = object.__new__(_http3.Exchange)
+        exchange.stream_id, exchange.error, exchange.closed = 4, None, False
+        exchange.ended = exchange.send_stopped = exchange.readable = False
+        exchange.write_epoch, exchange.write_blocked_at = 0, (0, 0)
+        exchange.write_probe_at = time.monotonic() + 10
+        connection.streams = {4: exchange}
+        read = _http3._Call("read", exchange, 1, size=8)
+        write = _http3._Call("write", exchange, 1, data=b"b", offset=0)
+        connection.pending = [read, write]
+        connection._body_abi = SimpleNamespace(
+            read=lambda *args: (b"a", False),
+            write=lambda *args: 1,
+        )
+        delivered = False
+        selects = 0
+
+        def native(op):
+            nonlocal delivered
+            if op == "pump":
+                return {"delay": 0.1}
+            self.assertEqual(op, "events")
+            if selects and not delivered:
+                delivered = True
+                return {
+                    "events": [
+                        {"stream": 4, "type": "readable"},
+                        {"stream": 4, "type": "writable"},
+                    ]
+                }
+            return {"events": []}
+
+        def select(timeout):
+            nonlocal selects
+            selects += 1
+            if selects == 1:
+                self.assertFalse(read.done.is_set())
+                self.assertFalse(write.done.is_set())
+                return [(SimpleNamespace(fileobj=udp), 1)]
+            self.assertTrue(read.done.is_set() and write.done.is_set())
+            self.assertEqual((read.result, write.result), (b"a", 1))
+            connection._stopping.set()
+            return []
+
+        connection._call = native
+        connection._run_loop(udp, SimpleNamespace(select=select))
+        self.assertEqual(selects, 2)
 
     def test_zero_retry_reuses_exact_json_frame_and_stop_wins(self):
         connection = object.__new__(_http3.Connection)
@@ -175,6 +232,40 @@ class NativeBodyABI(unittest.TestCase):
                     f"json_ops={dict(json_ops)}",
                     flush=True,
                 )
+
+    def test_native_body_argument_bounds_and_thread_owner(self):
+        origin = self.fixture._origin()
+        connection = self.fixture._connect(origin)
+        abi = connection._body_abi
+        if abi is None:
+            self.skipTest("legacy bridge has no binary body ABI")
+        exchange = self.fixture._exchange(connection, "/body")
+        handle, stream = connection.handle, exchange.stream_id
+        one = ct.create_string_buffer(b"a", 1)
+        count, fin = ct.c_size_t(99), ct.c_uint8(99)
+        for wrong in (None, one):
+            with self.subTest(null=wrong is None):
+                self.assertIn(
+                    b"Invalid HTTP/3 body write arguments",
+                    abi._write(handle, stream, wrong, 65537, ct.byref(count)),
+                )
+                self.assertIn(
+                    b"Invalid HTTP/3 body read arguments",
+                    abi._read(handle, stream, wrong, 0, ct.byref(count), ct.byref(fin)),
+                )
+        self.assertIn(
+            b"Invalid HTTP/3 body read arguments",
+            abi._read(handle, 1 << 62, one, 1, ct.byref(count), ct.byref(fin)),
+        )
+        self.assertIn(
+            b"Invalid HTTP/3 body write arguments",
+            abi._write(handle, stream, one, 1, None),
+        )
+        # The handle works on the connection pump thread, not this test thread.
+        error = abi._read(handle, stream, one, 1, ct.byref(count), ct.byref(fin))
+        self.assertIn(b"handle", error.lower())
+        self.assertEqual((one.raw, count.value, fin.value), (b"a", 99, 99))
+        self.assertEqual(self.fixture._read(exchange), fixture._DATA)
 
     def _early_origin(self, control):
         class EarlyProtocol(fixture.QuicConnectionProtocol):
