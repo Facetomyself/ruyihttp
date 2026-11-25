@@ -49,7 +49,16 @@
     }
   },
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45654640886",
-    "scope": "Native H2/H3 smoke and in-place upgrade on CPython 3.10 and 3.14; full H3 gate still pending on this run."
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657964359",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657964359/job/139359689023",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657964359/artifacts/15042788788",
+    "wheel_sha256": "706f35f4b456bf879e2ff11195fa04fc05997042eccebbe78df56a740744774a",
+    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
+    "cpython_runtime_endpoints": ["3.10.11", "3.14.10"],
+    "tested_http": ["http/1.1", "h2", "h3"],
+    "native_h3_cases": 6,
+    "h3_json_echo_bytes": 1048579,
+    "h3_body_abi": null,
+    "upgrade": "Published 0.9.0 -> candidate 0.9.1 in place; six original DLL hashes, one distribution, and loopback HTTP before and after on both endpoints."
   }
 }

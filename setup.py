@@ -20,7 +20,7 @@ PLATFORMS = {
     "win_amd64": ("py3", "none", "win_amd64"),
     "linux_x86_64": ("py3", "none", "manylinux_2_39_x86_64"),
     "linux_aarch64": ("py3", "none", "manylinux_2_39_aarch64"),
-    "darwin_arm64": ("py3", "none", None),
+    "darwin_arm64": ("py3", "none", "macosx_26_0_arm64"),
     "darwin_x86_64": ("py3", "none", None),
 }
 SOURCE_SLOTS = {"linux_aarch64", "darwin_x86_64", "darwin_arm64"}
