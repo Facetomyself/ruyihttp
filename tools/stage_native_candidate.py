@@ -13,14 +13,19 @@ from pathlib import Path
 from build_native import (NATIVE, PLATFORM_FILES, ROOT, check_architecture, load_manifest,
                           sha256, write_manifest)
 
-TARGETS = {"linux_aarch64": ("Linux", "aarch64"), "darwin_x86_64": ("Darwin", "x86_64")}
+TARGETS = {
+    'linux_aarch64': ('Linux', 'aarch64'),
+    'linux_x86_64': ('Linux', 'x86_64'),
+    'darwin_x86_64': ('Darwin', 'x86_64'),
+    'darwin_arm64': ('Darwin', 'arm64'),
+}
 
 
-def macho_deployment_and_rpaths(path):
+def macho_deployment_and_rpaths(path, slot='darwin_x86_64'):
     """Read the thin Mach-O deployment command, not vtool's linker version."""
     with path.open('rb') as stream:
         header = stream.read(32)
-        check_architecture('darwin_x86_64', path.name, header)
+        check_architecture(slot, path.name, header)
         if len(header) != 32:
             raise ValueError(f'truncated Mach-O header: {path.name}')
         count, length = struct.unpack_from('<II', header, 16)
@@ -58,13 +63,13 @@ def macho_deployment_and_rpaths(path):
     return (floor >> 16, (floor >> 8) & 255, floor & 255), rpaths
 
 
-def macos_deployment(libs):
-    floors = []
+def macos_deployment(libs, slot):
+    floors = {}
     for path in libs:
         info = subprocess.check_output(["xcrun", "vtool", "-show-build", path], text=True)
         print(info.strip(), flush=True)
-        floor, rpaths = macho_deployment_and_rpaths(path)
-        floors.append(floor)
+        floor, rpaths = macho_deployment_and_rpaths(path, slot)
+        floors[path.name] = floor
         if (any(rpath != b'@loader_path' for rpath in rpaths) or
                 (path.name.startswith('libnecko_') and b'@loader_path' not in rpaths)):
             raise ValueError(f'{path.name}: loader search path is not limited to the sibling directory')
@@ -77,11 +82,18 @@ def macos_deployment(libs):
                        for prefix in ("@rpath", "@loader_path")):
                 raise ValueError(f"{path.name}: non-system dependency outside bundle: {dep}")
         print(*deps, sep="\n", flush=True)
-    major, minor, patch = max(floors)
-    if patch:
-        # The wheel format cannot express a patch-level minimum.
+    major, minor, patch = max(floors.values())
+    minimum = '.'.join(map(str, (major, minor, patch)))
+    if major >= 11 and (minor or patch):
+        # Modern pip emits major_0 tags; round up rather than claiming an
+        # earlier release or emitting a tag no target can install.
+        major, minor = major + 1, 0
+    elif patch:
         minor += 1
-    return f"macosx_{major}_{minor}_x86_64"
+    arch = TARGETS[slot][1]
+    return f'macosx_{major}_{minor}_{arch}', minimum, {
+        name: '.'.join(map(str, floor)) for name, floor in floors.items()}
+
 
 
 def main():
@@ -90,16 +102,22 @@ def main():
     parser.add_argument("source", type=Path, help="directory holding the selected native libraries")
     parser.add_argument("--donor", required=True, help="donor Git commit")
     parser.add_argument("--firefox", required=True, help="Firefox Git commit")
-    parser.add_argument("--source-patch", type=Path, help="applied donor patch under this repository")
+    parser.add_argument("--source-patch", type=Path, action='append', required=True,
+                        help="applied donor patch under this repository (repeat in apply order)")
     args = parser.parse_args()
     if (platform.system(), platform.machine()) != TARGETS[args.platform]:
         parser.error("staging requires execution on the selected native build host")
     if any(not re.fullmatch(r"[0-9a-f]{40}", rev) for rev in (args.donor, args.firefox)):
         parser.error("full Git commits are required")
-    patch = None
-    if args.source_patch is not None:
-        path = args.source_patch.resolve(strict=True)
-        patch = {'path': path.relative_to(ROOT).as_posix(), 'sha256': sha256(path)}
+    patches = []
+    for source_patch in args.source_patch:
+        path = source_patch.resolve(strict=True)
+        patches.append({'path': path.relative_to(ROOT).as_posix(), 'sha256': sha256(path)})
+    names_expected = ['h3-body-abi-v1.patch']
+    if args.platform.startswith('darwin_'):
+        names_expected.insert(0, 'macos-necko-quic-tls-info.patch')
+    if [p['path'] for p in patches] != [f'native/patches/{name}' for name in names_expected]:
+        parser.error('expected pinned patches in build application order')
     source = args.source.resolve(strict=True)
     dest = NATIVE / args.platform
     manifest = load_manifest()
@@ -111,13 +129,16 @@ def main():
     for path in libs:
         with path.open("rb") as stream:
             check_architecture(args.platform, path.name, stream.read(20))
-    if args.platform == "linux_aarch64":
+    deployment = {}
+    if args.platform.startswith('linux_'):
         from check_linux_candidate import check
-        result = check(source, "aarch64")
+        arch = TARGETS[args.platform][1]
+        result = check(source, arch)
         print(json.dumps(result, indent=2))
-        tag = "manylinux_2_39_aarch64"
+        tag = f'manylinux_2_39_{arch}'
     else:
-        tag = macos_deployment(libs)
+        tag, minimum, floors = macos_deployment(libs, args.platform)
+        deployment = {'minimum_macos': minimum, 'macho_minimum_macos': floors}
     inventory = {}
     for path in libs:
         copied = Path(shutil.copy2(path, dest / path.name))
@@ -125,13 +146,13 @@ def main():
     runtime = {name: entry[name] for name in ("firefox", "nss", "nspr", "neqo")}
     provenance = {"platform": args.platform, "source": "source-built candidate, native verification required",
                   "ff_ruyijs_commit": args.donor, "firefox_source_commit": args.firefox,
-                  "wheel_platform_tag": tag, "runtime_expected": runtime, "files": inventory}
-    if patch:
-        provenance['source_patch'] = patch
+                  "wheel_platform_tag": tag, "runtime_expected": runtime, "files": inventory,
+                  "source_patches": patches, "h3_body_abi_expected": 1, **deployment}
     (dest / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     hashes = {name: item["sha256"] for name, item in inventory.items()}
     (dest / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in hashes.items()))
-    entry.update(status="ready", wheel_platform_tag=tag, files=hashes)
+    entry.update(status='ready', wheel_platform_tag=tag, files=hashes,
+                 h3_tls='nss', h3_body_abi=1, **deployment)
     write_manifest(manifest)
     print(f"{args.platform} staged in disposable checkout, candidate tag {tag}")
 
