@@ -2,6 +2,7 @@
 """Test one built wheel under the selected native CPython interpreter."""
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import platform
@@ -25,8 +26,12 @@ def main():
                 "PYTHONPATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH"):
         env.pop(key, None)
     env["RUYIHTTP_TEST_NATIVE_H3"] = "1"
+    env["RUYIHTTP_REQUIRE_H3_IPV6"] = "1"
+    manifest = json.loads((ROOT / 'ruyihttp/runtime-manifest.json').read_text(encoding='utf-8'))
+    if manifest['platforms'][slot].get('h3_body_abi') == 1:
+        env['RUYIHTTP_REQUIRE_H3_BODY_ABI'] = '1'
     env["PYTHONUNBUFFERED"] = "1"
-    env["PYTHONFAULTHANDLER"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
     if sys.platform == "darwin":
         prefix = subprocess.check_output(["brew", "--prefix", "openssl@3"], text=True).strip()
         env["PATH"] = str(Path(prefix) / "bin") + os.pathsep + env["PATH"]
@@ -50,7 +55,7 @@ def main():
             raise SystemExit(f"{name} failed: {status}")
 
     def python(name, *args, **kwargs):
-        run(name, [sys.executable, *map(str, args)], **kwargs)
+        run(name, [sys.executable, '-X', 'utf8', '-X', 'faulthandler', *map(str, args)], **kwargs)
 
     python("install", "-m", "pip", "install", f"{wheel}[socks]", "aioquic==1.3.0", required=True)
     python("pip-check", "-m", "pip", "check")

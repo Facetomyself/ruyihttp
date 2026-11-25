@@ -353,12 +353,15 @@ class NativeHTTP3Tests(unittest.TestCase):
         self._exercise_alt_svc(_IP, socket.AF_INET)
 
     def test_public_session_alt_svc_ipv6_upgrade_and_reuse(self):
+        required = os.environ.get('RUYIHTTP_REQUIRE_H3_IPV6') == '1'
         if not socket.has_ipv6:
+            self.assertFalse(required, 'native platform gate requires IPv6 loopback')
             self.skipTest("IPv6 loopback unavailable")
         with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe:
             try:
                 probe.bind((_IPV6, 0))
             except OSError as error:
+                self.assertFalse(required, f'native platform gate requires IPv6 loopback: {error}')
                 self.skipTest(f"IPv6 loopback unavailable: {error}")
         self._exercise_alt_svc(_IPV6, socket.AF_INET6)
 
@@ -438,7 +441,7 @@ class NativeHTTP3Tests(unittest.TestCase):
             self.assertEqual(headers[b":authority"], f"{host}:{address[1]}".encode())
             self.assertEqual(headers[b"alt-used"], f"{host}:{port}".encode())
         print(
-            f"public Session {host}: HTTP/1.1 Alt-Svc → TCP listeners closed → HTTP/3 "
+            f"public Session {host}: HTTP/1.1 Alt-Svc -> TCP listeners closed -> HTTP/3 "
             f"versions=30,30; origin observed one h3 connection with streams 0,4; TLS={tls_reports!r}",
             flush=True,
         )
