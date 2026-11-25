@@ -2,6 +2,7 @@
 """Upgrade in place from the sole public 0.9.0 distribution (Windows x64)."""
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -9,14 +10,10 @@ import sys
 import tempfile
 from urllib.request import urlretrieve
 import venv
+from zipfile import ZipFile
 
-BASELINE = "ruyihttp-0.9.0-py3-none-win_amd64.whl"
-BASELINE_URL = (
-    "https://files.pythonhosted.org/packages/1d/a0/"
-    "282d771e7311f8c3e166f5ccd67533a37033ecddd7c6ad31ac8dbc31f597/" + BASELINE
-)
-BASELINE_SHA256 = "95b67581b2538194b9fc9b41b7f7077f1cb2767dbc5c776d404e78cd11d42f48"
 CI = Path(__file__).resolve().parent
+PROVENANCE = CI.parent / 'native/win_amd64/provenance.json'
 
 
 def main():
@@ -25,10 +22,18 @@ def main():
     assert candidate_version != "0.9.0" and candidate.name.endswith("-win_amd64.whl")
     with tempfile.TemporaryDirectory(prefix="ruyihttp-upgrade-") as directory:
         root = Path(directory)
-        baseline = root / BASELINE
-        urlretrieve(BASELINE_URL, baseline)
-        assert hashlib.sha256(baseline.read_bytes()).hexdigest() == BASELINE_SHA256
-        print(f"baseline={BASELINE} sha256={BASELINE_SHA256}", flush=True)
+        provenance = json.loads(PROVENANCE.read_text(encoding='utf-8'))
+        baseline = root / provenance['wheel']
+        assert baseline.name == 'ruyihttp-0.9.0-py3-none-win_amd64.whl'
+        urlretrieve(provenance['wheel_url'], baseline)
+        baseline_hash = hashlib.sha256(baseline.read_bytes()).hexdigest()
+        assert baseline_hash == provenance['wheel_sha256'], baseline_hash
+        with ZipFile(baseline) as wheel:
+            for name, expected in provenance['files'].items():
+                native = wheel.read(f'ruyihttp/{name}')
+                assert len(native) == expected['size']
+                assert hashlib.sha256(native).hexdigest() == expected['sha256'], name
+        print(f"baseline={baseline.name} sha256={baseline_hash}; six original DLL hashes verified", flush=True)
         venv.EnvBuilder(with_pip=True).create(root / "venv")
         python = root / "venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 

@@ -1,0 +1,55 @@
+{
+  "platform": "win_amd64",
+  "source": "Original public ruyihttp 0.9.0 PyPI wheel (unchanged DLL set)",
+  "wheel": "ruyihttp-0.9.0-py3-none-win_amd64.whl",
+  "wheel_url": "https://files.pythonhosted.org/packages/1d/a0/282d771e7311f8c3e166f5ccd67533a37033ecddd7c6ad31ac8dbc31f597/ruyihttp-0.9.0-py3-none-win_amd64.whl",
+  "wheel_sha256": "95b67581b2538194b9fc9b41b7f7077f1cb2767dbc5c776d404e78cd11d42f48",
+  "runtime_expected": {
+    "firefox": "159.0",
+    "nss": "3.131",
+    "nspr": "4.40",
+    "neqo": "0.32.0"
+  },
+  "h3_version_export": {
+    "type": "ascii",
+    "value": "neqo-0.32.0/nss-3.131"
+  },
+  "h3_tls": {
+    "backend": "NSS/Neqo",
+    "alpn": "h3",
+    "version": 772,
+    "cipher_suite": 4866,
+    "resumed": false
+  },
+  "h3_body_abi": null,
+  "files": {
+    "freebl3.dll": {
+      "size": 1128448,
+      "sha256": "9bc57db64c16fd51efc769e43c69c072c5fbdb05b979c54c640510fc802f215c"
+    },
+    "mozglue.dll": {
+      "size": 655360,
+      "sha256": "5674da87e99554812cda2e952711e539df47fe938b7ce96a6c15b41f218ee4f8"
+    },
+    "necko_core.dll": {
+      "size": 123392,
+      "sha256": "441dde546c1e5d0e4e19ccb4e3d79f3d957ff7c104a5831b4a8e4d8887710a12"
+    },
+    "necko_quic.dll": {
+      "size": 2177024,
+      "sha256": "bba3edc283a339f3b391e6590b942a6d250b8c7e9520484380d7f41c3b88dd62"
+    },
+    "nss3.dll": {
+      "size": 2959360,
+      "sha256": "b6b44e3cbd731e1c1cd95e53b5266dae7f346267668124e5cd687b8355bee683"
+    },
+    "softokn3.dll": {
+      "size": 327680,
+      "sha256": "303c91b2f2ec4042c269a2196fbfaee2683db5e710a300112b7053285fa57a46"
+    }
+  },
+  "native_verification": {
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45654640886",
+    "scope": "Native H2/H3 smoke and in-place upgrade on CPython 3.10 and 3.14; full H3 gate still pending on this run."
+  }
+}
