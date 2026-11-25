@@ -10,7 +10,7 @@ cd "$donor"
 apply_patch() {
   local patch="$manifest_root/native/patches/$1"
   python -c 'import hashlib, pathlib, sys; p=pathlib.Path(sys.argv[1]); print(p.name, hashlib.sha256(p.read_bytes()).hexdigest())' "$patch"
-  git apply --check "$patch"
+  git apply --whitespace=error --check "$patch"
   git apply "$patch"
 }
 case "$slot" in

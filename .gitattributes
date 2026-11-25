@@ -5,3 +5,6 @@
 *.dat text eol=lf
 *.json text eol=lf
 SHA256SUMS text eol=lf
+# A blank context line in a unified diff is one space. Check the applied
+# patch's added lines in the native build instead; preserve its exact SHA.
+native/patches/*.patch text eol=lf whitespace=-blank-at-eol
