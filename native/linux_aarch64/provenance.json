@@ -16,8 +16,8 @@
       "sha256": "0fa68cf71c27fb8514167de0d33997b48d97bc3c0b8902748d357c150cb6ee08"
     },
     "libnecko_quic.so": {
-      "size": 2679288,
-      "sha256": "596cf731c306951c2a6d0a12061d0cc4c163de201dc0a836e16a3a02c58428c1"
+      "size": 2680896,
+      "sha256": "37eb21a5baebd68577aea85ae553b915614584e34233cd70f094a7168ec1edc4"
     },
     "libnss3.so": {
       "size": 953089,
@@ -33,15 +33,15 @@
     },
     "libnspr4.so": {
       "size": 340017,
-      "sha256": "3bd8479f39cbb370999e3af4611d2ab39d64a6be5aa756484ce8b63faec91d80"
+      "sha256": "9f2427c94f0e6f787e5d623848036d9296aa55bfda9184ae71870144a0bfb588"
     },
     "libplc4.so": {
       "size": 132769,
-      "sha256": "5584fd2478f22bb6524c2e321857c33372c0ba2bb1963934c763674f9c520159"
+      "sha256": "a43a92e7838b91b70eda550f68657bbfd6dec9a12d31f1c9881b9a248647900c"
     },
     "libplds4.so": {
       "size": 132529,
-      "sha256": "6e9e7ec5cf53165cc366bd3f30683f05c32f94cec72551601f41ba74186e98f2"
+      "sha256": "3c65c95785b35f868706167d2d5e51b72855014df53d6cd028e05534080f6be1"
     },
     "libsoftokn3.so": {
       "size": 528089,
@@ -68,16 +68,31 @@
       "sha256": "ce4f0ddc9300a1732af10e22813a775b0c835810c9232b1b6ffc7e0110e95566"
     }
   },
+  "source_patches": [
+    {
+      "path": "native/patches/h3-body-abi-v1.patch",
+      "sha256": "58f2c3eeb7664f721a82e0742289d58ae09b844ed1e6c32f69fbf960a3922a19"
+    }
+  ],
+  "h3_body_abi_expected": 1,
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45335744015",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45335744015/job/138247268336",
-    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45335744015/artifacts/14894146958",
-    "ruyihttp_commit": "8ebaabd99ef656c68b0b719fbcb4c8e8201c7a77",
-    "wheel_sha256": "398da1a9f381706ddd7af8b531530bb38dbd3ad310664c1992bc519b6b8de3d9",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657953441",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657953441/job/139359649612",
+    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657953441/artifacts/15043782225",
+    "wheel_sha256": "49426a12074493ef4b6429adeb8bc2060d168ff7feb7bd120d56cd6f4c1419bf",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45656365582",
+    "source_build_attempt": 1,
+    "source_build_commit": "f636df86704af7d0a42058cbb75d120ce375c974",
+    "cpython_runtime_endpoints": [
+      "3.10",
+      "3.14"
+    ],
     "tested_http": [
       "http/1.1",
       "h2",
       "h3"
-    ]
+    ],
+    "h3_body_abi": 1
   }
 }

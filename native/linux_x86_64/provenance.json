@@ -1,68 +1,98 @@
 {
   "platform": "linux_x86_64",
-  "source": "Facetomyself/ff-ruyijs PyPI ruyijs 0.4.1",
-  "wheel": "ruyijs-0.4.1-py3-none-manylinux_2_39_x86_64.whl",
-  "nss": "3.132",
-  "neqo": "0.33.0",
+  "source": "Native source build verified by an installed-wheel runner",
+  "ff_ruyijs_commit": "f557fcd437aae5f18f313eb330bd3ef50f5fc7df",
+  "firefox_source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+  "wheel_platform_tag": "manylinux_2_39_x86_64",
+  "runtime_expected": {
+    "firefox": "159.0",
+    "nss": "3.132",
+    "nspr": "4.40",
+    "neqo": "0.33.0"
+  },
   "files": {
-    "libfreebl3.so": {
-      "size": 21673,
-      "sha256": "ea36298b1e9073836413f34655c5dde6f2c128e9b12af0636a639d3ee148b830"
-    },
-    "libfreeblpriv3.so": {
-      "size": 1263561,
-      "sha256": "ff18cc16796ff9ed036d9e435b9d21d0957dd9ef48b2982d360643aaba064170"
-    },
     "libnecko_core.so": {
-      "size": 255297,
-      "sha256": "5469a2566d52eae2e04bc9123d5aeecad9273aabd371d82ad4cefb59aab1249d"
+      "size": 248304,
+      "sha256": "60f02888accfd33d5e8d43018769afe8798248f4eccddf344c05406e6609738c"
     },
     "libnecko_quic.so": {
-      "size": 2774169,
-      "sha256": "3e4c524b1d72f9bab6889ac4530cb432ce03dbd24daaedca6d1fbd5972f48cd3"
-    },
-    "libnspr4.so": {
-      "size": 299233,
-      "sha256": "bde066b309c1119365f87e272f8d7c620d2bcf1d07c2dd854faa885a0e2f0bf3"
+      "size": 2773328,
+      "sha256": "c89656e9c81aa3d2271c933dac08dbb9d121bd24e738035ba1be6e81b3c36a57"
     },
     "libnss3.so": {
-      "size": 875313,
-      "sha256": "3fea49e59dc21bb51fce0754e0e29f674210ee0aa33bced8707951e6e36165d1"
+      "size": 875281,
+      "sha256": "64c44b686a6ed737a35666bda485e0437e584cc2da80e5b29db254b87594981b"
     },
     "libnssutil3.so": {
-      "size": 264233,
-      "sha256": "8197055041ebd3155fe7d2d485561bcebb38111700a795d409452def0379fd66"
-    },
-    "libplc4.so": {
-      "size": 30409,
-      "sha256": "5e7c459b97532dd192c57b907e4dbcd4a4abbab38a4ee3b2f85a3b9a9b2a88d8"
-    },
-    "libplds4.so": {
-      "size": 26073,
-      "sha256": "d8c4b6149ffd53894a3c93332262c0408ad6ebf48666bd93c32758e33e7a44c4"
-    },
-    "libsoftokn3.so": {
-      "size": 429833,
-      "sha256": "2b7f6d5acf316ad92dcf1a02389e25e43bc7b00af5d5aa19f00993c414daaa83"
+      "size": 260105,
+      "sha256": "e3f17f18dc3952703a10bfd24963d8149c97728d2e939458cdc878d2a1c62f7a"
     },
     "libssl3.so": {
-      "size": 494121,
-      "sha256": "02434e37ad99e934aafc825557a3ef4bcb836600416917c4d5921dc18a082ac4"
+      "size": 494089,
+      "sha256": "aa0a163e78edb600e1384d139c03619d9a8b04456d8e71d406ab35f9c7648b85"
+    },
+    "libnspr4.so": {
+      "size": 299201,
+      "sha256": "f781ac75981c0edab0f9ac426cb708b8d06b2cfa4ae204a16718cf3edcb86acc"
+    },
+    "libplc4.so": {
+      "size": 30377,
+      "sha256": "436a3636e82f69cc4ee859afba157a78055f345f7c558cf1c05efcb516c3cbe9"
+    },
+    "libplds4.so": {
+      "size": 26041,
+      "sha256": "a934fd6a4470c4e360e3c365fa15cdb1806469493ccbfff74bc5dab88d37725d"
+    },
+    "libsoftokn3.so": {
+      "size": 429801,
+      "sha256": "d92499f89956d9466688a9153add13600e78b8213987520c0842616b950c3c9b"
+    },
+    "libfreebl3.so": {
+      "size": 21641,
+      "sha256": "a11ea2368b54ac26aed993ce2af4484244a0fb384cbd888caf46e7a9b4f14314"
+    },
+    "libfreeblpriv3.so": {
+      "size": 1292201,
+      "sha256": "b5e15c2ba65dab53682d349a1fb4132d7c7cb47f93c9fe263d3702b0e7cf46a4"
     },
     "libsqlite3.so": {
-      "size": 1287049,
-      "sha256": "dde33a2c3c529f5ed63549cb940951cb65b9b2b411f6b810a1b51d42030aa267"
+      "size": 1282921,
+      "sha256": "ff6b02a71643c9dd2176b48a494c5219d915e6f14af285e3b33433d8eef3deb4"
     },
     "libnssckbi.so": {
-      "size": 649177,
-      "sha256": "35db0e5d296e852c1e3f6f24c0a5b7c14eee4427a290d394ecd9b8faa285fe73"
+      "size": 649145,
+      "sha256": "23064ef7a1fd75caedc7b8393d7492ed5a6c4605daee7d2a5dcb44b3211ac64c"
     },
     "libnsssysinit.so": {
-      "size": 22289,
-      "sha256": "2b855312d9582fce29dcc81ed552deed4a33803fa4802171a26348ab062116cb"
+      "size": 22257,
+      "sha256": "ddeb3a912777a65b523ca97cc1f7740c014d1a66000bcd95c2956ac885fff124"
     }
   },
-  "license": "AGPL-3.0-only OR commercial; Mozilla-derived parts MPL-2.0. Private use only until relicensed.",
-  "wheel_sha256": "f80de6b269e0bcef9fd6dccab6c722e57d6350ce5a5ecce5c68a96270b908d37",
-  "ff_ruyijs_commit": "0b02c04fb8f2b54d5b66ac0dddba1a1711f1a89c"
+  "source_patches": [
+    {
+      "path": "native/patches/h3-body-abi-v1.patch",
+      "sha256": "58f2c3eeb7664f721a82e0742289d58ae09b844ed1e6c32f69fbf960a3922a19"
+    }
+  ],
+  "h3_body_abi_expected": 1,
+  "native_verification": {
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657959397",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657959397/job/139359672836",
+    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657959397/artifacts/15042988138",
+    "wheel_sha256": "03666e75ef70dfa9058de5007c06a4a2b809d9854374b25bcf6c3613a37400cd",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45656365582",
+    "source_build_attempt": 1,
+    "source_build_commit": "f636df86704af7d0a42058cbb75d120ce375c974",
+    "cpython_runtime_endpoints": [
+      "3.10",
+      "3.14"
+    ],
+    "tested_http": [
+      "http/1.1",
+      "h2",
+      "h3"
+    ],
+    "h3_body_abi": 1
+  }
 }

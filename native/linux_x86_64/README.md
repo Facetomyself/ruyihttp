@@ -1,8 +1,11 @@
 # Linux x86_64 native runtime
 
-This directory is a complete Linux x86_64 Necko/NSS set imported from
-`Facetomyself/ff-ruyijs` 0.4.1
-(`ruyijs-0.4.1-py3-none-manylinux_2_39_x86_64.whl`).
+This directory is a complete Linux x86_64 Necko/NSS set built from pinned
+Firefox and ff-ruyijs sources on an Ubuntu 24.04 x86_64 runner. The source-built
+set replaces the historical ruyijs 0.4.1 wheel binaries with measured optional
+H3 body ABI v1 while preserving the installed-wheel H1/H2/H3 and proxy checks.
+CPython 3.10 and 3.14 ran the 1,048,579-byte binary and JSON echo controls and
+verified native argument bounds with two simultaneous owners.
 
 | File | Role |
 | --- | --- |
@@ -18,5 +21,6 @@ Both `libnecko_core.so` and `libnecko_quic.so` carry a `$ORIGIN` runpath, so the
 sibling libraries load without setting `LD_LIBRARY_PATH`. Keep the directory
 together.
 
-The build floor is glibc 2.39 (Ubuntu 24.04). `provenance.json` records the
-source wheel and per-file SHA-256. NSS reports `3.132`.
+The wheel floor is glibc 2.39 (Ubuntu 24.04). [Provenance](provenance.json)
+records source pins, per-file SHA-256, candidate wheel hash and hosted runs.
+NSS reports `3.132`; this bridge's version export returns integer ABI `32`.
