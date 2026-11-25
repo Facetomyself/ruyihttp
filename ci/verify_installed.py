@@ -46,8 +46,13 @@ def main(target):
     assert libs == set(entry["files"]), libs.symmetric_difference(entry["files"])
     for name, digest in entry["files"].items():
         assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest, name
+    assert set(manifest['data']) == {'firefox-profile.json', 'firefox-root-constraints.json', 'firefox-roots.pem', 'firefox-suffixes.dat'}
+    for name, digest in manifest['data'].items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest, name
+    provenance = json.loads((root / 'native-provenance.json').read_text(encoding='utf-8'))
+    assert provenance['platform'] == target and {n: f['sha256'] for n, f in provenance['files'].items()} == entry['files']
     print(
-        f"installed ruyihttp {version} {target} on {platform.system()} {machine}: {len(libs)} native hashes verified in {root}"
+        f"installed ruyihttp {version} {target} on {platform.system()} {machine}: {len(libs)} native hashes verified in {root}; 4 data hashes and native provenance match"
     )
 
 

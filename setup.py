@@ -70,6 +70,19 @@ def linux_tag(name):
     return f"manylinux_{match[1]}_{match[2]}_{arch}"
 
 
+PROFILE_DATA = {'firefox-profile.json', 'firefox-root-constraints.json', 'firefox-roots.pem', 'firefox-suffixes.dat'}
+
+
+def verify_profile_data(directory, manifest):
+    files = manifest.get('data', {})
+    if set(files) != PROFILE_DATA:
+        raise SystemExit('profile/trust data inventory differs from the expected set')
+    for name, digest in files.items():
+        path = directory / name
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            raise SystemExit(f'profile/trust data hash differs from manifest: {name}')
+
+
 class BinaryDistribution(Distribution):
     def has_ext_modules(self):
         return True
@@ -79,6 +92,9 @@ class BundleNative(build_py):
     def run(self):
         super().run()
         self.bundle_native(host_platform())
+        destination = Path(self.build_lib) / 'ruyihttp'
+        manifest = json.loads((destination / 'runtime-manifest.json').read_text(encoding='utf-8'))
+        verify_profile_data(destination, manifest)
 
     def bundle_native(self, host_name):
         source = ROOT / "native" / host_name
@@ -113,6 +129,13 @@ class BundleNative(build_py):
                 stale.unlink()
         for path in files:
             shutil.copy2(path, destination / path.name)
+        provenance = source / 'provenance.json'
+        record = json.loads(provenance.read_text(encoding='utf-8'))
+        if record.get('platform') != host_name or {n: v.get('sha256') for n, v in record.get('files', {}).items()} != expected:
+            raise SystemExit(f'native provenance differs from manifest: {host_name}')
+        # Expose this specific slot's source, patch and verification receipt to
+        # wheel-only consumers, too. Repackaging does not create new provenance.
+        shutil.copyfile(provenance, destination / 'native-provenance.json')
 
 
 class PlatformWheel(bdist_wheel):

@@ -230,6 +230,12 @@ def import_wheel(wheel: Path, platform: str) -> None:
 def check() -> int:
     manifest = load_manifest()
     failed = 0
+    for name, expected in manifest['data'].items():
+        path = MANIFEST.parent / name
+        if not path.is_file() or sha256(path) != expected:
+            print(f'data: missing or mismatched {name}')
+            failed += 1
+    print(f'data: {len(manifest["data"])} files checked')
     for platform, entry in manifest.get("platforms", {}).items():
         if entry.get("status") != "ready":
             print(f"{platform}: build-required")
