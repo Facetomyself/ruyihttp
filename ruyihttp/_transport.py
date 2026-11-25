@@ -385,8 +385,7 @@ class _Pool:
     def acquire(self, prefer=None, http3=True, *, attempt=None):
         with self.condition:
             while True:
-                if attempt is not None:
-                    attempt.remaining()
+                remaining = attempt.remaining() if attempt is not None else None
                 if self.closed:
                     raise ConnectionError("Connection pool closed")
                 for connection in list(self.shared):
@@ -402,6 +401,18 @@ class _Pool:
                     if self.shared[connection] == 0 and not connection.idle():
                         self.shared.pop(connection)
                         connection.close()
+                if (
+                    prefer == "h3"
+                    and remaining is not None
+                    and remaining <= _ALT_SVC_RACE_DELAY
+                    and (not self.block or self.leased < self.maximum)
+                ):
+                    # An established H3 still wins above. With no room for a
+                    # normal QUIC head start, use a warm TCP lease directly,
+                    # even if another request is already probing the route.
+                    warm = self.borrow_tcp()
+                    if warm is not None:
+                        return warm
                 if self.connecting or self.block and self.leased >= self.maximum:
                     self.condition.wait(attempt.remaining() if attempt is not None else None)
                     continue
@@ -924,6 +935,14 @@ class HTTPAdapter(RequestsAdapter):
     def _connect_alternative(
         self, request, key, alternate, verify, budget, resolved, *, pool=None
     ):
+        remaining = budget.remaining()
+        if pool is not None and remaining is not None and remaining <= _ALT_SVC_RACE_DELAY:
+            # The remaining budget or warm pool can change after acquire().
+            # No QUIC probe means no failure to record in the cooldown cache.
+            warm = pool.borrow_tcp()
+            if warm is not None:
+                return _BorrowedConnection(pool, warm)
+
         from ._connect import race
         from ._http3 import Connection as H3Connection
 

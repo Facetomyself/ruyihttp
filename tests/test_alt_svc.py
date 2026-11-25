@@ -263,6 +263,57 @@ class AltSvcTests(unittest.TestCase):
         self.assertEqual(pool.leased, 0)
         self.assertFalse(pool.connecting)
 
+    def test_short_budget_checks_out_warm_tcp_even_behind_an_upgrade(self):
+        for alpn in ("http/1.1", "h2"):
+            with self.subTest(alpn=alpn):
+                pool = _transport._Pool(2, False)
+                self.addCleanup(pool.close)
+                tcp = Mock(alpn=alpn, multiplexed=alpn == "h2")
+                tcp.idle.return_value = True
+                if alpn == "h2":
+                    tcp.h2.has_capacity.side_effect = lambda leased: leased < 1
+                    pool.shared[tcp] = 0
+                else:
+                    pool.idle.append(tcp)
+                self.assertIsNone(pool.acquire("h3"))
+                with patch.object(
+                    pool.condition,
+                    "wait",
+                    side_effect=AssertionError("unexpected wait"),
+                ):
+                    budget = SimpleNamespace(remaining=lambda: 0.05)
+                    self.assertIs(pool.acquire("h3", attempt=budget), tcp)
+                self.assertTrue(pool.connecting)
+                self.assertEqual(pool.leased, 2)
+                pool.release(tcp)
+                self.assertTrue(pool.connecting)
+                pool.release(None)
+                self.assertEqual(pool.leased, 0)
+
+    def test_budget_shrinking_after_dial_reservation_skips_race_and_cooldown(self):
+        route = key()
+        self.advertise(route)
+        alternate = self.adapter._active_alternative(route)
+        pool = self.adapter._pool(route)
+        tcp = Mock(alpn="http/1.1", multiplexed=False)
+        tcp.idle.return_value = True
+        pool.idle.append(tcp)
+        self.assertIsNone(pool.acquire("h3"))
+        budget = SimpleNamespace(remaining=lambda: 0.05)
+        with patch.object(
+            _connect, "race", side_effect=AssertionError("unexpected race")
+        ):
+            warm = self.adapter._connect_alternative(
+                self.request, route, alternate, True, budget, None, pool=pool
+            )
+        self.assertIs(warm.connection, tcp)
+        self.assertIs(self.adapter._active_alternative(route), alternate)
+        self.assertFalse(self.adapter._alt_cooldowns)
+        warm.close()
+        pool.release(None)
+        self.assertEqual(pool.leased, 0)
+        self.assertFalse(pool.connecting)
+
     def test_deadline_after_warm_selection_preserves_unused_h1(self):
         route = key()
         self.advertise(route)

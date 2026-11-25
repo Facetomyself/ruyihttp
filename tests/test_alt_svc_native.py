@@ -202,9 +202,12 @@ class NativeAltSvcTests(unittest.TestCase):
                             flush=True,
                         )
                     self.assertEqual([row[1] for row in timings], ["1"] * 5)
-                    self.assertEqual(udp[0], 0)
-                    self.assertGreater(udp[1], 0)
-                    self.assertEqual(udp[2:], [0, 0, 0])
+                    # A short budget uses the warm lease without probing. The
+                    # next adequately budgeted request must actually probe, then
+                    # the last two requests exercise the real failure cooldown.
+                    self.assertEqual(udp[:2], [0, 0])
+                    self.assertGreater(udp[2], 0)
+                    self.assertEqual(udp[3:], [0, 0])
                     self.assertEqual(len(connections), 1)
                     self.assertEqual(
                         requests,
@@ -225,7 +228,7 @@ class NativeAltSvcTests(unittest.TestCase):
                 self._tcp_origin("http/1.1", port) as (url, connections, requests),
                 self._session() as session,
             ):
-                for path, budget in (("/bootstrap", 2), ("/blocked", 0.05)):
+                for path, budget in (("/bootstrap", 2), ("/blocked", 0.8)):
                     with session.get(url + path, timeout=(budget, 2)) as response:
                         self.assertEqual(
                             (response.raw.version, response.content), (11, b"ok")
