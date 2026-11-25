@@ -14,7 +14,9 @@ The standalone SpiderMonkey donor is separate from this Necko ABI. The complete 
 - `libsqlite3.so`, `libnssckbi.so`, `libnsssysinit.so`
 
 The runtime is NSS 3.132 / NSPR 4.40 / Neqo 0.33.0. The wheel's supported
-floor is glibc 2.39; `auditwheel` agrees. The manifest inventory and exact hashes
+floor is glibc 2.39; `auditwheel` agrees. CPython 3.10 and 3.14 ran the
+1,048,579-byte binary ABI v1 and JSON echo controls and verified native argument
+bounds with two simultaneous owners. The manifest inventory and exact hashes
 are required for packaging.
 
 Run the read-only preflight from the project root:

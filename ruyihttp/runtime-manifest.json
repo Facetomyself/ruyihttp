@@ -57,26 +57,28 @@
       "nspr": "4.40",
       "neqo": "0.33.0",
       "files": {
-        "libfreebl3.so": "ea36298b1e9073836413f34655c5dde6f2c128e9b12af0636a639d3ee148b830",
-        "libfreeblpriv3.so": "ff18cc16796ff9ed036d9e435b9d21d0957dd9ef48b2982d360643aaba064170",
-        "libnecko_core.so": "5469a2566d52eae2e04bc9123d5aeecad9273aabd371d82ad4cefb59aab1249d",
-        "libnecko_quic.so": "3e4c524b1d72f9bab6889ac4530cb432ce03dbd24daaedca6d1fbd5972f48cd3",
-        "libnspr4.so": "bde066b309c1119365f87e272f8d7c620d2bcf1d07c2dd854faa885a0e2f0bf3",
-        "libnss3.so": "3fea49e59dc21bb51fce0754e0e29f674210ee0aa33bced8707951e6e36165d1",
-        "libnssutil3.so": "8197055041ebd3155fe7d2d485561bcebb38111700a795d409452def0379fd66",
-        "libplc4.so": "5e7c459b97532dd192c57b907e4dbcd4a4abbab38a4ee3b2f85a3b9a9b2a88d8",
-        "libplds4.so": "d8c4b6149ffd53894a3c93332262c0408ad6ebf48666bd93c32758e33e7a44c4",
-        "libsoftokn3.so": "2b7f6d5acf316ad92dcf1a02389e25e43bc7b00af5d5aa19f00993c414daaa83",
-        "libssl3.so": "02434e37ad99e934aafc825557a3ef4bcb836600416917c4d5921dc18a082ac4",
-        "libsqlite3.so": "dde33a2c3c529f5ed63549cb940951cb65b9b2b411f6b810a1b51d42030aa267",
-        "libnssckbi.so": "35db0e5d296e852c1e3f6f24c0a5b7c14eee4427a290d394ecd9b8faa285fe73",
-        "libnsssysinit.so": "2b855312d9582fce29dcc81ed552deed4a33803fa4802171a26348ab062116cb"
+        "libnecko_core.so": "60f02888accfd33d5e8d43018769afe8798248f4eccddf344c05406e6609738c",
+        "libnecko_quic.so": "c89656e9c81aa3d2271c933dac08dbb9d121bd24e738035ba1be6e81b3c36a57",
+        "libnss3.so": "64c44b686a6ed737a35666bda485e0437e584cc2da80e5b29db254b87594981b",
+        "libnssutil3.so": "e3f17f18dc3952703a10bfd24963d8149c97728d2e939458cdc878d2a1c62f7a",
+        "libssl3.so": "aa0a163e78edb600e1384d139c03619d9a8b04456d8e71d406ab35f9c7648b85",
+        "libnspr4.so": "f781ac75981c0edab0f9ac426cb708b8d06b2cfa4ae204a16718cf3edcb86acc",
+        "libplc4.so": "436a3636e82f69cc4ee859afba157a78055f345f7c558cf1c05efcb516c3cbe9",
+        "libplds4.so": "a934fd6a4470c4e360e3c365fa15cdb1806469493ccbfff74bc5dab88d37725d",
+        "libsoftokn3.so": "d92499f89956d9466688a9153add13600e78b8213987520c0842616b950c3c9b",
+        "libfreebl3.so": "a11ea2368b54ac26aed993ce2af4484244a0fb384cbd888caf46e7a9b4f14314",
+        "libfreeblpriv3.so": "b5e15c2ba65dab53682d349a1fb4132d7c7cb47f93c9fe263d3702b0e7cf46a4",
+        "libsqlite3.so": "ff6b02a71643c9dd2176b48a494c5219d915e6f14af285e3b33433d8eef3deb4",
+        "libnssckbi.so": "23064ef7a1fd75caedc7b8393d7492ed5a6c4605daee7d2a5dcb44b3211ac64c",
+        "libnsssysinit.so": "ddeb3a912777a65b523ca97cc1f7740c014d1a66000bcd95c2956ac885fff124"
       },
       "h3_tls": "nss",
       "h3_version_export": {
         "type": "u32",
         "value": 32
-      }
+      },
+      "wheel_platform_tag": "manylinux_2_39_x86_64",
+      "h3_body_abi": 1
     },
     "darwin_x86_64": {
       "status": "ready",
@@ -107,13 +109,13 @@
       "neqo": "0.33.0",
       "files": {
         "libnecko_core.so": "0fa68cf71c27fb8514167de0d33997b48d97bc3c0b8902748d357c150cb6ee08",
-        "libnecko_quic.so": "596cf731c306951c2a6d0a12061d0cc4c163de201dc0a836e16a3a02c58428c1",
+        "libnecko_quic.so": "37eb21a5baebd68577aea85ae553b915614584e34233cd70f094a7168ec1edc4",
         "libnss3.so": "d32ffd3d74c35fd8ea4c7b68a3faa11b45be9ee299c5585f2cb03bbdf58ffe2a",
         "libnssutil3.so": "66ded6e7fbf9c277e5afd56efdb776de0cfc5d490ee8bff51e3984d9951c72d9",
         "libssl3.so": "01e4f22ac3b3f3e1d8a38bbe102a82bfaabf83e0b051779e5c01e92e0f2a0813",
-        "libnspr4.so": "3bd8479f39cbb370999e3af4611d2ab39d64a6be5aa756484ce8b63faec91d80",
-        "libplc4.so": "5584fd2478f22bb6524c2e321857c33372c0ba2bb1963934c763674f9c520159",
-        "libplds4.so": "6e9e7ec5cf53165cc366bd3f30683f05c32f94cec72551601f41ba74186e98f2",
+        "libnspr4.so": "9f2427c94f0e6f787e5d623848036d9296aa55bfda9184ae71870144a0bfb588",
+        "libplc4.so": "a43a92e7838b91b70eda550f68657bbfd6dec9a12d31f1c9881b9a248647900c",
+        "libplds4.so": "3c65c95785b35f868706167d2d5e51b72855014df53d6cd028e05534080f6be1",
         "libsoftokn3.so": "7350f8deb1e2eebd7582699fea1759108f508a28afde6e0f35793310dbc6fce6",
         "libfreebl3.so": "fab3f651dbe93e0c8055c5c01b3e33f6585b7194d61bfb8a5679540d0cbbe65a",
         "libfreeblpriv3.so": "9d271478e31df8d5c97b100ff8b5ad02ec81018f6e950a55d888c9b327a0169a",
@@ -126,7 +128,8 @@
       "h3_version_export": {
         "type": "u32",
         "value": 32
-      }
+      },
+      "h3_body_abi": 1
     }
   }
 }
