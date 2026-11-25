@@ -17,7 +17,7 @@ has `provenance.json` and `SHA256SUMS`.
 The historical macOS ARM64 bridge reported `tls: null`; the current source
 build reports measured H3 NSS/TLS metadata. The H3 wire and certificate checks
 apply to both. Windows keeps its original NSS 3.131 / Neqo 0.32.0 set and the
-historical `NSS/Neqo` H3 TLS shape. Linux ARM64, Linux x86_64 and Apple Silicon
+historical `NSS/Neqo` H3 TLS shape. Both Linux and both macOS architectures
 ship pinned source builds with optional binary H3 body ABI v1. Each platform's
 provenance identifies the exact native bytes.
 

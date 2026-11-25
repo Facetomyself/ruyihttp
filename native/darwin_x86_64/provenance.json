@@ -1,6 +1,6 @@
 {
   "platform": "darwin_x86_64",
-  "source": "Pinned native source build; runtime-qualified on GitHub Actions; evidence upload timed out",
+  "source": "Pinned native source build, independently qualified by an installed-wheel runner",
   "ff_ruyijs_commit": "f557fcd437aae5f18f313eb330bd3ef50f5fc7df",
   "firefox_source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
   "wheel_platform_tag": "macosx_15_0_x86_64",
@@ -77,6 +77,18 @@
       "h2",
       "h3"
     ],
-    "h3_body_abi": 1
+    "h3_body_abi": 1,
+    "independent_verification": {
+      "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45664298228",
+      "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45664298228/job/139382144562",
+      "commit": "99ff36c5de282b98019b8f03cb0bf4d4fb831ad3",
+      "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45664298228/artifacts/15046188867",
+      "wheel_sha256": "ffed67f5080c7f3029cbba28427ca8459202a6c06cecac4184afe72d85be30e3",
+      "cpython_runtime_endpoints": [
+        "3.10",
+        "3.14"
+      ],
+      "exact_native_hash_match": true
+    }
   }
 }
