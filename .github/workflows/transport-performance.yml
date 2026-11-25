@@ -1,0 +1,72 @@
+name: Installed wheel performance trend
+on:
+  workflow_dispatch:
+    inputs:
+      compare_reference:
+        description: Measure the frozen pre-optimization wheel in this job for comparison
+        type: boolean
+        default: true
+  schedule:
+    - cron: '17 3 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: transport-perf-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  trend:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 16
+    env:
+      BASELINE: ea44f8fe4468bbee80996e4e73745d6d53c072cc
+      COMPARE: ${{ github.event_name == 'schedule' || inputs.compare_reference }}
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.16'
+      - name: Prepare pinned measurement environment
+        run: |
+          python -m venv "$RUNNER_TEMP/measuring"
+          "$RUNNER_TEMP/measuring/bin/python" -m pip install --only-binary=:all: -r benchmarks/requirements.txt
+          mkdir "$RUNNER_TEMP/perf-results"
+          lscpu -J > "$RUNNER_TEMP/perf-results/lscpu.json"
+          "$RUNNER_TEMP/measuring/bin/python" -m pip freeze > "$RUNNER_TEMP/perf-results/dependencies.txt"
+      - name: Measure reference and current installed wheels, sequentially
+        working-directory: ${{ runner.temp }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export OPENBLAS_NUM_THREADS=1
+          unset NECKO_CORE_LIBRARY NECKO_QUIC_LIBRARY PYTHONPATH LD_LIBRARY_PATH RUYIHTTP_PLATFORM RUYIHTTP_MACHINE
+          measure() {
+            local label="$1" source="$2" sha="$3" py="$RUNNER_TEMP/measuring/bin/python"
+            mkdir "wheels-$label"
+            "$py" -m pip wheel --no-deps -w "wheels-$label" "$source"
+            local wheel=("wheels-$label"/*.whl)
+            [[ ${#wheel[@]} -eq 1 ]]
+            "$py" -m pip install --force-reinstall --no-deps "${wheel[0]}"
+            "$py" -m pip check
+            "$py" "$GITHUB_WORKSPACE/benchmarks/transport.py" --wheel "${wheel[0]}" --commit "$sha" --output "perf-results/$label.json"
+          }
+          ref=()
+          if [[ "$COMPARE" == true ]]; then
+            git init -q reference
+            git -C reference fetch --depth=1 --no-tags https://github.com/Facetomyself/ruyihttp.git "$BASELINE"
+            git -C reference checkout -q --detach FETCH_HEAD
+            test "$(git -C reference rev-parse HEAD)" = "$BASELINE"
+            measure baseline "$PWD/reference" "$BASELINE"
+            ref=(--reference perf-results/baseline.json)
+          fi
+          measure candidate "$GITHUB_WORKSPACE" "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)"
+          "$RUNNER_TEMP/measuring/bin/python" "$GITHUB_WORKSPACE/benchmarks/summary.py" perf-results/candidate.json "${ref[@]}" | tee perf-results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: transport-perf-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/perf-results/
+          retention-days: 90
+          if-no-files-found: error

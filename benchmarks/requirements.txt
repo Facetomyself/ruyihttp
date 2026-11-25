@@ -1,0 +1,22 @@
+# Measurement environment. This lock is not the library's install constraints.
+aioquic==1.3.0
+attrs==26.1.0
+backports.zstd==1.8.0; python_version < '3.14'
+brotli==1.2.1
+certifi==2026.11.20
+cffi==2.1.1
+charset-normalizer==3.5.2
+cryptography==50.0.2
+h2==4.4.1
+hpack==4.2.0
+hyperframe==6.1.0
+idna==3.20
+publicsuffixlist==1.1.2.20261118
+pycparser==3.11
+pylsqpack==0.3.24
+pyOpenSSL==26.4.0
+requests==2.34.2
+service-identity==26.1.0
+typing-extensions==4.16.0
+urllib3==2.8.0
+zstandard==0.25.0
