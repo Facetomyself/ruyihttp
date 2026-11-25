@@ -5,6 +5,7 @@
 import base64
 import ctypes as ct
 import json
+import operator
 import os
 import queue
 import selectors
@@ -28,6 +29,63 @@ from ._retry import DirectRouteReset, Http1Required, Http3ProtocolError, Rejecte
 _Decoder = ct.CFUNCTYPE(
     ct.c_int, ct.c_uint16, ct.c_void_p, ct.c_size_t, ct.c_void_p, ct.c_size_t
 )
+_BODY_LIMIT = 65536
+_MAX_STREAM_ID = (1 << 62) - 1
+_WRITE_PROBE_DELAY = 0.02
+
+
+class _BodyABI:
+    @classmethod
+    def negotiate(cls, library):
+        try:
+            version = library.necko_quic_body_abi_version
+            read = library.necko_quic_body_read_v1
+            write = library.necko_quic_body_write_v1
+        except AttributeError:
+            return None
+        version.argtypes, version.restype = [], ct.c_uint32
+        if version() != 1:
+            return None
+        common = [
+            ct.c_uint64,
+            ct.c_uint64,
+            ct.c_void_p,
+            ct.c_size_t,
+            ct.POINTER(ct.c_size_t),
+        ]
+        read.argtypes = [*common, ct.POINTER(ct.c_uint8)]
+        write.argtypes = common
+        read.restype = write.restype = ct.c_char_p
+        return cls(read, write)
+
+    def __init__(self, read, write):
+        self._read, self._write = read, write
+
+    @staticmethod
+    def _check_error(error):
+        if error is not None:
+            raise ProtocolError(error.decode("utf-8", "replace"))
+
+    def read(self, handle, stream, size):
+        buffer = ct.create_string_buffer(size)
+        count, fin = ct.c_size_t(size + 1), ct.c_uint8(255)
+        self._check_error(
+            self._read(handle, stream, buffer, size, ct.byref(count), ct.byref(fin))
+        )
+        if count.value > size or fin.value not in (0, 1):
+            raise ProtocolError("Invalid HTTP/3 body read result")
+        return ct.string_at(buffer, count.value), bool(fin.value)
+
+    def write(self, handle, stream, data, offset):
+        # ctypes borrows the immutable bytes' storage. Keep it alive for the call;
+        # an offset avoids copying the unwritten suffix after a short write.
+        size = len(data) - offset
+        pointer = ct.cast(ct.c_char_p(data), ct.c_void_p).value + offset
+        count = ct.c_size_t(size + 1)
+        self._check_error(self._write(handle, stream, pointer, size, ct.byref(count)))
+        if count.value > size:
+            raise ProtocolError("Invalid HTTP/3 body write count")
+        return count.value
 
 
 class _Call:
@@ -40,6 +98,13 @@ class _Call:
         self.result = None
         self.error = None
         self.cancelled = False
+        self.frame = None
+
+    def check_deadline(self):
+        if self.cancelled or (
+            self.deadline is not None and time.monotonic() >= self.deadline
+        ):
+            raise TimeoutError("HTTP/3 stream timed out")
 
 
 def _address(address):
@@ -73,9 +138,7 @@ class Connection:
             else "libnecko_quic.so"
         )
         path = Path(
-            os.environ.get(
-                "NECKO_QUIC_LIBRARY", Path(library_path).with_name(name)
-            )
+            os.environ.get("NECKO_QUIC_LIBRARY", Path(library_path).with_name(name))
         )
         self._dll_directory = (
             os.add_dll_directory(str(Path(library_path).parent))
@@ -92,6 +155,8 @@ class Connection:
         self.library.necko_quic_call.restype = ct.c_char_p
         self.library.necko_quic_set_decoder.argtypes = [_Decoder]
         self.library.necko_quic_set_decoder.restype = None
+        self._body_abi = _BodyABI.negotiate(self.library)
+        self._input_epoch = 0
         self.host, self.port, self.context = host, port, context
         self.endpoint = endpoint or (host, port)
         self.token = token
@@ -131,7 +196,9 @@ class Connection:
         self._wake()
 
     def _call(self, operation, **arguments):
-        data = json.dumps({"op": operation, **arguments}).encode()
+        return self._json_frame(json.dumps({"op": operation, **arguments}).encode())
+
+    def _json_frame(self, data):
         result = json.loads(self.library.necko_quic_call(self.handle, data, len(data)))
         if "error" in result:
             raise ProtocolError(result["error"])
@@ -154,7 +221,10 @@ class Connection:
                 )
             self.commands.put(call)
         self._wake()
-        if not call.done.wait(timeout):
+        remaining = (
+            None if call.deadline is None else max(0, call.deadline - time.monotonic())
+        )
+        if not call.done.wait(remaining):
             call.cancelled = True
             self.cancel(exchange)
             raise TimeoutError("HTTP/3 stream timed out")
@@ -175,7 +245,16 @@ class Connection:
         return TLS._decode(self, None, algorithm, data, length, output, capacity)
 
     def _events(self):
-        for event in self._call("events")["events"]:
+        repump = False
+        while True:
+            batch = self._call("events")
+            repump |= self._event_batch(batch["events"])
+            if not batch.get("more"):
+                return repump
+
+    def _event_batch(self, events):
+        repump = False
+        for event in events:
             kind = event["type"]
             exchange = self.streams.get(event.get("stream"))
             if kind == "auth":
@@ -191,6 +270,7 @@ class Connection:
                     self._call("auth", accepted=False)
                     raise ssl.SSLCertVerificationError(str(error)) from error
                 self._call("auth", accepted=True)
+                repump = True
             elif kind == "state":
                 if event["state"] == "connected":
                     info = self._call("info")
@@ -237,6 +317,8 @@ class Connection:
                     exchange.headers_ready.set()
                 elif kind == "readable":
                     exchange.readable = True
+                elif kind == "writable":
+                    exchange.write_epoch += 1
                 elif kind == "stop_sending" and event["error"] == 0x100:
                     exchange.send_stopped = True
                 elif kind in ("reset", "stop_sending"):
@@ -250,18 +332,62 @@ class Connection:
                         else DirectRouteReset
                     )
                     exchange.fail(error(f"HTTP/3 {kind}: {event['error']}"))
+        return repump
+
+    def _write_epoch(self, exchange):
+        # Legacy bridges may omit writable events; retry after UDP input there.
+        return exchange.write_epoch, self._input_epoch if self._body_abi is None else 0
+
+    def _write_ready(self, exchange, now):
+        return (
+            now >= exchange.write_probe_at
+            or exchange.write_blocked_at != self._write_epoch(exchange)
+        )
+
+    def _write_body(self, call, exchange):
+        data, offset = call.arguments["data"], call.arguments["offset"]
+        size = len(data) - offset
+        if not 0 <= offset < len(data) <= _BODY_LIMIT:
+            raise ProtocolError("Invalid HTTP/3 body write size")
+        if self._body_abi is not None:
+            count = self._body_abi.write(self.handle, exchange.stream_id, data, offset)
+        else:
+            if call.frame is None:
+                # Keep the exact frame through all zero-progress retries. A short
+                # write's next call encodes only the remainder of this same block.
+                encoded = base64.b64encode(memoryview(data)[offset:]).decode("ascii")
+                call.frame = json.dumps(
+                    {"op": "write", "stream": exchange.stream_id, "data": encoded}
+                ).encode()
+            call.check_deadline()
+            count = self._json_frame(call.frame)["count"]
+            if type(count) is not int or not 0 <= count <= size:
+                raise ProtocolError("Invalid HTTP/3 body write count")
+        if count < size:
+            exchange.write_blocked_at = self._write_epoch(exchange)
+            exchange.write_probe_at = time.monotonic() + _WRITE_PROBE_DELAY
+        else:
+            exchange.write_blocked_at = None
+        return count
+
+    def _read_body(self, exchange, size):
+        if self._body_abi is not None:
+            return self._body_abi.read(self.handle, exchange.stream_id, size)
+        result = self._call("read", stream=exchange.stream_id, size=size)
+        encoded, fin = result["data"], result["fin"]
+        if len(encoded) > ((size + 2) // 3) * 4 or type(fin) is not bool:
+            raise ProtocolError("Invalid HTTP/3 body read result")
+        data = base64.b64decode(encoded, validate=True)
+        if len(data) > size:
+            raise ProtocolError("Invalid HTTP/3 body read count")
+        return data, fin
 
     def _execute(self, call):
         exchange = call.exchange
-        if call.deadline is not None and time.monotonic() >= call.deadline:
-            raise TimeoutError("HTTP/3 stream timed out")
-        if exchange.error and call.operation != "cancel":
-            raise exchange.error
+        call.check_deadline()
         operation = call.operation
-        if operation != "cancel" and exchange.closed:
-            raise exchange.error or ProtocolError("HTTP/3 response closed")
-        if call.cancelled:
-            raise TimeoutError("HTTP/3 request operation cancelled")
+        if operation != "cancel":
+            exchange.check_open()
         if operation == "fetch":
             if self.goaway:
                 raise Rejected("HTTP/3 connection is draining")
@@ -274,29 +400,33 @@ class Connection:
                 ):
                     return False
                 raise
-            exchange.stream_id = result["stream"]
+            stream = result["stream"]
+            if type(stream) is not int or not 0 <= stream <= _MAX_STREAM_ID:
+                raise ProtocolError("Invalid HTTP/3 stream ID")
+            exchange.stream_id = stream
             exchange.sent_data = True
-            self.streams[exchange.stream_id] = exchange
+            self.streams[stream] = exchange
         elif operation == "read":
-            if exchange.ended:
+            size = call.arguments["size"]
+            if exchange.ended or not size:
                 call.result = b""
                 return True
             if not exchange.readable:
                 return False
-            result = self._call("read", stream=exchange.stream_id, **call.arguments)
-            call.result = base64.b64decode(result["data"])
-            exchange.ended |= result["fin"]
+            call.result, fin = self._read_body(exchange, size)
+            exchange.ended |= fin
             if not call.result and not exchange.ended:
                 exchange.readable = False
                 return False
         elif operation == "write":
             if exchange.send_stopped:
-                call.result = len(base64.b64decode(call.arguments["data"]))
-                return True
-            result = self._call("write", stream=exchange.stream_id, **call.arguments)
-            if not result["count"]:
+                return True  # STOP is not an accepted byte count or a response.
+            if not self._write_ready(exchange, time.monotonic()):
                 return False
-            call.result = result["count"]
+            count = self._write_body(call, exchange)
+            if not count:
+                return False
+            call.result = count
         elif operation == "cancel":
             self.streams.pop(exchange.stream_id, None)
             if exchange.stream_id is not None and not exchange.ended:
@@ -326,7 +456,7 @@ class Connection:
             self.peer_address = udp.getpeername()[0]
             self._decode_callback = _Decoder(self._decode)
             self.library.necko_quic_set_decoder(self._decode_callback)
-            self.handle = self._call(
+            handle = self._call(
                 "new",
                 host=self.host,
                 local=_address(udp.getsockname()),
@@ -335,9 +465,15 @@ class Connection:
                 profile=quic_profile(self.firefox),
                 firefox=self.firefox,
             )["handle"]
+            if type(handle) is not int or not 0 < handle < 1 << 64:
+                raise ProtocolError("Invalid HTTP/3 connection handle")
+            self.handle = handle
             self._call("attach", socket=udp.fileno())
             while not self._stopping.is_set():
-                self._events()
+                # Consume socket input and native events before retrying blocked
+                # operations. Never select again with newly ready calls pending.
+                delay = max(0.0, min(0.1, self._call("pump")["delay"]))
+                repump = self._events()
                 while True:
                     try:
                         self.pending.append(self.commands.get_nowait())
@@ -349,12 +485,19 @@ class Connection:
                         if not self._execute(call):
                             waiting.append(call)
                             continue
+                        repump = True
                     except Exception as error:
                         call.error = error
                     call.done.set()
                 self.pending = waiting
-                delay = min(0.1, self._call("pump")["delay"])
-                self._events()
+                if repump or self._stopping.is_set():
+                    continue
+                now = time.monotonic()
+                for call in waiting:
+                    if call.deadline is not None:
+                        delay = min(delay, max(0, call.deadline - now))
+                    if call.operation == "write":
+                        delay = min(delay, max(0, call.exchange.write_probe_at - now))
                 readable = {key.fileobj for key, _ in selector.select(delay)}
                 if self._wake_read in readable:
                     try:
@@ -363,7 +506,7 @@ class Connection:
                     except BlockingIOError:
                         pass
                 if udp in readable:
-                    self._call("pump")
+                    self._input_epoch += 1
         except Exception as error:
             self.error = error
         finally:
@@ -424,6 +567,9 @@ class Exchange:
         self.ended = False
         self.readable = False
         self.send_stopped = False
+        self.write_epoch = 0
+        self.write_probe_at = 0
+        self.write_blocked_at = None
         self.closed = False
         self.headers_ready = threading.Event()
         self.sent_end = False
@@ -501,27 +647,54 @@ class Exchange:
             self.transport.submit("finish", self, self.timeout)
             self.sent_end = True
 
+    @property
+    def upload_stopped(self):
+        return self.send_stopped or self.error is not None or self.closed
+
+    def check_open(self):
+        if self.error is not None:
+            raise self.error
+        if self.closed:
+            raise ProtocolError("HTTP/3 response closed")
+
     def write(self, data):
+        self.check_open()
+        if self.send_stopped:
+            return
         data = data.encode() if isinstance(data, str) else data
-        view = memoryview(data)
-        while view:
-            count = self.transport.submit(
-                "write",
-                self,
-                self.timeout,
-                data=base64.b64encode(view[:65536]).decode(),
+        view = memoryview(data).cast("B")
+        while view and not self.upload_stopped:
+            chunk = (
+                data
+                if type(data) is bytes and len(data) <= _BODY_LIMIT
+                else bytes(view[:_BODY_LIMIT])
             )
-            view = view[count:]
+            offset = 0
+            while offset < len(chunk) and not self.upload_stopped:
+                count = self.transport.submit(
+                    "write",
+                    self,
+                    self.timeout,
+                    data=chunk,
+                    offset=offset,
+                )
+                if count is None:
+                    break  # Normal peer stop; receive still needs a final response.
+                offset += count
+            view = view[len(chunk) :]
+        self.check_open()
 
     def receive(self):
         self._finish()
         if not self.headers_ready.wait(self.timeout):
             self.close()
             raise TimeoutError("HTTP/3 response headers timed out")
-        if self.error:
-            raise self.error
+        self.check_open()
 
     def read(self, size):
+        size = min(operator.index(size), _BODY_LIMIT)
+        if size < 0:
+            raise ValueError("HTTP/3 stream read size must be non-negative")
         return self.transport.submit("read", self, self.timeout, size=size)
 
     def reusable(self):
