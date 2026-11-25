@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — request and transport boundaries (2026-11-25)
+
+- A reset on a pooled connection no longer implicitly repeats a possibly processed POST. Safe methods, requests known not to have been sent, and explicit protocol rejections retain their recovery paths. An ambiguous write raises a connection error; this does not establish that the server did nothing. Applications may explicitly configure a retry policy for operations they can safely repeat.
+- IP-literal schemeful sites use the full address. Target-owned `SameSite=Strict` cookies are withheld for cross-IP fetches, even when the addresses share their final octets. DNS names still use their registrable domain.
+- Pool acquisition, eligible cross-origin DNS checks and TCP/TLS establishment now share one connect deadline per attempt. If certificate or address checks prevent coalescing, the dial reuses the DNS answer and remaining budget. Local SOCKS resolution is bounded; remote-DNS schemes keep passing the original destination name to the proxy.
+- HTTP/2 preserves a complete early response followed by `RST_STREAM(NO_ERROR)` and stops pulling additional upload chunks once that signal is processed. Incomplete responses and other reset codes still fail.
+
+To repeat the regression gates, install the wheel and PySocks in a fresh environment with an OpenSSL CLI. From outside the checkout run `bash /path/to/checkout/ci/verify_request_boundaries.sh`. All network peers in these gates use loopback.
+
 ## 0.9.0-private.1
 
 - Added a platform runtime manifest with Windows x64, macOS arm64 and Linux x86_64.

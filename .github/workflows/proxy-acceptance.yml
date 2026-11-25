@@ -10,7 +10,10 @@ on:
       - 'pyproject.toml'
       - 'ci/smoke_proxy_chain.py'
       - 'ci/smoke_h2_close.py'
-      - 'tests/test_http3_native.py'
+      - 'ci/smoke_connect_budget.py'
+      - 'ci/smoke_h2_early_response.py'
+      - 'ci/verify_request_boundaries.sh'
+      - 'tests/test_*.py'
       - '.github/workflows/proxy-acceptance.yml'
 permissions:
   contents: read
@@ -43,3 +46,6 @@ jobs:
       - name: Verify complete and truncated HTTP/2 responses at TLS close
         working-directory: ${{ runner.temp }}
         run: python -u "$GITHUB_WORKSPACE/ci/smoke_h2_close.py"
+      - name: Verify retry, site, connect deadline and H2 early-response boundaries
+        working-directory: ${{ runner.temp }}
+        run: bash "$GITHUB_WORKSPACE/ci/verify_request_boundaries.sh"

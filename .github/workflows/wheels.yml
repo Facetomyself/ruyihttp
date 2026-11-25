@@ -39,6 +39,12 @@ jobs:
           python -m pip check
           python -I ci/verify_installed.py ${{ matrix.platform }}
           python -I ci/smoke_local.py
+      - name: Verify retry, site, connect deadline and H2 early-response boundaries
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m pip install 'PySocks==1.7.1'
+          bash "$GITHUB_WORKSPACE/ci/verify_request_boundaries.sh"
       - name: Exercise the built native candidate before uploading it
         if: matrix.platform == 'linux_aarch64' || matrix.platform == 'darwin_x86_64'
         shell: bash
