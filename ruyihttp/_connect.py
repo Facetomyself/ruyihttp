@@ -51,12 +51,12 @@ class Attempt:
                 self._interrupt()
 
 
-def race(primary, backup, timeout, delay=0.1, *, parent=None):
+def race(primary, backup, timeout=None, delay=0.1, *, parent=None, deadline=None):
     started = time.monotonic()
     if parent is not None:
         deadline = parent.deadline
-    else:
-        deadline = None if timeout is None else started + timeout
+    elif deadline is None and timeout is not None:
+        deadline = started + timeout
     attempts = [Attempt(deadline), Attempt(deadline)]
     condition = threading.Condition()
     completed = {}
@@ -124,6 +124,8 @@ def race(primary, backup, timeout, delay=0.1, *, parent=None):
                 condition.wait(remaining)
             if parent is not None:
                 parent.remaining()
+            elif deadline is not None and time.monotonic() >= deadline:
+                raise ConnectTimeout("Connection deadline elapsed")
             if winner:
                 stopped = True
                 return winner.pop()
@@ -141,10 +143,21 @@ def race(primary, backup, timeout, delay=0.1, *, parent=None):
             orphan.close()
         if parent is None:
             for thread in started_threads:
-                thread.join(timeout=0.1)
+                # A cancelled loser cleans up its own late result. Do not extend a
+                # finite caller deadline merely to wait for that housekeeping.
+                grace = (
+                    0.1
+                    if deadline is None
+                    else min(0.1, max(0, deadline - time.monotonic()))
+                )
+                thread.join(timeout=grace)
 
 
-def _resolve_tcp(host, port, attempt):
+def resolve_addresses(
+    host, port, attempt, socktype=socket.SOCK_STREAM, **lookup_options
+):
+    """Resolve once under the caller's deadline; return ordered numeric addresses by family."""
+    attempt.remaining()
     try:
         numeric = ipaddress.ip_address(host)
     except ValueError:
@@ -164,7 +177,7 @@ def _resolve_tcp(host, port, attempt):
 
     def resolve():
         try:
-            records = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+            records = socket.getaddrinfo(host, port, type=socktype, **lookup_options)
             results.put((records, None))
         except Exception as error:
             results.put((None, error))
@@ -195,13 +208,15 @@ def _resolve_tcp(host, port, attempt):
             address += f"%{sockaddr[3]}"
         families.setdefault(family, {})[address] = None
     if not families:
-        raise socket.gaierror(f"No TCP addresses for {host}")
+        raise socket.gaierror(f"No usable IP addresses for {host}")
     return {family: list(addresses) for family, addresses in families.items()}
 
 
-def connect_tcp(host, port, attempt, open_socket):
-    """Dial one numeric address per family at a time under a shared deadline."""
-    groups = list(_resolve_tcp(host, port, attempt).values())
+def connect_tcp(host, port, attempt, open_socket, resolved=None):
+    """Dial the same DNS answer used for coalescing, or resolve the first TCP hop."""
+    if resolved is None:
+        resolved = resolve_addresses(host, port, attempt)
+    groups = list(resolved.values())
 
     def lane(addresses):
         def open_group(current):

@@ -90,7 +90,7 @@ def listener(handle, tls=None):
             thread.join()
 
 
-def tls_fixtures(directory):
+def tls_fixtures(directory, *, origin_san="DNS:" + HOST):
     d = Path(directory)
 
     def openssl(*args):
@@ -161,7 +161,7 @@ def tls_fixtures(directory):
     return (
         d / "ca.pem",
         server("proxy", "IP:" + LOOP),
-        server("origin", "DNS:" + HOST),
+        server("origin", origin_san),
         server("wrong", "DNS:wrong.invalid"),
     )
 

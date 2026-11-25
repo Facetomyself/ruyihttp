@@ -57,7 +57,7 @@ from urllib3.exceptions import (
 from urllib3.response import HTTPResponse
 from urllib3.util import Timeout
 
-from ._connect import Attempt, connect_tcp
+from ._connect import Attempt, connect_tcp, resolve_addresses
 from ._firefox import PROFILES, firefox_version, wire_headers
 from ._nss import TLS as _TLS
 from ._nss import Context as _ssl_context
@@ -335,6 +335,10 @@ class _NativeSocket:
         self.close()
 
 
+# First-pass result: a live multiplexed connection could be borrowed if DNS agrees.
+_NEEDS_DNS = object()
+
+
 class _Pool:
     def __init__(self, maximum, block):
         self.maximum = maximum
@@ -346,9 +350,11 @@ class _Pool:
         self.closed = False
         self.condition = threading.Condition()
 
-    def acquire(self, prefer=None, http3=True):
+    def acquire(self, prefer=None, http3=True, *, attempt=None):
         with self.condition:
             while True:
+                if attempt is not None:
+                    attempt.remaining()
                 if self.closed:
                     raise ConnectionError("Connection pool closed")
                 for connection in list(self.shared):
@@ -364,7 +370,7 @@ class _Pool:
                         self.shared.pop(connection)
                         connection.close()
                 if self.connecting or self.block and self.leased >= self.maximum:
-                    self.condition.wait()
+                    self.condition.wait(attempt.remaining() if attempt is not None else None)
                     continue
                 self.leased += 1
                 for index in range(len(self.idle) - 1, -1, -1):
@@ -384,6 +390,7 @@ class _Pool:
             self.condition.notify_all()
 
     def borrow(self, host, port, addresses, prefer=None, http3=True):
+        result = None
         with self.condition:
             if self.closed:
                 return None
@@ -405,11 +412,15 @@ class _Pool:
                         if (host, port) not in protocol.origins:
                             continue
                         origin_allowed = True
-                if not origin_allowed and (
-                    addresses is None
-                    or getattr(connection, "peer_address", None) not in addresses
-                ):
-                    continue
+                if not origin_allowed:
+                    peer = getattr(connection, "peer_address", None)
+                    if not peer:
+                        continue
+                    if addresses is None:
+                        result = _NEEDS_DNS
+                        continue
+                    if peer not in addresses:
+                        continue
                 try:
                     connection.context.verify(host, connection.certificate_chain)
                 except (AttributeError, ValueError, ssl.SSLError, VerificationError):
@@ -417,7 +428,7 @@ class _Pool:
                 self.shared[connection] += 1
                 self.leased += 1
                 return connection
-        return None
+        return result
 
     def release(self, connection):
         with self.condition:
@@ -710,7 +721,40 @@ class HTTPAdapter(RequestsAdapter):
                 self._pools.popitem(last=False)[1].close()
             return pool
 
-    def _connect(self, url, proxy, verify, cert, timeout, attempt=None, http2=True):
+    def _coalesce(self, pool, key, prefer, http3, attempt):
+        host, port = key[1], key[2] or 443
+        with self._lock:
+            candidates = [
+                other for other_key, other in self._pools.items()
+                if other is not pool and other_key[0] == "https" and other_key[3:] == key[3:]
+            ]
+        awaiting_dns = []
+        for other in candidates:
+            attempt.remaining()
+            connection = other.borrow(host, port, None, prefer, http3=http3)
+            if connection is _NEEDS_DNS:
+                awaiting_dns.append(other)
+            elif connection is not None:
+                return other, connection, None
+        if not awaiting_dns:
+            return None, None, None
+        try:
+            resolved = resolve_addresses(host, port, attempt)
+        except socket.gaierror as error:
+            failure = ConnectionError(f"Could not resolve {host}: {error}")
+            failure._necko_connect = True
+            raise failure from error
+        peers = {ip for ips in resolved.values() for ip in ips}
+        for other in awaiting_dns:
+            attempt.remaining()
+            connection = other.borrow(host, port, peers, prefer, http3=http3)
+            if connection is not None:
+                return other, connection, resolved
+        # A failed certificate/address match must not trigger a second DNS lookup
+        # or reset the timeout when we open a new connection for the original host.
+        return None, None, resolved
+
+    def _connect(self, url, proxy, verify, cert, timeout, attempt=None, http2=True, resolved=None):
         target = urlsplit(url)
         endpoint = urlsplit(proxy) if proxy else target
         socks = endpoint.scheme in ("socks4", "socks4a", "socks5", "socks5h")
@@ -730,7 +774,7 @@ class HTTPAdapter(RequestsAdapter):
         # Only resolve and race the TCP hop. Proxy tunnelling, SNI, and
         # certificate validation still use the original endpoint or origin.
         try:
-            connection = connect_tcp(endpoint.hostname, port, attempt, open_socket)
+            connection = connect_tcp(endpoint.hostname, port, attempt, open_socket, resolved)
         except socket.gaierror as error:
             failure = ConnectionError(f"Could not resolve {endpoint.hostname}: {error}")
             failure._necko_connect = True
@@ -809,7 +853,7 @@ class HTTPAdapter(RequestsAdapter):
             if own_attempt:
                 attempt.detach()
 
-    def _connect_alternative(self, request, key, alternate, verify, timeout):
+    def _connect_alternative(self, request, key, alternate, verify, budget, resolved):
         from ._connect import race
         from ._http3 import Connection as H3Connection
 
@@ -817,9 +861,9 @@ class HTTPAdapter(RequestsAdapter):
 
         def quic(attempt):
             last_error = None
-            for _, _, _, _, address in socket.getaddrinfo(
-                *alternate[0], type=socket.SOCK_DGRAM
-            ):
+            alt_host, alt_port = alternate[0]
+            answers = resolve_addresses(alt_host, alt_port, attempt, socket.SOCK_DGRAM)
+            for address in (ip for family in answers.values() for ip in family):
                 try:
                     connection = H3Connection(
                         target.hostname,
@@ -827,7 +871,7 @@ class HTTPAdapter(RequestsAdapter):
                         _ssl_context(verify, None, Path(self.library._name).parent),
                         self.library._name,
                         attempt.remaining(),
-                        address[:2],
+                        (address, alt_port),
                         self._quic_token(key),
                         lambda token, age: self._save_quic_token(key, token, age),
                         attempt=attempt,
@@ -846,9 +890,9 @@ class HTTPAdapter(RequestsAdapter):
         connection = race(
             quic,
             lambda attempt: self._connect(
-                request.url, None, verify, None, attempt.remaining(), attempt
+                request.url, None, verify, None, attempt.remaining(), attempt, resolved=resolved
             ),
-            timeout,
+            deadline=budget.deadline,
         )
         if connection.alpn != "h3":
             with self._lock:
@@ -974,10 +1018,11 @@ class HTTPAdapter(RequestsAdapter):
         else:
             timeouts = Timeout(connect=timeout, read=timeout)
         connect_timeout = Timeout.resolve_default_timeout(timeouts.connect_timeout)
-        timeouts.start_connect()
+        started = timeouts.start_connect()
         read_timeout = timeouts.read_timeout
         _milliseconds(connect_timeout)
         _milliseconds(read_timeout)
+        budget = Attempt(None if connect_timeout is None else started + connect_timeout)
         target = urlsplit(request.url)
         proxy = select_proxy(request.url, proxies or {})
         if proxy:
@@ -1006,58 +1051,19 @@ class HTTPAdapter(RequestsAdapter):
             alternate = self._alt_svc.get(key)
         if not http3 or http1 or alternate and alternate[1] <= time.monotonic():
             alternate = None
-        transport = pool.acquire("h3" if alternate else None, http3=http3)
+        prefer = "h3" if alternate else None
+        transport = pool.acquire(prefer, http3=http3, attempt=budget)
         coalesced = False
-        if (
-            transport is None
-            and target.scheme == "https"
-            and verify
-            and not proxy
-            and not cert
-            and not http1
-        ):
-            try:
-                with self._lock:
-                    candidates = [
-                        (candidate_key, candidate)
-                        for candidate_key, candidate in self._pools.items()
-                        if candidate is not pool
-                        and candidate_key[0] == "https"
-                        and candidate_key[3:] == key[3:]
-                    ]
-                for resolve in (False, True) if candidates else ():
-                    addresses = None
-                    if resolve:
-                        addresses = {
-                            address[4][0]
-                            for address in socket.getaddrinfo(
-                                target.hostname,
-                                target.port or 443,
-                                type=socket.SOCK_STREAM,
-                            )
-                        }
-                    for _, candidate in candidates:
-                        transport = candidate.borrow(
-                            target.hostname,
-                            target.port or 443,
-                            addresses,
-                            "h3" if alternate else None,
-                            http3=http3,
-                        )
-                        if transport is not None:
-                            pool.release(None)
-                            pool = candidate
-                            coalesced = True
-                            break
-                    if coalesced:
-                        break
-            except socket.gaierror:
-                pass
-            except Exception:
-                pool.release(None)
-                raise
+        resolved = None
         exchange = None
         try:
+            if transport is None and target.scheme == "https" and verify and not (proxy or cert or http1):
+                other, transport, resolved = self._coalesce(pool, key, prefer, http3, budget)
+                if other is not None:
+                    pool.release(None)
+                    pool = other
+                    coalesced = True
+            budget.remaining()
             if transport is None:
                 try:
                     if (
@@ -1068,7 +1074,7 @@ class HTTPAdapter(RequestsAdapter):
                         and not http1
                     ):
                         transport = self._connect_alternative(
-                            request, key, alternate, verify, connect_timeout
+                            request, key, alternate, verify, budget, resolved
                         )
                     if transport is None:
                         transport = self._connect(
@@ -1076,14 +1082,18 @@ class HTTPAdapter(RequestsAdapter):
                             proxy,
                             verify,
                             cert,
-                            connect_timeout,
+                            budget.remaining(),
+                            attempt=budget,
                             http2=not http1,
+                            resolved=resolved,
                         )
                     pool.register(transport)
                 except ConnectionError as error:
                     if proxy and not isinstance(error, (SSLError, ProxyError)):
                         raise ProxyError(error, request=request) from error
                     raise
+                finally:
+                    budget.detach()
             read_timeout = timeouts.read_timeout
             if read_timeout is not None and read_timeout <= 0:
                 raise ReadTimeout(
