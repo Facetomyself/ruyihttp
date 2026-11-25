@@ -10,9 +10,17 @@ on:
         options: [all, linux_aarch64, linux_x86_64, darwin_x86_64, darwin_arm64, win_amd64]
       mode:
         type: choice
-        description: Verify tracked libraries or compile POSIX candidates (Windows retains its original runtime)
+        description: Verify tracked libraries, rebuild POSIX, or requalify an exact source candidate
         default: verify
-        options: [verify, rebuild]
+        options: [verify, rebuild, requalify]
+      candidate_run:
+        type: string
+        description: Source rebuild run ID for requalify mode
+        default: ''
+      candidate_attempt:
+        type: string
+        description: Source rebuild attempt for requalify mode
+        default: '1'
 
 permissions:
   contents: read
@@ -24,18 +32,23 @@ concurrency:
 jobs:
   native:
     name: ${{ matrix.slot }}
+    permissions:
+      contents: read
+      actions: read  # Read an exact source artifact for requalification.
     runs-on: ${{ fromJSON('{"linux_aarch64":"ubuntu-24.04-arm","linux_x86_64":"ubuntu-24.04","darwin_x86_64":"macos-15-intel","darwin_arm64":"macos-26","win_amd64":"windows-2025"}')[matrix.slot] }}
     timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
-        slot: ${{ fromJSON(inputs.platform != 'all' && format('["{0}"]', inputs.platform) || (inputs.mode == 'rebuild' && '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64"]' || '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64","win_amd64"]')) }}
+        slot: ${{ fromJSON(inputs.platform != 'all' && format('["{0}"]', inputs.platform) || (inputs.mode != 'verify' && '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64"]' || '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64","win_amd64"]')) }}
     env:
       TARGET_ARCH: ${{ fromJSON('{"linux_aarch64":"aarch64","linux_x86_64":"x86_64","darwin_x86_64":"x86_64","darwin_arm64":"arm64","win_amd64":"amd64"}')[matrix.slot] }}
       PYTHON_ARCH: ${{ (endsWith(matrix.slot, 'aarch64') || endsWith(matrix.slot, 'arm64')) && 'arm64' || 'x64' }}
       PYTHONUTF8: '1'
       DONOR_COMMIT: f557fcd437aae5f18f313eb330bd3ef50f5fc7df
       FIREFOX_COMMIT: 2887d9de1f69c0e9776413da80e7ba0d1225dd9b
+      SOURCE_RUN: ${{ inputs.candidate_run }}
+      SOURCE_ATTEMPT: ${{ inputs.candidate_attempt }}
       PIP_NO_CACHE_DIR: '1'
     defaults:
       run:
@@ -68,8 +81,27 @@ jobs:
             [[ ${translated:-0} == 0 ]]
             if [[ $TARGET_ARCH == x86_64 ]]; then [[ $cpu == *Intel* ]]; else [[ $cpu == *Apple* ]]; fi
           fi
-      - name: Isolate the old native set for a source rebuild
-        if: inputs.mode == 'rebuild'
+      - name: Validate requalification input
+        if: inputs.mode == 'requalify'
+        run: |
+          [[ "$SOURCE_RUN" =~ ^[1-9][0-9]*$ && "$SOURCE_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          [[ "${{ matrix.slot }}" != win_amd64 ]]  # Windows is verified from its original tracked DLLs.
+      - uses: actions/download-artifact@v4
+        if: inputs.mode == 'requalify'
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run }}
+          name: unverified-diagnostic-wheel-${{ matrix.slot }}-${{ inputs.candidate_run }}-${{ inputs.candidate_attempt }}
+          path: ${{ runner.temp }}/source-wheel/
+      - uses: actions/download-artifact@v4
+        if: inputs.mode == 'requalify'
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run }}
+          name: native-evidence-${{ matrix.slot }}-${{ inputs.candidate_run }}-${{ inputs.candidate_attempt }}
+          path: ${{ runner.temp }}/source-evidence/
+      - name: Isolate the old native set for a candidate
+        if: inputs.mode != 'verify'
         env:
           SLOT: ${{ matrix.slot }}
         run: |
@@ -110,7 +142,7 @@ jobs:
           print(f'Slot state: {state}')
           PY
       - name: Fetch pinned public sources
-        if: steps.slot.outputs.ready == 'false'
+        if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
         run: |
           retry_fetch() {
             local checkout=$1 attempt
@@ -146,19 +178,30 @@ jobs:
           { git -C "$donor" log -1 --format='%H %cI %s'; git -C "$donor/firefox" log -1 --format='%H %cI %s'; } > "$RUNNER_TEMP/native-evidence/sources.txt"
           df -h "$RUNNER_TEMP"
       - name: Compile native libraries
-        if: steps.slot.outputs.ready == 'false'
+        if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
         run: |
           ci/build_native_target.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
       - name: Stage locally compiled candidate
-        if: steps.slot.outputs.ready == 'false'
+        if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
         run: |
           patch_args=()
           if [[ $RUNNER_OS == macOS ]]; then
             patch_args=(--source-patch native/patches/macos-necko-quic-tls-info.patch)
           fi
           patch_args+=(--source-patch native/patches/h3-body-abi-v1.patch)
+          if [[ $RUNNER_OS == macOS ]]; then
+            patch_args+=(--source-patch native/patches/macos-h3-global-handles.patch)
+          fi
           python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
             --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" "${patch_args[@]}" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
+      - name: Stage exact replay libraries from the diagnostic artifact
+        if: inputs.mode == 'requalify'
+        run: |
+          python -B tools/stage_native_replay.py "${{ matrix.slot }}" "$RUNNER_TEMP/source-wheel" "$RUNNER_TEMP/source-evidence" "$SOURCE_RUN" "$SOURCE_ATTEMPT" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
+          cp "$RUNNER_TEMP/source-evidence/sources.txt" "$RUNNER_TEMP/native-evidence/"
+          cp "$RUNNER_TEMP/source-evidence/runner.txt" "$RUNNER_TEMP/native-evidence/source-runner.txt"
+          cp "$RUNNER_TEMP/source-evidence/wheel.json" "$RUNNER_TEMP/native-evidence/source-wheel.json"
+          printf '%s %s\n' "$SOURCE_RUN" "$SOURCE_ATTEMPT" > "$RUNNER_TEMP/native-evidence/source-run.txt"
       - name: Stamp a unique source-candidate wheel version
         if: steps.slot.outputs.ready == 'false'
         run: python -I ci/stamp_native_candidate.py "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
@@ -189,7 +232,7 @@ jobs:
           PY
       - name: Qualify installed runtime on CPython 3.14
         env:
-          RUYIHTTP_REQUIRE_H3_BODY_ABI: ${{ steps.slot.outputs.ready == 'false' && '1' || '0' }}
+          RUYIHTTP_REQUIRE_H3_BODY_ABI: ${{ (inputs.mode == 'requalify' || steps.slot.outputs.ready == 'false') && '1' || '0' }}
         run: python -I ci/qualify_wheel.py "${{ matrix.slot }}" 3.14 "$RUNNER_TEMP/wheelhouse" "$RUNNER_TEMP/native-evidence"
       - uses: actions/setup-python@v5
         id: python310
@@ -200,7 +243,7 @@ jobs:
       - name: Qualify installed runtime on CPython 3.10
         if: ${{ !cancelled() && steps.python310.outcome == 'success' }}
         env:
-          RUYIHTTP_REQUIRE_H3_BODY_ABI: ${{ steps.slot.outputs.ready == 'false' && '1' || '0' }}
+          RUYIHTTP_REQUIRE_H3_BODY_ABI: ${{ (inputs.mode == 'requalify' || steps.slot.outputs.ready == 'false') && '1' || '0' }}
         run: python -I ci/qualify_wheel.py "${{ matrix.slot }}" 3.10 "$RUNNER_TEMP/wheelhouse" "$RUNNER_TEMP/native-evidence"
       - uses: actions/upload-artifact@v4
         if: always()
