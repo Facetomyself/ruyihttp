@@ -1164,13 +1164,18 @@ class HTTPAdapter(RequestsAdapter):
             if isinstance(body, (str, bytes, bytearray, memoryview)):
                 exchange.write(body)
             elif hasattr(body, "read"):
-                while True:
+                while not getattr(exchange, "upload_stopped", False):
                     part = body.read(65536)
                     if not part:
                         break
                     exchange.write(part)
-            elif body is not None:
-                for part in body:
+            elif body is not None and not getattr(exchange, "upload_stopped", False):
+                parts = iter(body)
+                while not getattr(exchange, "upload_stopped", False):
+                    try:
+                        part = next(parts)
+                    except StopIteration:
+                        break
                     exchange.write(part)
             exchange.receive()
             if target.scheme == "https" and not proxy and not cert:

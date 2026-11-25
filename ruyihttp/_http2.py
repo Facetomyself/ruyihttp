@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 
 from h2.config import H2Configuration
 from h2.connection import H2Connection
+from h2.errors import ErrorCodes
 from h2.events import (
     ConnectionTerminated,
     DataReceived,
@@ -158,6 +159,8 @@ class Connection:
                 data = bytes(exchange.buffer[:size])
                 del exchange.buffer[:size]
                 return data
+            if call.operation == "write" and exchange.upload_stopped:
+                return 0
             if call.operation in ("headers", "finish", "cancel"):
                 return None
         raise exchange.error or self.error or ProtocolError("HTTP/2 connection closed")
@@ -215,6 +218,15 @@ class Connection:
                 elif isinstance(event, StreamReset):
                     exchange = self.streams.get(event.stream_id)
                     if exchange is not None:
+                        # RFC 9113 §8.1: NO_ERROR after a complete response asks
+                        # us to stop uploading, not to discard the response.
+                        if (
+                            event.error_code == ErrorCodes.NO_ERROR
+                            and exchange.ended
+                            and exchange.status is not None
+                        ):
+                            exchange.upload_stopped = True
+                            continue
                         error = (
                             Rejected
                             if event.error_code == 7
@@ -303,6 +315,10 @@ class Connection:
             raise exchange.error or ProtocolError("HTTP/2 response closed")
         if operation != "cancel" and exchange.error:
             raise exchange.error
+        if operation in ("write", "finish") and exchange.upload_stopped:
+            if operation == "write":
+                call.result = 0
+            return True
         if call.deadline is not None and time.monotonic() >= call.deadline:
             raise TimeoutError("HTTP/2 stream timed out")
         if operation in ("fetch", "write", "finish") and (
@@ -487,6 +503,7 @@ class Exchange:
         self.credit = 0
         self.ended = False
         self.sent_end = not has_body
+        self.upload_stopped = False
         self.status = None
         self.version = 20
         self.reason = ""
@@ -557,8 +574,10 @@ class Exchange:
         if isinstance(data, str):
             data = data.encode("utf-8")
         view = memoryview(data)
-        while view:
+        while view and not self.upload_stopped:
             size = self.connection.submit("write", self, data=bytes(view[:16000]))
+            if not size:
+                break
             view = view[size:]
 
     def receive(self):
