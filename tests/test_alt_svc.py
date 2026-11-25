@@ -165,31 +165,36 @@ class AltSvcTests(unittest.TestCase):
         tcp = Mock(alpn="http/1.1")
         dial_remaining = []
 
-        def stall(*args, attempt, **kwargs):
-            attempt.cancelled.wait(1)
-            raise OSError("blocked UDP")
+        # Verify the policy under an exact monotonic clock, not that a hosted
+        # VM schedules two Python threads within 50 ms. The native UDP-loss
+        # suite independently exercises the actual race and the warm path.
+        budget = Attempt(100.05)
+
+        def simulated_race(_quic, backup, *, delay, parent):
+            self.assertIs(parent, budget)
+            self.assertGreaterEqual(delay, 0)
+            self.assertLessEqual(delay, 0.025001)
+            clock.return_value += delay
+            return backup(Attempt(parent.deadline))
 
         def dial(url, proxy, verify, cert, timeout, attempt, **kwargs):
             dial_remaining.append(timeout)
             return tcp
 
         with (
-            patch("ruyihttp._http3.Connection", side_effect=stall),
-            patch.object(_transport, "_ssl_context"),
+            patch.object(_transport.time, "monotonic", return_value=100.0) as clock,
+            patch.object(_connect, "race", side_effect=simulated_race) as race,
             patch.object(self.adapter, "_connect", side_effect=dial),
         ):
             result = self.adapter._connect_alternative(
-                self.request,
-                route,
-                self.adapter._alt_svc[route],
-                True,
-                Attempt(time.monotonic() + 0.05),
-                None,
+                self.request, route, self.adapter._alt_svc[route], True, budget, None
             )
-        self.assertIs(result, tcp)
-        self.assertGreater(dial_remaining[0], 0)
-        self.assertLess(dial_remaining[0], 0.05)
-        self.assertIsNone(self.adapter._active_alternative(route))
+            race.assert_called_once()
+            self.assertIs(result, tcp)
+            self.assertEqual(len(dial_remaining), 1)
+            self.assertGreaterEqual(dial_remaining[0], 0.024999)
+            self.assertLessEqual(dial_remaining[0], 0.050001)
+            self.assertIsNone(self.adapter._active_alternative(route))
 
     def test_closed_and_busy_tcp_are_not_leased(self):
         pool = self.adapter._pool(key())
