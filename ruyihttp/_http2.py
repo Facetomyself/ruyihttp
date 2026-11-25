@@ -32,7 +32,7 @@ from urllib3._collections import HTTPHeaderDict
 from urllib3.exceptions import ProtocolError
 
 from ._http3 import _Call
-from ._retry import Http1Required, Rejected, Reset
+from ._retry import Http1Required, Http1RequiredUnprocessed, Rejected, Reset
 
 
 class FirefoxEncoder(Encoder):
@@ -207,7 +207,9 @@ class Connection:
                     for stream, exchange in self.streams.items():
                         if stream > event.last_stream_id and not exchange.ended:
                             error = (
-                                Http1Required if event.error_code == 13 else Rejected
+                                Http1RequiredUnprocessed
+                                if event.error_code == 13
+                                else Rejected
                             )
                             exchange.fail(error("HTTP/2 GOAWAY rejected this request"))
                 elif isinstance(event, StreamReset):
@@ -310,7 +312,7 @@ class Connection:
         if operation == "fetch":
             if self.goaway:
                 if self.goaway_error == 13:
-                    raise Http1Required("HTTP/2 peer requires HTTP/1.1")
+                    raise Http1RequiredUnprocessed("HTTP/2 peer requires HTTP/1.1")
                 raise Rejected("HTTP/2 connection is draining")
             maximum = min(100, self.protocol.remote_settings.max_concurrent_streams)
             if self.protocol.open_outbound_streams >= maximum:

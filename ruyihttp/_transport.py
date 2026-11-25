@@ -1007,7 +1007,6 @@ class HTTPAdapter(RequestsAdapter):
         if not http3 or http1 or alternate and alternate[1] <= time.monotonic():
             alternate = None
         transport = pool.acquire("h3" if alternate else None, http3=http3)
-        reused = transport is not None
         coalesced = False
         if (
             transport is None
@@ -1049,7 +1048,6 @@ class HTTPAdapter(RequestsAdapter):
                             pool.release(None)
                             pool = candidate
                             coalesced = True
-                            reused = True
                             break
                     if coalesced:
                         break
@@ -1192,7 +1190,7 @@ class HTTPAdapter(RequestsAdapter):
                 and not PROFILES[self.firefox]["h3_protocol_error_fallback"]
             ):
                 error = ProtocolError(str(error))
-            should_restart = restartable(error, request.method, exchange, reused)
+            should_restart = restartable(error, request.method, exchange)
             if exchange is not None:
                 exchange.close()
             if transport is not None:
