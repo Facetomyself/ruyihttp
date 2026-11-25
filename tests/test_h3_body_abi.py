@@ -261,10 +261,37 @@ class NativeBodyABI(unittest.TestCase):
             b"Invalid HTTP/3 body write arguments",
             abi._write(handle, stream, one, 1, None),
         )
-        # The handle works on the connection pump thread, not this test thread.
-        error = abi._read(handle, stream, one, 1, ct.byref(count), ct.byref(fin))
-        self.assertIn(b"handle", error.lower())
-        self.assertEqual((one.raw, count.value, fin.value), (b"a", 99, 99))
+
+        def json_call(owner_handle, op, **args):
+            frame = json.dumps({"op": op, **args}).encode()
+            result = json.loads(
+                connection.library.necko_quic_call(owner_handle, frame, len(frame))
+            )
+            self.assertNotIn("error", result)
+            return result
+
+        # Even when this thread owns a different session, the pump's handle
+        # must be rejected rather than aliasing the local session's identifier.
+        local_handle = json_call(
+            0,
+            "new",
+            host=fixture._HOST,
+            local=f"{fixture._IP}:4444",
+            remote=_http3._address(origin.address),
+            profile=_http3.quic_profile(connection.firefox),
+            firefox=connection.firefox,
+            token="",
+        )["handle"]
+        try:
+            self.assertNotEqual(local_handle, handle)
+            json_call(local_handle, "info")
+            error = abi._read(handle, stream, one, 1, ct.byref(count), ct.byref(fin))
+            self.assertIn(b"handle", error.lower())
+            error = abi._write(handle, stream, one, 1, ct.byref(count))
+            self.assertIn(b"handle", error.lower())
+            self.assertEqual((one.raw, count.value, fin.value), (b"a", 99, 99))
+        finally:
+            json_call(local_handle, "close")
         self.assertEqual(self.fixture._read(exchange), fixture._DATA)
 
     def _early_origin(self, control):
