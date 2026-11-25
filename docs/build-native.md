@@ -1,8 +1,8 @@
 # Building and importing native runtimes
 
-The Python transport and packaging live here. The existing Windows x64, Linux x86_64 and macOS arm64 sets came from archived wheels. Linux ARM64 and Intel macOS use a separate native-runner build path: Necko, NSS/NSPR and Neqo are built from pinned upstream sources and verified on the requested CPU before admission. See the [support matrix](platform-support.md) for the status of each slot. Building a wheel from checked-in libraries is a packaging operation, not a native source rebuild.
+RuyiHttp 0.9.1 keeps the original Windows x64 DLLs. Both Linux architectures and both macOS architectures are compiled on their target CPU from pinned upstream sources. The runtime manifest and each slot’s provenance identify its actual patches, hashes and loader policy. Packaging tracked libraries is separate from recompiling them.
 
-## Fast path: import a pinned wheel
+## Historical import example (a disposable checkout only)
 
 ```sh
 python tools/build_native.py \
@@ -16,7 +16,7 @@ python tools/build_native.py \
   --platform darwin_arm64
 ```
 
-The script copies the platform libraries into `native/<platform>/`, writes
+These examples describe the original 0.9.0 donor sets, not a substitute for qualifying 0.9.1: the script copies the platform libraries into `native/<platform>/`, writes
 `provenance.json` and `SHA256SUMS`, and updates
 `ruyihttp/runtime-manifest.json`.
 
@@ -39,14 +39,20 @@ python tools/verify_runtime.py
 `verify_runtime.py` checks the required `necko_*` exports and NSS version
 markers.
 
-## Source-built targets: ARM64 Linux and Intel macOS
+## Source-built targets: Linux and macOS on x86_64 and ARM64
 
-The [native workflow](../.github/workflows/native-arm64-intel.yml) records the host architecture, upstream Git revisions and file inventory. It calls [the native build script](../ci/build_native_target.sh) on `ubuntu-24.04-arm` or `macos-15-intel`. Both the donor commit `f557fcd437aae5f18f313eb330bd3ef50f5fc7df` and its Firefox gitlink `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` are pinned; the runtime source version and the client-selected Firefox profile are distinct. Per-slot provenance is the authority for any additional patches.
+The [native workflow](../.github/workflows/native-arm64-intel.yml) records the host architecture, upstream Git revisions and file inventory. It calls [the native build script](../ci/build_native_target.sh) on `ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15-intel` or `macos-26`. Both the donor commit `f557fcd437aae5f18f313eb330bd3ef50f5fc7df` and its Firefox gitlink `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` are pinned; the runtime source version and the client-selected Firefox profile are distinct. Per-slot provenance is the authority for any additional patches.
 
 1. Compile on the target CPU. For Linux, inspect the entire ELF set, exported ABI, dependencies and `$ORIGIN` search paths. For macOS, check each Mach-O architecture, deployment load command and sibling install names. Derive the wheel minimum from the binaries, rather than the SDK version or the runner label.
 2. Build a candidate wheel, check its hashes against its manifest and inspect its members. Check Linux platform policy with `auditwheel show`. Linux packaging never lowers the 2.39 compatibility floor to match an older build machine.
 3. Install the wheel in a fresh target venv outside the checkout, clear all native library overrides, and verify that the process loads libraries from the installed package. Exercise real HTTP/1, TLS/HTTP/2, UDP/HTTP/3 and negative controls. A build job or a `dlopen` alone does not qualify the slot.
 4. Admit exactly the tested files, recording hashes, source revisions, build and verification receipts. Repack from the committed bytes and repeat the installed-wheel gate. The [Wheels workflow](../.github/workflows/wheels.yml) produces downloadable CI artifacts, not PyPI releases.
+
+## Body ABI and reproducible promotion
+
+The POSIX source targets apply `native/patches/h3-body-abi-v1.patch`; macOS also applies the negotiated TLS reporting and global session handle patches. The versioned data ABI bounds buffers and byte counts; it runs only on the owning connection thread and never keeps a caller’s buffer. Artifacts from a failed source job remain diagnostic until independent target verification ties the exact hashes to a successful install and wire test. A matching build receipt alone is not release qualification.
+
+The per-platform `native-provenance.json` shipped in the installed wheel describes native sources and patches; its file inventory must agree with `runtime-manifest.json`. The four profile/root inputs are checked against their exact byte hashes at build time and after installing, including on Windows. A release upgrade uses ordinary pip version comparison, not `--force-reinstall`: Windows starts from the pinned original PyPI 0.9.0 wheel; other platforms reconstruct the prior five-platform distribution at `ea44f8f`.
 
 ## Historical rebuild path for imported libraries
 

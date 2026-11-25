@@ -11,8 +11,7 @@ and notice files when redistributing a wheel.
 
 ## macOS and Linux native runtimes
 
-The macOS arm64 and Linux x86_64 native runtimes were imported from
-`Facetomyself/ff-ruyijs` 0.4.1 (`ruyijs` wheels).
+Earlier builds imported macOS arm64 and Linux x86_64 donor wheels. The 0.9.1 POSIX sets use pinned ff-ruyijs and Firefox sources; the corresponding revisions and local patch hashes are recorded in each platform’s provenance. See [source rebuild instructions](build-native.md).
 
 `ff-ruyijs` is dual-licensed:
 

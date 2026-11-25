@@ -4,9 +4,9 @@
 
 | Platform | Status | Runtime | Wheel tag | Notes |
 | --- | --- | --- | --- | --- |
-| Windows x64 | ready | NSS 3.131 / NSPR 4.40 / Neqo 0.32.0 | `py3-none-win_amd64` | Original 0.9.0 DLL set. Live HTTPS checked. |
-| macOS arm64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_26_0_arm64` | Core and QUIC imported from `ruyijs` 0.4.1. minos 26.0. |
-| Linux x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_x86_64` | Core and QUIC imported from `ruyijs` 0.4.1. glibc 2.39 floor. |
+| Windows x64 | ready | NSS 3.131 / NSPR 4.40 / Neqo 0.32.0 | `py3-none-win_amd64` | Original, hash-verified 0.9.0 DLLs; JSON body ABI, H3 reports the historical NSS/Neqo field set. |
+| macOS arm64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_26_0_arm64` | Six source-built arm64 dylibs, deployment floor 26.0; measured NSS H3 telemetry and binary body ABI v1. |
+| Linux x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_x86_64` | Fourteen source-built ELF libraries, glibc 2.39 policy, H3 binary body ABI v1. |
 | macOS x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_15_0_x86_64` | Six source-built thin Intel dylibs; deployment floor 15.0, tested on 15.7.9. |
 | Linux aarch64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_aarch64` | 14 source-built ELF libraries. See native ARM acceptance below. |
 
@@ -62,6 +62,12 @@ with ruyihttp.Session(firefox="159") as session:
 ```
 
 Expected: `200`, ALPN `h2`, and the NSS version from the platform manifest.
+
+## 0.9.1 qualification policy
+
+Every [wheel job](../.github/workflows/wheels.yml) builds the platform wheel once, installs that same artifact on CPython 3.10 and 3.14, and records the interpreter, installed paths, native hashes and actual protocol results. Wire-level HTTP/3, strict certificate negatives, early response, IPv4/IPv6 Alt-Svc, blocked UDP/warm TCP, two-hop TCP proxies, H2 EOF/backpressure and source-to-destination upgrade are distinct checks. See [transport performance and limitations](performance.md) for budgets and the weekly comparison.
+
+Windows uses the original x64 DLLs (NSS 3.131). Its H3 TLS result is `NSS/Neqo` and contains the negotiated protocol/version/cipher/resumption flag; it does not invent a Firefox-profile or NSS-version field. The core NSS version is measured separately. The four POSIX sets use source-built versioned body exports and provide the native NSS/Neqo TLS report. Binary ABI tests send and receive real bodies with embedded zeros, test owner isolation, and force the same bridge through JSON as an independent compatibility control. Protocol support here does not mean H3 through an ordinary TCP proxy.
 
 ## Validation record
 

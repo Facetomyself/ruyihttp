@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased — request and transport boundaries (2026-11-25)
+## 0.9.1 — transport performance and native qualification (2026-11-26)
+
+- Honor H3 upload stop without losing the final response; share a healthy TCP fallback for an unusable Alt-Svc route and bound retry/caching costs. Preserve TLS verification and all request replay controls.
+- Isolate slow H2 readers, enforce peer/local stream capacity, and adapt idle polling. Batch connection credit with ordinary outgoing frames when there is ample room. The exact H2 wire and memory trade-offs are described in `docs/h2-flow-control.md`.
+- Avoid temporary integer lists on native reads. Cache read-only trust material by its exact source/contents and constraints, with fresh hostname/chain checks. Ship and check the platform provenance alongside profile/trust data.
+- Add optional binary H3 body v1 to source-built POSIX runtimes. Keep JSON fallback for older bridges including the original Windows DLLs. Qualify all five native wheel targets on CPython 3.10 and 3.14, including in-place upgrade and real UDP/HTTP/3. Add manual/weekly installed-wheel performance reporting without a shared-runner speed threshold.
+
+### Included request-boundary fixes (2026-11-25)
 
 - A reset on a pooled connection no longer implicitly repeats a possibly processed POST. Safe methods, requests known not to have been sent, and explicit protocol rejections retain their recovery paths. An ambiguous write raises a connection error; this does not establish that the server did nothing. Applications may explicitly configure a retry policy for operations they can safely repeat.
 - IP-literal schemeful sites use the full address. Target-owned `SameSite=Strict` cookies are withheld for cross-IP fetches, even when the addresses share their final octets. DNS names still use their registrable domain.

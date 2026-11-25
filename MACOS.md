@@ -1,8 +1,6 @@
 # macOS arm64 runtime
 
-Status: ready. The arm64 wheel is built from the same Python sources as the
-other platforms and the native set imported from
-`Facetomyself/ff-ruyijs` 0.4.1.
+Status: ready. Version 0.9.1 uses a native Apple Silicon source build, not the historical 0.4.1 donor wheel. The six dylibs are recorded in [platform provenance](native/darwin_arm64/provenance.json), together with source pins and H3 bridge patches.
 
 ## Runtime
 
@@ -37,7 +35,9 @@ The directory contains:
 
 ## Verification
 
-Tested on a Mac mini (arm64, macOS 26.5.2, Python 3.12.13):
+0.9.1 qualifies HTTP/1.1, H2, real QUIC/H3, positive/negative certificate controls, the optional binary body ABI and JSON compatibility on the native Apple Silicon runner. The H3 response now includes measured NSS/TLS metadata.
+
+Historical 0.9.0 HTTPS control on a Mac mini (arm64, macOS 26.5.2, Python 3.12.13):
 
 ```text
 local smoke OK 0.9.0 http
@@ -57,6 +57,4 @@ live smoke OK 200 {'backend': 'NSS', 'nss': '3.132', 'nspr': '4.40',
 ## Historical note
 
 The earlier 0.9.0 analysis described an arm64-only `libnecko_core.dylib` built
-against NSS 3.131 with no QUIC library. That set has been replaced by the
-complete ff-ruyijs 0.4.1 arm64 set above. The old wheel in `dist/` is kept only
-as source provenance.
+against NSS 3.131 with no QUIC library. That set was later replaced by a complete imported ff-ruyijs 0.4.1 arm64 set, then by the source-built 0.9.1 runtime. Historical artifacts in `dist-v0.9.0-legacy/` are retained only as provenance.

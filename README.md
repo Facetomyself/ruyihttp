@@ -1,13 +1,8 @@
-# ruyihttp
+# RuyiHttp
 
-Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。一个会话可以选择 Firefox
-100–159 的网络档，TLS、请求头、HTTP/2 和 HTTP/3 按该正式版发送。不启动浏览器。
-Web 逆向里它是 `test.py` 的真实 TLS 引擎，不是 browser fact，也不替代
-RuyiTrace、RuyiDOM 或 ruyipage。
+RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。每个会话可以选择 Firefox 100–159 的网络配置，使用真实的 HTTP/1.1、HTTP/2 或 HTTP/3 传输，无需启动浏览器。项目维护 Python API、原生库、构建来源与安装后的协议验收；浏览器 DOM 和页面生命周期属于其他组件。
 
-这是源码维护树，来源是 PyPI `ruyihttp==0.9.0` 的 Python 源码，加上 ruyijs /
-ff-ruyijs 产出的平台原生运行时。目标不是继续做 wheel 抽包，而是把 Python、
-原生库、manifest、构建脚本、测试和发布流程放在同一个仓库里维护。
+当前包版本 **0.9.1**，用于区分此前同名的 `0.9.0` 构建。使用与操作系统及架构匹配的仓库 wheel 安装；CI 工件与 PyPI 发布是两个独立步骤。[传输策略与性能趋势](docs/performance.md)说明了连接复用、H2 背压、H3 数据接口和基准口径。
 
 ## 平台矩阵
 
@@ -29,8 +24,10 @@ native/<platform>/         平台原生运行时 + provenance + SHA256SUMS
 ruyihttp/runtime-manifest.json
                            平台矩阵、NSS/NSPR/Neqo 版本、文件 hash
 tests/                     契约测试和 live transport smoke
-tools/                     native 导入/校验脚本
-docs/                      平台支持、构建、许可说明
+tools/                     原生库导入、构建预检及来源校验
+ci/                        已安装 wheel 的协议、升级与平台验收
+benchmarks/                独立回环源站、性能基准及趋势摘要
+docs/                      平台支持、构建、传输策略和许可说明
 ```
 
 ## 安装与构建
@@ -77,12 +74,9 @@ wheel 装配和 Windows/macOS/Linux 原生布局。真正发请求的 smoke 建�
 ## 运行时来源
 
 - Windows：`ruyihttp 0.9.0` 原 wheel 的 `win_amd64` DLL，NSS 3.131 / Neqo 0.32.0。
-- macOS arm64 / Linux x86_64：来自 `Facetomyself/ff-ruyijs` 0.4.1 的
-  `ruyijs` wheel，NSS 3.132 / Neqo 0.33.0。core 和 QUIC 必须整组使用，不要和
-  3.131 的 core 混搭。
-- Intel macOS：在 x86_64 Mac 从固定源码编译 6 个 dylib。QUIC 桥返回原生会话协商的 TLS 版本、ALPN 和 cipher；[来源和补丁记录](native/darwin_x86_64/provenance.json)。
-- Linux ARM64：在原生 ARM64 runner 从固定的 ff-ruyijs 与 Firefox 源码构建；[来源记录](native/linux_aarch64/provenance.json)含提交、原生文件哈希及验收信息。
-- `ruyihttp/runtime-manifest.json` 是打包器和运行时使用的平台清单。
+- Linux x86_64、Linux ARM64、Intel Mac、Apple Silicon：分别在目标 CPU 从固定的 ff-ruyijs / Firefox 源码构建。NSS 3.132 / Neqo 0.33.0，支持 H3 正文二进制 ABI v1；控制操作继续使用 JSON。Windows 保留原生 JSON 正文路径。
+- 源码侧以 [runtime-manifest.json](ruyihttp/runtime-manifest.json) 和各平台目录的 `provenance.json` 为准；wheel 内的 `ruyihttp/native-provenance.json` 记录该包携带的库与来源。构建和安装验收逐项核对原生库及四个配置与信任数据文件的哈希。
+- 同一平台 wheel 分别在 CPython 3.10、3.14 上安装验收，覆盖真实 H1/H2/H3、停止上传、证书负例、双跳代理及正文读写；升级用例检查新旧包的安装身份。[平台说明](docs/platform-support.md)区别了各桥实际返回的 TLS 字段。
 
 ## 边界
 
