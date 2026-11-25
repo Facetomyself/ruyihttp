@@ -8,6 +8,7 @@ import json
 import platform
 import socket
 import ssl
+import subprocess
 import sys
 import tempfile
 import threading
@@ -194,7 +195,7 @@ def main():
     os_name, arches, suffix, count = expected[target]
     assert platform.system() == os_name and platform.machine().lower() in arches
     if os_name == 'Darwin':
-        translated = __import__('subprocess').check_output(['sysctl', '-in', 'sysctl.proc_translated'], text=True).strip()
+        translated = subprocess.check_output(['sysctl', '-in', 'sysctl.proc_translated'], text=True).strip()
         assert translated in ('', '0'), translated
         print(f'Rosetta translation: {translated or 0}', flush=True)
     root = Path(ruyihttp.__file__).resolve().parent
@@ -212,12 +213,16 @@ def main():
     assert (nss, nspr) == (manifest['nss'], manifest['nspr']), (nss, nspr)
     quic = ctypes.CDLL(str(root / (prefix + 'necko_quic' + suffix)))
     assert quic.necko_quic_call and quic.necko_quic_set_decoder
+    export = manifest['h3_version_export']
     quic.necko_quic_version.argtypes = []
-    quic.necko_quic_version.restype = ctypes.c_char_p
-    quic_version = quic.necko_quic_version().decode()
+    quic.necko_quic_version.restype = {'ascii': ctypes.c_char_p, 'u32': ctypes.c_uint32}[export['type']]
+    version = quic.necko_quic_version()
+    if export['type'] == 'ascii':
+        version = version.decode('ascii')
     print(target, sys.version.split()[0], root, manifest.get('wheel_platform_tag'),
-          'native hashes', count, 'NSS', nss, 'NSPR', nspr, 'QUIC', quic_version, flush=True)
-    assert quic_version == f"neqo-{manifest['neqo']}/nss-{nss}", quic_version
+          'native hashes', count, 'NSS', nss, 'NSPR', nspr,
+          'QUIC version export', export['type'], repr(version), flush=True)
+    assert version == export['value'], (version, export['value'])
     body_version = getattr(quic, 'necko_quic_body_abi_version', None)
     actual_abi = None
     if body_version is not None:
