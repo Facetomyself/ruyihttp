@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ruyihttp"
 version = "0.9.1"
-description = "Private source-maintenance fork of the Requests-style NSS/Necko HTTP client"
+description = "Requests-style HTTP/1.1, HTTP/2 and HTTP/3 client backed by Firefox Necko and NSS"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MPL-2.0"
