@@ -1,0 +1,164 @@
+diff --git a/native/necko_posix/quic/events.rs b/native/necko_posix/quic/events.rs
+index 09ce46a..3e6b628 100644
+--- a/native/necko_posix/quic/events.rs
++++ b/native/necko_posix/quic/events.rs
+@@ -48,6 +48,7 @@ pub fn collect(session: &mut Session) -> Result<Value> {
+                 },
+             },
+             Event::DataReadable {stream_id} => json!({"type":"readable","stream":stream_id.as_u64()}),
++            Event::DataWritable {stream_id} => json!({"type":"writable","stream":stream_id.as_u64()}),
+             Event::Reset {stream_id,error,..} => json!({"type":"reset","stream":stream_id.as_u64(),"error":error}),
+             Event::StopSending {stream_id,error} => json!({"type":"stop_sending","stream":stream_id.as_u64(),"error":error}),
+             Event::ResumptionToken(token) => json!({"type":"token","data":B64.encode(token.as_ref()),
+diff --git a/native/necko_posix/quic/lib.rs b/native/necko_posix/quic/lib.rs
+index afd0d67..7f0ec46 100644
+--- a/native/necko_posix/quic/lib.rs
++++ b/native/necko_posix/quic/lib.rs
+@@ -4,6 +4,8 @@ mod client;
+ mod crypto;
+ mod events;
+ mod webtransport;
++#[path = "../../necko_quic/src/body_abi.rs"]
++mod body_abi;
+ 
+ use std::{cell::RefCell, collections::HashMap, ffi::{CString, c_char}, panic::{catch_unwind, AssertUnwindSafe},
+     sync::atomic::{AtomicU64, Ordering}};
+@@ -24,6 +26,18 @@ thread_local! {
+ }
+ static NEXT: AtomicU64 = AtomicU64::new(1);
+ 
++fn stream_id(value: u64) -> neqo_transport::StreamId {
++    neqo_transport::StreamId::from(value)
++}
++
++fn with_session<T>(handle: u64, body: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
++    SESSIONS.with(|map| {
++        let mut map = map.borrow_mut();
++        let session = map.get_mut(&handle).ok_or("Unknown QUIC handle or wrong owner thread")?;
++        body(session)
++    })
++}
++
+ fn call(handle: u64, request: &Value) -> Result<Value> {
+     let operation = text(request, "op")?;
+     SESSIONS.with(|map| {
+diff --git a/native/necko_quic/src/body_abi.rs b/native/necko_quic/src/body_abi.rs
+new file mode 100644
+index 0000000..8c4c015
+--- /dev/null
++++ b/native/necko_quic/src/body_abi.rs
+@@ -0,0 +1,91 @@
++// Binary body data plane. Sessions remain bound to the JSON connection's owner thread.
++use std::cell::RefCell;
++use std::ffi::{CString, c_char};
++use std::panic::{AssertUnwindSafe, catch_unwind};
++use std::ptr;
++use std::slice;
++use std::time::Instant;
++
++use crate::{stream_id, with_session};
++
++const BODY_LIMIT: usize = 65_536;
++const MAX_VARINT: u64 = (1 << 62) - 1;
++
++thread_local! {
++    static ERROR: RefCell<CString> = RefCell::new(CString::default());
++}
++
++fn report_error(message: &str) -> *const c_char {
++    ERROR.with(|slot| {
++        let mut error = slot.borrow_mut();
++        *error = CString::new(message).unwrap_or_default();
++        error.as_ptr()
++    })
++}
++
++fn run(body: impl FnOnce() -> Result<(), String>) -> *const c_char {
++    match catch_unwind(AssertUnwindSafe(body)) {
++        Ok(Ok(())) => ptr::null(),
++        Ok(Err(message)) => report_error(&message),
++        Err(_) => report_error("HTTP/3 body operation panicked"),
++    }
++}
++
++fn valid_args(stream: u64, data: *const u8, len: usize, count: *mut usize) -> bool {
++    stream <= MAX_VARINT && !data.is_null() && (1..=BODY_LIMIT).contains(&len)
++        && !count.is_null() && count.is_aligned()
++}
++
++#[unsafe(no_mangle)]
++pub extern "C" fn necko_quic_body_abi_version() -> u32 {
++    1
++}
++
++// The caller supplies valid, non-overlapping storage and keeps it alive for the call.
++// No buffers are retained. NULL denotes success; error text is thread-local and
++// valid until the next body error on this thread. Outputs are valid on success only.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn necko_quic_body_write_v1(
++    handle: u64, stream: u64, data: *const u8, len: usize, count: *mut usize,
++) -> *const c_char {
++    run(|| {
++        if !valid_args(stream, data, len, count) {
++            return Err("Invalid HTTP/3 body write arguments".into());
++        }
++        let written = with_session(handle, |session| {
++            let data = unsafe { slice::from_raw_parts(data, len) };
++            session.client.send_data(stream_id(stream), data, Instant::now())
++                .map_err(|error| format!("{error:?}"))
++        })?;
++        if written > len {
++            return Err("Invalid HTTP/3 body write count".into());
++        }
++        unsafe { count.write(written) };
++        Ok(())
++    })
++}
++
++// Same contract as write; fin is exactly 0 or 1 on success.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn necko_quic_body_read_v1(
++    handle: u64, stream: u64, data: *mut u8, len: usize, count: *mut usize, fin: *mut u8,
++) -> *const c_char {
++    run(|| {
++        if !valid_args(stream, data.cast_const(), len, count) || fin.is_null() {
++            return Err("Invalid HTTP/3 body read arguments".into());
++        }
++        let (read, ended) = with_session(handle, |session| {
++            let data = unsafe { slice::from_raw_parts_mut(data, len) };
++            session.client.read_data(Instant::now(), stream_id(stream), data)
++                .map_err(|error| format!("{error:?}"))
++        })?;
++        if read > len {
++            return Err("Invalid HTTP/3 body read count".into());
++        }
++        unsafe {
++            count.write(read);
++            fin.write(u8::from(ended));
++        }
++        Ok(())
++    })
++}
+diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
+index a0cd5f1..091840c 100644
+--- a/native/necko_quic/src/lib.rs
++++ b/native/necko_quic/src/lib.rs
+@@ -8,6 +8,8 @@
+ //! Init. Transport-parameter order and the Initial padding bonus are carried
+ //! on the session and applied when a datagram is sent.
+ 
++mod body_abi;
++
+ use std::cell::RefCell;
+ use std::collections::HashMap;
+ use std::ffi::{CStr, CString, c_void};
+@@ -425,6 +427,9 @@ fn push_event(events: &mut Vec<Value>, event: Http3ClientEvent) {
+         Http3ClientEvent::DataReadable { stream_id } => {
+             events.push(json!({"type": "readable", "stream": stream_number(stream_id)}));
+         }
++        Http3ClientEvent::DataWritable { stream_id } => {
++            events.push(json!({"type": "writable", "stream": stream_number(stream_id)}));
++        }
+         Http3ClientEvent::Reset { stream_id, error, .. } => {
+             events.push(json!({"type": "reset", "stream": stream_number(stream_id), "error": error}));
+         }
