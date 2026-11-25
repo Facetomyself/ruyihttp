@@ -363,7 +363,9 @@ class Connection:
             count = self._json_frame(call.frame)["count"]
             if type(count) is not int or not 0 <= count <= size:
                 raise ProtocolError("Invalid HTTP/3 body write count")
-        if count < size:
+        if not count or (count < size and self._body_abi is None):
+            # Binary partial writes can probe the suffix cheaply and let Neqo
+            # install its writable low-water mark on the first zero write.
             exchange.write_blocked_at = self._write_epoch(exchange)
             exchange.write_probe_at = time.monotonic() + _WRITE_PROBE_DELAY
         else:
@@ -440,6 +442,55 @@ class Connection:
                 self._call("finish", stream=exchange.stream_id)
         return True
 
+    def _run_loop(self, udp, selector):
+        pump_at = 0
+        while not self._stopping.is_set():
+            repump = False
+            if time.monotonic() >= pump_at:
+                delay = max(0.0, min(0.1, self._call("pump")["delay"]))
+                pump_at = time.monotonic() + delay
+                # UDP input and timers may have unblocked reads/writes. Process
+                # those events now, without a second selector wait first.
+                repump = self._events()
+            while True:
+                try:
+                    self.pending.append(self.commands.get_nowait())
+                except queue.Empty:
+                    break
+            waiting = []
+            for call in self.pending:
+                try:
+                    if not self._execute(call):
+                        waiting.append(call)
+                        continue
+                    repump = True
+                except Exception as error:
+                    call.error = error
+                call.done.set()
+            self.pending = waiting
+            if repump or self._stopping.is_set():
+                pump_at = 0
+                continue
+            now = time.monotonic()
+            wait_until = pump_at
+            for call in waiting:
+                if call.deadline is not None:
+                    wait_until = min(wait_until, call.deadline)
+                if call.operation == "write":
+                    wait_until = min(wait_until, call.exchange.write_probe_at)
+            readable = {
+                key.fileobj for key, _ in selector.select(max(0.0, wait_until - now))
+            }
+            if udp in readable:
+                self._input_epoch += 1
+                pump_at = 0
+            if self._wake_read in readable:
+                try:
+                    while self._wake_read.recv(4096):
+                        pass
+                except BlockingIOError:
+                    pass
+
     def _run(self):
         udp = None
         selector = None
@@ -469,44 +520,7 @@ class Connection:
                 raise ProtocolError("Invalid HTTP/3 connection handle")
             self.handle = handle
             self._call("attach", socket=udp.fileno())
-            while not self._stopping.is_set():
-                # Consume socket input and native events before retrying blocked
-                # operations. Never select again with newly ready calls pending.
-                delay = max(0.0, min(0.1, self._call("pump")["delay"]))
-                repump = self._events()
-                while True:
-                    try:
-                        self.pending.append(self.commands.get_nowait())
-                    except queue.Empty:
-                        break
-                waiting = []
-                for call in self.pending:
-                    try:
-                        if not self._execute(call):
-                            waiting.append(call)
-                            continue
-                        repump = True
-                    except Exception as error:
-                        call.error = error
-                    call.done.set()
-                self.pending = waiting
-                if repump or self._stopping.is_set():
-                    continue
-                now = time.monotonic()
-                for call in waiting:
-                    if call.deadline is not None:
-                        delay = min(delay, max(0, call.deadline - now))
-                    if call.operation == "write":
-                        delay = min(delay, max(0, call.exchange.write_probe_at - now))
-                readable = {key.fileobj for key, _ in selector.select(delay)}
-                if self._wake_read in readable:
-                    try:
-                        while self._wake_read.recv(4096):
-                            pass
-                    except BlockingIOError:
-                        pass
-                if udp in readable:
-                    self._input_epoch += 1
+            self._run_loop(udp, selector)
         except Exception as error:
             self.error = error
         finally:
