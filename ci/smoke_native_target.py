@@ -218,6 +218,15 @@ def main():
     print(target, sys.version.split()[0], root, manifest.get('wheel_platform_tag'),
           'native hashes', count, 'NSS', nss, 'NSPR', nspr, 'QUIC', quic_version, flush=True)
     assert quic_version == f"neqo-{manifest['neqo']}/nss-{nss}", quic_version
+    body_version = getattr(quic, 'necko_quic_body_abi_version', None)
+    actual_abi = None
+    if body_version is not None:
+        body_version.argtypes = []
+        body_version.restype = ctypes.c_uint32
+        actual_abi = body_version()
+        assert quic.necko_quic_body_read_v1 and quic.necko_quic_body_write_v1
+    print(f'H3 binary body ABI: {actual_abi!r}', flush=True)
+    assert actual_abi == manifest.get('h3_body_abi'), (actual_abi, manifest.get('h3_body_abi'))
     asyncio.run(test_transactions(manifest))
     check_loaded_libraries(root, target, files)
 

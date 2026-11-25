@@ -156,11 +156,18 @@ def check_architecture(platform: str, name: str, data: bytes) -> None:
         if (data[:7] != b'\x7fELF\x02\x01\x01' or
                 data[16:20] != struct.pack('<HH', 3, machine)):
             raise ValueError(f'{name}: not a little-endian {platform} ELF shared library')
-    if platform == "darwin_x86_64":
-        # A thin amd64 MH_DYLIB, not an arm64 binary or a generic/fat claim.
-        if (data[:8] != struct.pack('<II', 0xFEEDFACF, 0x01000007) or
+    if platform.startswith('darwin_'):
+        machine = {'darwin_x86_64': 0x01000007, 'darwin_arm64': 0x0100000C}[platform]
+        if (data[:8] != struct.pack('<II', 0xFEEDFACF, machine) or
                 data[12:16] != struct.pack('<I', 6)):
-            raise ValueError(f'{name}: not a thin x86_64 Mach-O dylib')
+            raise ValueError(f'{name}: not a thin {platform} Mach-O dylib')
+    if platform == 'win_amd64':
+        pe = int.from_bytes(data[0x3c:0x40], 'little')
+        if (data[:2] != b'MZ' or not 0x40 <= pe <= len(data) - 26 or
+                data[pe:pe + 6] != b'PE\x00\x00\x64\x86' or
+                not int.from_bytes(data[pe + 22:pe + 24], 'little') & 0x2000 or
+                data[pe + 24:pe + 26] != b'\x0b\x02'):
+            raise ValueError(f'{name}: not a Windows x64 PE32+ DLL')
 
 
 def inspect_stable_wheel(wheel: Path, platform: str) -> tuple[dict[str, bytes], str]:

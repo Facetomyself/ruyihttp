@@ -14,17 +14,16 @@ from wheel.bdist_wheel import bdist_wheel
 
 ROOT = Path(__file__).resolve().parent
 
-# win_amd64 matches the published 0.9.0 wheel. Linux wheels are built on
-# Ubuntu 24.04 (glibc 2.39). darwin_arm64 minos 26.0 comes from the arm64
-# libnecko_core.dylib. The two remaining slots are build-required.
+# Windows retains the 0.9.0 native set; Linux uses the glibc 2.39 policy.
+# macOS tags come from the measured deployment floor of the native set.
 PLATFORMS = {
     "win_amd64": ("py3", "none", "win_amd64"),
     "linux_x86_64": ("py3", "none", "manylinux_2_39_x86_64"),
     "linux_aarch64": ("py3", "none", "manylinux_2_39_aarch64"),
-    "darwin_arm64": ("py3", "none", "macosx_26_0_arm64"),
+    "darwin_arm64": ("py3", "none", None),
     "darwin_x86_64": ("py3", "none", None),
 }
-SOURCE_SLOTS = {"linux_aarch64", "darwin_x86_64"}
+SOURCE_SLOTS = {"linux_aarch64", "darwin_x86_64", "darwin_arm64"}
 
 
 def source_entry(name):
@@ -126,7 +125,7 @@ class PlatformWheel(bdist_wheel):
         if name in SOURCE_SLOTS:
             tag = source_entry(name).get("wheel_platform_tag", "")
             valid = (tag == "manylinux_2_39_aarch64" if name == "linux_aarch64" else
-                     bool(re.fullmatch(r"macosx_\d+_\d+_x86_64", tag)))
+                     bool(re.fullmatch(r"macosx_\d+_\d+_" + name.removeprefix('darwin_'), tag)))
             if not valid:
                 raise SystemExit(f"missing or invalid measured wheel platform tag: {name}")
             return "py3", "none", linux_tag(name) if name == "linux_aarch64" else tag

@@ -57,6 +57,13 @@ def main():
     python("http1", "-I", ROOT / "ci/smoke_local.py")
     python("native-transactions", "-I", ROOT / "ci/smoke_native_target.py", slot)
     python("full-h3", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_http3_native.py", "-v")
+    for module in ('test_h3_body_abi.py', 'test_alt_svc_native.py'):
+        if (ROOT / 'tests' / module).is_file():
+            python(module.removesuffix('.py'), '-I', '-m', 'unittest', 'discover',
+                   '-s', ROOT / 'tests', '-p', module, '-v')
+        elif module == 'test_h3_body_abi.py' and env.get('RUYIHTTP_REQUIRE_H3_BODY_ABI') == '1':
+            print(f'::error::Required native ABI wire tests are missing: {module}', flush=True)
+            failed.append(module)
     python("proxy", ROOT / "ci/smoke_proxy_chain.py")
     python("h2-eof", ROOT / "ci/smoke_h2_close.py")
     run("request-boundaries", ["bash", str(ROOT / "ci/verify_request_boundaries.sh")])

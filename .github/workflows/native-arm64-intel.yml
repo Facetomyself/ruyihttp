@@ -1,4 +1,4 @@
-name: Native candidate (ARM64 Linux, Intel macOS)
+name: Native runtime qualification and source candidates
 
 on:
   workflow_dispatch:
@@ -7,10 +7,10 @@ on:
         type: choice
         description: Native target to exercise
         default: all
-        options: [all, linux_aarch64, darwin_x86_64]
+        options: [all, linux_aarch64, linux_x86_64, darwin_x86_64, darwin_arm64, win_amd64]
       mode:
         type: choice
-        description: Verify tracked libraries or compile a fresh candidate from pinned source
+        description: Verify tracked libraries or compile POSIX candidates (Windows retains its original runtime)
         default: verify
         options: [verify, rebuild]
 
@@ -18,20 +18,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: native-arm64-intel-${{ github.sha }}
+  group: native-${{ github.sha }}-${{ inputs.platform }}-${{ inputs.mode }}
   cancel-in-progress: true
 
 jobs:
   native:
     name: ${{ matrix.slot }}
-    runs-on: ${{ matrix.slot == 'linux_aarch64' && 'ubuntu-24.04-arm' || 'macos-15-intel' }}
+    runs-on: ${{ fromJSON('{"linux_aarch64":"ubuntu-24.04-arm","linux_x86_64":"ubuntu-24.04","darwin_x86_64":"macos-15-intel","darwin_arm64":"macos-26","win_amd64":"windows-2025"}')[matrix.slot] }}
     timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
-        slot: ${{ fromJSON(inputs.platform == 'linux_aarch64' && '["linux_aarch64"]' || inputs.platform == 'darwin_x86_64' && '["darwin_x86_64"]' || '["linux_aarch64","darwin_x86_64"]') }}
+        slot: ${{ fromJSON(inputs.platform != 'all' && format('["{0}"]', inputs.platform) || (inputs.mode == 'rebuild' && '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64"]' || '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64","win_amd64"]')) }}
     env:
-      TARGET_ARCH: ${{ matrix.slot == 'linux_aarch64' && 'aarch64' || 'x86_64' }}
+      TARGET_ARCH: ${{ fromJSON('{"linux_aarch64":"aarch64","linux_x86_64":"x86_64","darwin_x86_64":"x86_64","darwin_arm64":"arm64","win_amd64":"amd64"}')[matrix.slot] }}
+      PYTHON_ARCH: ${{ (endsWith(matrix.slot, 'aarch64') || endsWith(matrix.slot, 'arm64')) && 'arm64' || 'x64' }}
+      PYTHONUTF8: '1'
       DONOR_COMMIT: f557fcd437aae5f18f313eb330bd3ef50f5fc7df
       FIREFOX_COMMIT: 2887d9de1f69c0e9776413da80e7ba0d1225dd9b
       PIP_NO_CACHE_DIR: '1'
@@ -44,25 +46,27 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: "${{ matrix.slot == 'linux_aarch64' && '3.14' || '3.12' }}"
+          python-version: '3.14'
+          architecture: ${{ env.PYTHON_ARCH }}
       - name: Record target runner identity
         run: |
           mkdir -p "$RUNNER_TEMP/native-evidence"
           exec > >(tee "$RUNNER_TEMP/native-evidence/runner.txt") 2>&1
           git rev-parse HEAD
           uname -sm
-          python -c 'import os, platform, sys; print(sys.version); assert platform.machine() == os.environ["TARGET_ARCH"]'
+          python -c 'import os, platform, sys; print(sys.version); assert platform.machine().lower() == os.environ["TARGET_ARCH"]'
           df -h "$RUNNER_TEMP"
           rustc -vV
           if [[ $RUNNER_OS == Linux ]]; then
             getconf GNU_LIBC_VERSION
-          else
+          elif [[ $RUNNER_OS == macOS ]]; then
             sw_vers
             xcodebuild -version
             cpu=$(sysctl -n machdep.cpu.brand_string)
             translated=$(sysctl -in sysctl.proc_translated || true)
             printf 'CPU: %s; Rosetta translation: %s\n' "$cpu" "${translated:-0}"
-            [[ $cpu == *Intel* && ${translated:-0} == 0 ]]
+            [[ ${translated:-0} == 0 ]]
+            if [[ $TARGET_ARCH == x86_64 ]]; then [[ $cpu == *Intel* ]]; else [[ $cpu == *Apple* ]]; fi
           fi
       - name: Isolate the old native set for a source rebuild
         if: inputs.mode == 'rebuild'
@@ -73,7 +77,7 @@ jobs:
           import json, os, shutil
           from pathlib import Path
           slot = os.environ['SLOT']
-          if slot not in {'linux_aarch64', 'darwin_x86_64'}:
+          if slot not in {'linux_aarch64', 'linux_x86_64', 'darwin_x86_64', 'darwin_arm64'}:
               raise SystemExit('unknown native target')
           root = Path(os.environ['GITHUB_WORKSPACE']).resolve(strict=True)
           assert Path.cwd().resolve() == root
@@ -152,12 +156,20 @@ jobs:
           if [[ $RUNNER_OS == macOS ]]; then
             patch_args=(--source-patch native/patches/macos-necko-quic-tls-info.patch)
           fi
+          patch_args+=(--source-patch native/patches/h3-body-abi-v1.patch)
           python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
             --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" "${patch_args[@]}" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
+      - name: Stamp a unique source-candidate wheel version
+        if: steps.slot.outputs.ready == 'false'
+        run: python -I ci/stamp_native_candidate.py "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
       - name: Verify complete native set and build wheel
         id: candidate
         run: |
-          cp "native/${{ matrix.slot }}/"{SHA256SUMS,provenance.json} "$RUNNER_TEMP/native-evidence/"
+          slot="native/${{ matrix.slot }}"
+          for file in "$slot"/{SHA256SUMS,provenance.json,exports.json}; do
+            if [[ -f "$file" ]]; then cp "$file" "$RUNNER_TEMP/native-evidence/"; fi
+          done
+          cp ruyihttp/runtime-manifest.json "$RUNNER_TEMP/native-evidence/runtime-manifest.json"
           python -B tools/build_native.py --check
           python -m pip install 'setuptools>=77' 'wheel>=0.45'
           python -m pip wheel --no-deps --no-build-isolation -w "$RUNNER_TEMP/wheelhouse" .
@@ -167,61 +179,46 @@ jobs:
         run: |
           python -m pip install 'auditwheel>=6.4,<7'
           auditwheel show "$RUNNER_TEMP"/wheelhouse/*.whl | tee "$RUNNER_TEMP/native-evidence/auditwheel.txt"
-          python - "$RUNNER_TEMP/native-evidence/auditwheel.txt" <<'PY'
+          python - "$RUNNER_TEMP/native-evidence/auditwheel.txt" "$TARGET_ARCH" <<'PY'
           import re, sys
           from pathlib import Path
           report = Path(sys.argv[1]).read_text()
-          match = re.search(r'following platform tag:\s+"manylinux_2_(\d+)_aarch64"', report)
+          match = re.search(r'following platform tag:\s+"manylinux_2_(\d+)_' + sys.argv[2] + '"', report)
           if not match or int(match[1]) > 39:
-              raise SystemExit('auditwheel did not establish a compatible arm64 manylinux floor')
+              raise SystemExit('auditwheel did not establish a compatible target manylinux floor')
           PY
+      - name: Qualify installed runtime on CPython 3.14
+        env:
+          RUYIHTTP_REQUIRE_H3_BODY_ABI: ${{ steps.slot.outputs.ready == 'false' && '1' || '0' }}
+        run: python -I ci/qualify_wheel.py "${{ matrix.slot }}" 3.14 "$RUNNER_TEMP/wheelhouse" "$RUNNER_TEMP/native-evidence"
       - uses: actions/setup-python@v5
-        if: runner.os == 'Linux'
+        id: python310
+        if: ${{ !cancelled() && steps.candidate.outcome == 'success' }}
         with:
-          python-version: '3.12'
-      - name: Install and exercise wheel on target
-        working-directory: ${{ runner.temp }}
-        run: |
-          python -m venv installed-test
-          wheel=(wheelhouse/*.whl)
-          installed-test/bin/python -m pip install --prefer-binary "${wheel[0]}[socks]" aioquic
-          unset NECKO_CORE_LIBRARY NECKO_QUIC_LIBRARY RUYIHTTP_MACHINE RUYIHTTP_PLATFORM PYTHONPATH LD_LIBRARY_PATH DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
-          if [[ $RUNNER_OS == macOS ]]; then export PATH="$(brew --prefix openssl@3)/bin:$PATH"; fi
-          openssl version
-          installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_local.py" | tee native-evidence/http1.txt
-          installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_native_target.py" "${{ matrix.slot }}" | tee native-evidence/native-test.txt
-          installed-test/bin/python -I -c 'import pathlib, runpy, sys; ci = pathlib.Path(sys.argv[1]); sys.path.append(str(ci)); runpy.run_path(str(ci / "smoke_h2_close.py"), run_name="__main__")' "$GITHUB_WORKSPACE/ci" | tee native-evidence/h2-eof.txt
-      - name: Exercise Intel installed-wheel native H3 and proxy regressions
-        if: runner.os == 'macOS'
-        timeout-minutes: 6
-        working-directory: ${{ runner.temp }}
-        run: |
-          unset NECKO_CORE_LIBRARY NECKO_QUIC_LIBRARY RUYIHTTP_MACHINE RUYIHTTP_PLATFORM PYTHONPATH LD_LIBRARY_PATH DYLD_LIBRARY_PATH DYLD_FALLBACK_LIBRARY_PATH
-          export PATH="$(brew --prefix openssl@3)/bin:$PATH"
-          set +e
-          RUYIHTTP_TEST_NATIVE_H3=1 installed-test/bin/python -I -m unittest discover -s "$GITHUB_WORKSPACE/tests" -p test_http3_native.py -v 2>&1 | tee native-evidence/full-h3.txt
-          h3_status=$?
-          installed-test/bin/python -I "$GITHUB_WORKSPACE/ci/smoke_proxy_chain.py" 2>&1 | tee native-evidence/proxy.txt
-          proxy_status=$?
-          printf 'Full H3 status: %d; proxy status: %d\n' "$h3_status" "$proxy_status"
-          (( h3_status == 0 && proxy_status == 0 ))
+          python-version: '3.10'
+          architecture: ${{ env.PYTHON_ARCH }}
+      - name: Qualify installed runtime on CPython 3.10
+        if: ${{ !cancelled() && steps.python310.outcome == 'success' }}
+        env:
+          RUYIHTTP_REQUIRE_H3_BODY_ABI: ${{ steps.slot.outputs.ready == 'false' && '1' || '0' }}
+        run: python -I ci/qualify_wheel.py "${{ matrix.slot }}" 3.10 "$RUNNER_TEMP/wheelhouse" "$RUNNER_TEMP/native-evidence"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-evidence-${{ matrix.slot }}
+          name: native-evidence-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/native-evidence/
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure() && steps.candidate.outcome == 'success'
         with:
-          name: unverified-diagnostic-wheel-${{ matrix.slot }}
+          name: unverified-diagnostic-wheel-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/wheelhouse/*.whl
           if-no-files-found: ignore
           retention-days: 3
       - uses: actions/upload-artifact@v4
         with:
-          name: verified-native-wheel-${{ matrix.slot }}
+          name: verified-native-wheel-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/wheelhouse/*.whl
           if-no-files-found: error
           retention-days: 7
