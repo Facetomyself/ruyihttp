@@ -1,0 +1,41 @@
+diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
+index 091840c..b9b9950 100644
+--- a/native/necko_quic/src/lib.rs
++++ b/native/necko_quic/src/lib.rs
+@@ -16,6 +16,7 @@ use std::ffi::{CStr, CString, c_void};
+ use std::net::SocketAddr;
+ use std::os::raw::{c_char, c_int};
+ use std::rc::Rc;
++use std::sync::atomic::{AtomicU64, Ordering};
+ use std::time::{Duration, Instant};
+ 
+ use neqo_common::event::Provider;
+@@ -50,9 +51,11 @@ struct Session {
+     mtu_bonus: usize,
+ }
+ 
++// IDs are process-wide even though a session is only accessible on its owner thread.
++static NEXT_HANDLE: AtomicU64 = AtomicU64::new(1);
++
+ thread_local! {
+     static SESSIONS: RefCell<HashMap<u64, Session>> = RefCell::new(HashMap::new());
+-    static NEXT_HANDLE: RefCell<u64> = const { RefCell::new(1) };
+     static LAST_JSON: RefCell<CString> = RefCell::new(CString::new("{}").unwrap());
+     static DECODER: RefCell<Option<DecoderFn>> = const { RefCell::new(None) };
+     static NSS_OK: RefCell<bool> = const { RefCell::new(false) };
+@@ -818,12 +821,9 @@ fn command_new(body: &Value) -> Result<Value, String> {
+     .map_err(|error| error.to_string())?;
+     let (tp_style, mtu_bonus) = apply_client_hello(&mut connection, &profile)?;
+     let client = Http3Client::new_with_conn(connection, http3);
+-    let handle = NEXT_HANDLE.with(|slot| {
+-        let mut next = slot.borrow_mut();
+-        let handle = *next;
+-        *next = next.saturating_add(1);
+-        handle
+-    });
++    let handle = NEXT_HANDLE
++        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| next.checked_add(1))
++        .map_err(|_| "HTTP/3 handle space exhausted".to_string())?;
+     SESSIONS.with(|slot| {
+         slot.borrow_mut().insert(
+             handle,
