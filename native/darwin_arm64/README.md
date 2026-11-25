@@ -1,8 +1,9 @@
 # Apple Silicon native runtime
 
-This directory is a complete macOS arm64 Necko/NSS set imported from
-`Facetomyself/ff-ruyijs` 0.4.1
-(`ruyijs-0.4.1-py3-none-macosx_26_0_arm64.whl`).
+This directory is a complete macOS arm64 Necko/NSS set built from pinned
+Firefox and ff-ruyijs sources on a native Apple Silicon runner. It replaces the
+historical ruyijs 0.4.1 set, whose H3 bridge emitted `tls: null`. This build adds
+native H3 TLS metadata and optional binary body ABI v1.
 
 | File | Role |
 | --- | --- |
@@ -17,8 +18,11 @@ This directory is a complete macOS arm64 Necko/NSS set imported from
 `libnecko_quic.dylib` links `@rpath/libnss3.dylib` and `@rpath/libfreebl3.dylib`.
 Keep the whole directory together.
 
-minos is 26.0; this wheel does not run on older macOS. NSS reports `3.132`.
-`provenance.json` records the source wheel and per-file SHA-256.
+The measured `LC_BUILD_VERSION` minimum is macOS 26.0.0 on each of the six
+libraries. The wheel tag remains `macosx_26_0_arm64`. NSS reports `3.132`;
+`necko_quic_version()` reports `neqo-0.33.0/nss-3.132`.
 
-The previous 3.131 `libnecko_core.dylib` was replaced as a set. Do not mix it
-with the 3.132 QUIC library.
+[Provenance](provenance.json) records exact source pins, patch hashes, the
+per-file deployment targets and SHA-256, and the verified wheel. CPython 3.10
+and 3.14 passed H1/H2/H3, native IPv4/IPv6 and certificate negatives, telemetry,
+two-live-owner tests and the 1,048,579-byte binary and JSON controls.

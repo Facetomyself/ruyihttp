@@ -1,36 +1,83 @@
 {
   "platform": "darwin_arm64",
-  "source": "Facetomyself/ff-ruyijs PyPI ruyijs 0.4.1",
-  "wheel": "ruyijs-0.4.1-py3-none-macosx_26_0_arm64.whl",
-  "nss": "3.132",
-  "neqo": "0.33.0",
+  "source": "Native source build verified by an installed-wheel runner",
+  "ff_ruyijs_commit": "f557fcd437aae5f18f313eb330bd3ef50f5fc7df",
+  "firefox_source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+  "wheel_platform_tag": "macosx_26_0_arm64",
+  "runtime_expected": {
+    "firefox": "159.0",
+    "nss": "3.132",
+    "nspr": "4.40",
+    "neqo": "0.33.0"
+  },
   "files": {
-    "libfreebl3.dylib": {
-      "size": 1011680,
-      "sha256": "862b612837a50adc76c3e6bf9ad555f020023b19c21227f193367c7e384d6eea"
-    },
-    "libmozglue.dylib": {
-      "size": 675648,
-      "sha256": "291a407d029281d8898e4e05cdce69be962dda16fdbf0a68d31e330c57fee2b3"
-    },
     "libnecko_core.dylib": {
       "size": 73408,
       "sha256": "8ba32df8f12d390f0ef83ff11f6186a818803882b4cab0463401c95ad2b28da2"
     },
     "libnecko_quic.dylib": {
-      "size": 2969056,
-      "sha256": "e193b1b03eee922c2e5e2b57add26578a634454d121b40a3bdcba11f7fa5061d"
+      "size": 2991328,
+      "sha256": "a0ffc73f58fe16b917a219b35a94b5eefe96fcc7d781ffc297f98494bec11b0e"
     },
     "libnss3.dylib": {
-      "size": 3335200,
-      "sha256": "f3be1b0373e5731372c953d92a0c42fb12b7119545564476c84fcf5f5592ca14"
+      "size": 3329136,
+      "sha256": "2da41d01e0800070e25aeda5e12e8e6c56603a23b479cb1bf7f74669433ea8cd"
     },
     "libsoftokn3.dylib": {
-      "size": 416080,
-      "sha256": "abef8c026f47fee828f2b11cccf650091a0d8bcc9522126d242e1d341f4d33ba"
+      "size": 415392,
+      "sha256": "f136aebcc49b4379b9b37176a6718bc030baf520847657cdd7303b2f880297c5"
+    },
+    "libfreebl3.dylib": {
+      "size": 1010752,
+      "sha256": "92d8ab2a4ab391a9ae387bbe2664f55f7a5a6a63cb0968cb712363b04f49037b"
+    },
+    "libmozglue.dylib": {
+      "size": 669680,
+      "sha256": "fe6f614c8905314437ee32dfb452a09b18c37e7ab96939d34d5b29beeb9b1ef2"
     }
   },
-  "license": "AGPL-3.0-only OR commercial; Mozilla-derived parts MPL-2.0. Private use only until relicensed.",
-  "wheel_sha256": "f85e54dcfed913d482509c2f86f598ad9b23e9dce422dd6706e25f45cd928b77",
-  "ff_ruyijs_commit": "0b02c04fb8f2b54d5b66ac0dddba1a1711f1a89c"
+  "source_patches": [
+    {
+      "path": "native/patches/macos-necko-quic-tls-info.patch",
+      "sha256": "9bfd07f9132938f3709d2142d3facc286908838333c74cd6628c9a04824efa1e"
+    },
+    {
+      "path": "native/patches/h3-body-abi-v1.patch",
+      "sha256": "58f2c3eeb7664f721a82e0742289d58ae09b844ed1e6c32f69fbf960a3922a19"
+    },
+    {
+      "path": "native/patches/macos-h3-global-handles.patch",
+      "sha256": "a48d77b35df26abc8418a4dafa2895593167d30d3ec473e709742c1064ec61c4"
+    }
+  ],
+  "h3_body_abi_expected": 1,
+  "minimum_macos": "26.0.0",
+  "macho_minimum_macos": {
+    "libnecko_core.dylib": "26.0.0",
+    "libnecko_quic.dylib": "26.0.0",
+    "libnss3.dylib": "26.0.0",
+    "libsoftokn3.dylib": "26.0.0",
+    "libfreebl3.dylib": "26.0.0",
+    "libmozglue.dylib": "26.0.0"
+  },
+  "native_verification": {
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185/job/139359610859",
+    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185/artifacts/15046800753",
+    "wheel_sha256": "8cf6d696e603c8a1b232b57c79f0990a9605bf90c133471257bff9d994ce9dbe",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185",
+    "source_build_attempt": 1,
+    "source_build_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
+    "cpython_runtime_endpoints": [
+      "3.10",
+      "3.14"
+    ],
+    "tested_http": [
+      "http/1.1",
+      "h2",
+      "h3"
+    ],
+    "h3_body_abi": 1
+  }
 }
