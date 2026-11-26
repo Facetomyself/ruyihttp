@@ -266,7 +266,20 @@ def elf_receipt(arch, slot, evidence, wheel, mode):
             f"package is not in this venv's site-packages: {source}")
     dist = importlib.metadata.distribution("ruyihttp")
     direct_url = json.loads(dist.read_text("direct_url.json"))
-    require(archive_sha256(direct_url["archive_info"]) == sha(wheel), "installed distribution points to wrong bytes")
+    url = urlsplit(direct_url["url"])
+    require(url.scheme == "file" and not url.netloc and Path(unquote(url.path)).resolve(strict=True) == wheel,
+            "installed distribution points to the wrong source file")
+    json_file(evidence / "installed-direct-url.json", direct_url)
+    origin_info = direct_url["archive_info"]
+    has_origin_hash = bool(origin_info.get("hash") or origin_info.get("hashes"))
+    # pip 23.0.1 can emit an empty archive_info for the installed direct URL
+    # even while its installation report correctly hashes the same file.
+    if has_origin_hash:
+        require(archive_sha256(origin_info) == sha(wheel), "installed distribution points to wrong bytes")
+        origin_check = "direct-url-sha256"
+    else:
+        dependencies(evidence / "base-install.json", wheel)
+        origin_check = "pip-report-sha256-and-wheel-member-bytes"
     manifest = json.loads((source / "runtime-manifest.json").read_text(encoding="utf-8"))["platforms"][slot]
     native_tag = native_tag_record(manifest, arch, mode)
     libraries = dict(manifest["files"])
@@ -274,6 +287,13 @@ def elf_receipt(arch, slot, evidence, wheel, mode):
     maximums = {}
     resolved = {}
     with ZipFile(wheel) as archive, (evidence / "native-elf-loader.txt").open("w", encoding="utf-8") as output:
+        if not has_origin_hash:
+            for member in archive.infolist():
+                if member.is_dir() or member.filename.endswith(".dist-info/RECORD"):
+                    continue
+                path = (source.parent / member.filename).resolve(strict=True)
+                require(path.is_relative_to(source.parent) and path.read_bytes() == archive.read(member),
+                        f"installed wheel member differs: {member.filename}")
         for name, digest in sorted(libraries.items()):
             path = source / name
             require(sha(path) == digest == hashlib.sha256(archive.read("ruyihttp/" + name)).hexdigest(), str(path))
@@ -287,7 +307,8 @@ def elf_receipt(arch, slot, evidence, wheel, mode):
     highest = max(tuple(map(int, v["GLIBC"].split("."))) for v in maximums.values() if "GLIBC" in v)
     require(manifest["highest_glibc_dynamic_requirement"] == version_string(highest), "actual glibc symbol maximum differs from manifest")
     return {"site_packages": str(source), "native_sha256": libraries, "native_required_abi_maxima": maximums,
-            "highest_glibc_dynamic_requirement": version_string(highest), "native_loader_paths": resolved, "native_policy": native_tag}
+            "highest_glibc_dynamic_requirement": version_string(highest), "native_loader_paths": resolved,
+            "native_policy": native_tag, "installed_wheel_origin_check": origin_check}
 
 
 def require_network_offline():
@@ -318,7 +339,9 @@ def suite(evidence, slot, wheel, *, masque=False):
     for module in ("test_http3_native", "test_h3_body_abi", "test_alt_svc_native"):
         python(module, "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", module + ".py", "-v", tests=True)
     python("proxy-chain", ROOT / "ci/smoke_proxy_chain.py")
-    python("h2-eof", ROOT / "ci/smoke_h2_close.py")
+    python("h2-eof", "-c", "import pathlib, runpy, sys; p = pathlib.Path(sys.argv[1]); "
+           "sys.path.insert(0, str(p.parent)); runpy.run_path(str(p), run_name='__main__')",
+           ROOT / "ci/smoke_h2_close.py")
     log(evidence, "request-boundaries", ["bash", ROOT / "ci/verify_request_boundaries.sh"], env=env)
     results.append("request-boundaries")
     return results
