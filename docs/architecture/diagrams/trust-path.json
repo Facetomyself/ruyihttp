@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "源站验链：缓存的是材料，不是结论",
+    "locale": "zh-CN", "quality_profile": "showcase",
+    "output": "docs/architecture/diagrams/trust-path.html", "parentHref": "overview.html",
+    "repository": {"url": "https://github.com/Facetomyself/ruyihttp.git", "revision": "9e88bfe023fd46a96254f8de66e8d72517339911"},
+    "legend": {"mode": "auto", "entries": {"security": {"label": "校验输入"}, "database": {"label": "信任材料来源"}}}
+  },
+  "stages": [{"label":"信任输入"},{"label":"材料与对端输入"},{"label":"针对主机验证"},{"label":"交还握手层"}],
+  "nodes": [
+    {"id":"roots","type":"database","label":"根证书材料","sublabel":"内置或显式 CA","stage":0,"row":0,"sources":[{"path":"ruyihttp/_nss.py","line":192,"end_line":205},{"path":"ruyihttp/_trust.py","line":67,"end_line":84}]},
+    {"id":"cutoffs","type":"database","label":"根约束来源","sublabel":"内置表或空集","stage":0,"row":2,"explanation":"默认根旁的 JSON 约束是信任输入的一部分。显式 CA 路径使用空映射，而不是继承内置根的截止表。","sources":[{"path":"ruyihttp/_nss.py","line":199,"end_line":208},{"path":"ruyihttp/_trust.py","line":84,"end_line":91}]},
+    {"id":"material","type":"backend","label":"TrustCache","sublabel":"只读材料快照","stage":1,"row":0,"explanation":"路径、内置/自定义标记、实际可解析的 PEM 输入和约束字节使用带长度前缀的摘要。命中取已有 TrustMaterial；未命中在锁外解析，再在锁内复查和按预算收录。","sources":[{"path":"ruyihttp/_trust.py","line":63,"end_line":93},{"path":"ruyihttp/_trust.py","line":95,"end_line":123},{"path":"ruyihttp/_nss.py","line":201,"end_line":208}]},
+    {"id":"peer","type":"backend","label":"握手桥","sublabel":"本次主机与证书链","stage":1,"row":2,"explanation":"TCP/TLS 的校验回调和 H3 的 auth 事件分别将原始主机名与按长度封装的 DER 证书交给 Context。H3 在 connected 而尚无链缓存时从 info 取证书并检查。","sources":[{"path":"ruyihttp/_nss.py","line":381,"end_line":388},{"path":"ruyihttp/_http3.py","line":270,"end_line":300}]},
+    {"id":"verify","type":"security","label":"Context.verify","sublabel":"链、名称与截止期","stage":2,"row":1,"explanation":"使用快照中的 Store 和本次主机构造 server verifier；IPv4/IPv6 与 DNS 的 subject 类型不同。验证得到链的根若匹配内置约束，再比较叶证书 notBefore 与截止时间。","sources":[{"path":"ruyihttp/_nss.py","line":234,"end_line":259}]},
+    {"id":"accept","type":"backend","label":"握手可继续","sublabel":"TLS 回调或 H3 验证","stage":3,"row":0,"explanation":"TLS 回调返回 0；H3 auth 事件处理调用原生 auth(accepted=True)。这只是验链通过，仍须满足协议连接就绪条件。","sources":[{"path":"ruyihttp/_nss.py","line":381,"end_line":388},{"path":"ruyihttp/_http3.py","line":277,"end_line":300}]},
+    {"id":"reject","type":"backend","label":"证书错误","sublabel":"握手失败","stage":3,"row":2,"explanation":"TCP/TLS 回调保存证书异常，返回失败，由 _check 转回 Python；H3 auth 拒绝并抛出异常。失败不是可以缓存并跨对端复用的结果。","sources":[{"path":"ruyihttp/_nss.py","line":381,"end_line":388},{"path":"ruyihttp/_nss.py","line":420,"end_line":427},{"path":"ruyihttp/_http3.py","line":276,"end_line":282}]}
+  ],
+  "flows": [
+    {"id":"trusted-pem","from":"roots","to":"material","label":"PEM 字节"},
+    {"id":"cutoff-json","from":"cutoffs","to":"material","label":"约束字节"},
+    {"id":"parsed","from":"material","to":"verify","label":"Store 与约束","variant":"security"},
+    {"id":"der-name","from":"peer","to":"verify","label":"DER 链与主机","variant":"security"},
+    {"id":"valid","from":"verify","to":"accept","label":"验证通过"},
+    {"id":"invalid","from":"verify","to":"reject","label":"验证异常"}
+  ],
+  "cards": [
+    {"dot":"emerald","title":"缓存边界","items":["命中省去 PEM / X.509 解析，不省去读取内容以计算指纹；客户端私钥、叶证书判定与主机结果均不进入材料缓存。"]},
+    {"dot":"rose","title":"这张图的范围","items":["这里描画启用验证的源站路径。MASQUE 代理的外层证书另由 aioquic ＋ TLS 服务端用途校验处理；连接池复用也不是一次新的握手。"]}
+  ]
+}

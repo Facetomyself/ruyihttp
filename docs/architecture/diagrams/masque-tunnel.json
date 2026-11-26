@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "MASQUE：双层握手与 UDP 往返",
+    "output": "docs/architecture/diagrams/masque-tunnel.html",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "parentHref": "overview.html",
+    "feedback_links": false,
+    "repository": {
+      "url": "https://github.com/Facetomyself/ruyihttp.git",
+      "revision": "9e88bfe023fd46a96254f8de66e8d72517339911"
+    }
+  },
+  "participants": [
+    {
+      "id": "adapter", "type": "frontend", "label": "Session / Adapter", "sublabel": "选路与响应",
+      "sources": [
+        { "path": "ruyihttp/sessions.py", "line": 150, "end_line": 190, "label": "选定显式代理" },
+        { "path": "ruyihttp/_transport.py", "line": 1046, "end_line": 1066, "label": "构造内层连接" },
+        { "path": "ruyihttp/_transport.py", "line": 1334, "end_line": 1409, "label": "提交交换与返回响应" }
+      ]
+    },
+    {
+      "id": "owner", "type": "backend", "label": "原生 H3 owner", "sublabel": "Neqo/NSS · 回环 A",
+      "sources": [
+        { "path": "ruyihttp/_http3.py", "line": 518, "end_line": 552, "label": "备用传输与 attach" },
+        { "path": "ruyihttp/_http3.py", "line": 265, "end_line": 331, "label": "源站认证及响应事件" },
+        { "path": "ruyihttp/_http3.py", "line": 397, "end_line": 511, "label": "原生操作与泵循环" }
+      ]
+    },
+    {
+      "id": "worker", "type": "backend", "label": "外层 worker", "sublabel": "aioquic · 回环 B",
+      "sources": [
+        { "path": "ruyihttp/_masque.py", "line": 138, "end_line": 164, "label": "双向已连接 UDP 对" },
+        { "path": "ruyihttp/_masque.py", "line": 576, "end_line": 686, "label": "握手、探测与隧道就绪" },
+        { "path": "ruyihttp/_masque.py", "line": 693, "end_line": 862, "label": "外层网络与回环 I/O" }
+      ]
+    },
+    {
+      "id": "proxy", "type": "security", "label": "MASQUE 代理", "sublabel": "外层 TLS · UDP 出口",
+      "sources": [
+        { "path": "ci/smoke_masque.py", "line": 317, "end_line": 354, "label": "外层握手、流与证据" },
+        { "path": "ci/smoke_masque.py", "line": 362, "end_line": 460, "label": "CONNECT 与往返数据报" },
+        { "path": "ci/masque_interop/main.go", "line": 49, "end_line": 104, "label": "Go 互操作对端" }
+      ]
+    },
+    {
+      "id": "origin", "type": "external", "label": "HTTPS 源站", "sublabel": "内层 TLS · UDP/H3",
+      "sources": [
+        { "path": "ci/smoke_masque.py", "line": 179, "end_line": 247, "label": "仅接收代理出口并解码 H3" },
+        { "path": "ci/smoke_masque.py", "line": 249, "end_line": 301, "label": "源站响应发回代理" }
+      ]
+    }
+  ],
+  "segments": [
+    { "from": 145, "to": 390, "label": "① 认证代理，建立外层隧道" },
+    { "from": 412, "to": 657, "label": "② 经回环和代理完成源站 TLS" },
+    { "from": 678, "to": 963, "label": "③ 发送内层 H3 交换，沿原路返回" }
+  ],
+  "messages": [
+    { "id": "select", "from": "adapter", "to": "owner", "y": 163, "label": "masque:// 选路", "variant": "emphasis" },
+    { "id": "start", "from": "owner", "to": "worker", "y": 198, "label": "open_tunnel", "variant": "default" },
+    { "id": "outer-client", "from": "worker", "to": "proxy", "y": 233, "label": "首跳 QUIC / TLS", "variant": "security" },
+    { "id": "outer-cert", "from": "proxy", "to": "worker", "y": 268, "label": "代理证书 → 验证", "variant": "security" },
+    { "id": "connect", "from": "worker", "to": "proxy", "y": 303, "label": "CONNECT-UDP", "variant": "emphasis", "payload": { "summary": "确认 H3 SETTINGS、QUIC DATAGRAM 和受保护的 MTU PING/ACK 后才发送。使用代理 authority、目标路径与可选代理 Basic。" } },
+    { "id": "accepted", "from": "proxy", "to": "worker", "y": 338, "label": "有效最终 2xx", "variant": "return" },
+    { "id": "attach", "from": "worker", "to": "owner", "y": 373, "label": "隧道就绪：attach A", "variant": "return" },
+    { "id": "initial-local", "from": "owner", "to": "worker", "y": 430, "label": "A → B：Initial", "variant": "emphasis" },
+    { "id": "initial-outer", "from": "worker", "to": "proxy", "y": 465, "label": "DATAGRAM · ctx 0", "variant": "emphasis" },
+    { "id": "initial-egress", "from": "proxy", "to": "origin", "y": 500, "label": "出口 UDP → 源站", "variant": "emphasis" },
+    { "id": "origin-cert", "from": "origin", "to": "proxy", "y": 535, "label": "含源站证书的握手", "variant": "security", "payload": { "summary": "源站证书处于受内层 QUIC 握手密钥保护的数据中；代理只转发 UDP，验证者在客户端原生 owner。" } },
+    { "id": "handshake-return", "from": "proxy", "to": "worker", "y": 570, "label": "回传内层握手包", "variant": "return" },
+    { "id": "origin-verify", "from": "worker", "to": "owner", "y": 605, "label": "B → A：验证源站", "variant": "security" },
+    { "id": "native-ready", "from": "owner", "to": "adapter", "y": 640, "label": "内层 H3 就绪", "variant": "return" },
+    { "id": "fetch", "from": "adapter", "to": "owner", "y": 696, "label": "fetch / write", "variant": "emphasis" },
+    { "id": "protected-local", "from": "owner", "to": "worker", "y": 731, "label": "A → B：内层 QUIC", "variant": "emphasis" },
+    { "id": "datagram-out", "from": "worker", "to": "proxy", "y": 766, "label": "DATAGRAM · ctx 0", "variant": "emphasis" },
+    { "id": "egress-out", "from": "proxy", "to": "origin", "y": 801, "label": "UDP 转发原包", "variant": "emphasis" },
+    { "id": "origin-response", "from": "origin", "to": "proxy", "y": 836, "label": "内层 QUIC 响应包", "variant": "return" },
+    { "id": "datagram-back", "from": "proxy", "to": "worker", "y": 871, "label": "DATAGRAM / 胶囊", "variant": "return" },
+    { "id": "protected-return", "from": "worker", "to": "owner", "y": 906, "label": "B → A：内层 QUIC", "variant": "return" },
+    { "id": "response", "from": "owner", "to": "adapter", "y": 941, "label": "headers / read", "variant": "return" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "句柄与网络首跳", "items": ["A、B 是双向互连的本地回环 UDP 端点；attach 传 A 的句柄，B 与独立的外层网络 socket 由 worker 处理。", "客户端只解析代理；代理出口与实际 HTTPS 源站交换 UDP。图中合并了双向握手的若干往返。"] },
+    { "dot": "rose", "title": "两个验证者", "items": ["外层以代理名和 proxy_verify 认证代理，先验证，再发送 CONNECT 和可选代理 Basic。", "内层由原生 owner 以源站名和 verify 验证源站；代理只转发承载源站握手与 HTTP 的内层 QUIC。"] },
+    { "dot": "emerald", "title": "两类状态与凭据", "items": ["外层 1xx 尚未开放隧道，407 属于代理错误；源站状态和正文由内层 H3 返回。", "代理看见目标主机端口、代理凭据与数据报；源站看到出口 UDP 及自己的请求、正文和应用凭据。"] }
+  ]
+}

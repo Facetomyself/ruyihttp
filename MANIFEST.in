@@ -21,3 +21,11 @@ recursive-include ci/firefox_wire_references *.json *.md
 recursive-include ci/firefox_h2_preface_references *.json
 recursive-include tools *.py *.md
 global-exclude *.py[cod]
+# Offline maintainer handbook: ship its figures, workbenches and notices with source only.
+recursive-include docs/architecture/analysis *.html metrics.json
+recursive-include docs/architecture/diagrams *.svg *.html
+include docs/architecture/verification.json docs/architecture/diagrams/overview.json docs/architecture/diagrams/request-route.json
+include docs/architecture/diagrams/h2-flow.json docs/architecture/diagrams/h3-owner.json docs/architecture/diagrams/masque-tunnel.json
+include docs/architecture/diagrams/trust-path.json docs/architecture/diagrams/native-delivery.json
+recursive-include docs/architecture/licenses *.txt
+recursive-exclude docs/architecture/diagrams *.visual-check.*

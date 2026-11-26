@@ -1,0 +1,38 @@
+name: Architecture handbook
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      strict_drift:
+        description: Fail when a cited path has changed since the source pin
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Verify handbook and report source drift
+        env:
+          STRICT_DRIFT: ${{ inputs.strict_drift }}
+        run: |
+          if [ "$STRICT_DRIFT" = true ]; then
+            python tools/check_architecture_docs.py --strict-drift
+          else
+            python tools/check_architecture_docs.py
+          fi
+      - name: Test the checker with isolated repositories
+        run: python -m unittest discover -s tests -p 'test_architecture*.py' -v

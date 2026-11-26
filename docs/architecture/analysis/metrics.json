@@ -1,0 +1,792 @@
+{
+  "schema": 1,
+  "sourceRevision": "9e88bfe023fd46a96254f8de66e8d72517339911",
+  "method": "Two working-tree Python prepare runs on the same clean checkout. Only the embedded resume command is made checkout-relative; all captured analysis evidence is unchanged.",
+  "reports": {
+    "repository": {
+      "scope": ".",
+      "cleanGitHead": "9e88bfe023fd46a96254f8de66e8d72517339911",
+      "sourceKind": "working-tree",
+      "snapshotId": "9f6fd0c4cd64c2e7e24f872a8f0529a2e122a15ee1771f099e91c82e0eb30646",
+      "adapter": "pyright-parser@1.1.414/python-3.14",
+      "preparationSeconds": 16.87,
+      "coverage": {
+        "language": "py",
+        "adapter": "pyright-parser@1.1.414/python-3.14",
+        "files": {
+          "analyzed": 64,
+          "excludedByRole": 30,
+          "excludedRoles": [
+            "generated",
+            "test"
+          ],
+          "excludePatterns": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/build/**",
+            "**/target/**/*.java",
+            "**/coverage/**",
+            "**/*.d.ts",
+            "**/venv/**",
+            "**/venv-*/**",
+            "**/.venv/**",
+            "**/site-packages/**",
+            "**/__pycache__/**",
+            "**/.pytest_cache/**",
+            "**/.git/**",
+            "**/_archive/**"
+          ],
+          "parseErrors": []
+        },
+        "otherLanguages": [
+          {
+            "adapter": "go",
+            "files": 1
+          }
+        ],
+        "unresolved": {
+          "external": 970,
+          "outside": 0,
+          "unknown": 0,
+          "opaque": 0
+        },
+        "rules": {
+          "run": [
+            "coupling/import-cycle",
+            "coupling/cycle",
+            "coupling/hub",
+            "coupling/concentration",
+            "coupling/internal-leak",
+            "complexity/function"
+          ],
+          "suppressed": []
+        },
+        "unmappedModules": [],
+        "boundaries": null,
+        "duplicates": null
+      },
+      "counts": {
+        "findings": 89,
+        "error": 0,
+        "warning": 30,
+        "info": 59,
+        "accepted": 0,
+        "acceptedErrors": 0,
+        "offDiagram": null
+      },
+      "countsByRule": {
+        "complexity/function": 87,
+        "coupling/concentration": 1,
+        "coupling/internal-leak": 1
+      },
+      "modules": 5,
+      "groupedImportEdges": 2,
+      "topFanOut": [
+        {
+          "label": "benchmarks",
+          "files": 3,
+          "loc": 748,
+          "fanIn": 0,
+          "fanOut": 1
+        },
+        {
+          "label": "ci",
+          "files": 32,
+          "loc": 7423,
+          "fanIn": 0,
+          "fanOut": 1
+        },
+        {
+          "label": "ruyihttp",
+          "files": 17,
+          "loc": 6267,
+          "fanIn": 2,
+          "fanOut": 0
+        },
+        {
+          "label": "setup.py",
+          "files": 1,
+          "loc": 188,
+          "fanIn": 0,
+          "fanOut": 0
+        },
+        {
+          "label": "tools",
+          "files": 11,
+          "loc": 2211,
+          "fanIn": 0,
+          "fanOut": 0
+        }
+      ],
+      "complexityWarnings": [
+        {
+          "subject": {
+            "file": "benchmarks/_origin.py",
+            "function": "origin.<locals>.main.<locals>.handle",
+            "line": 152,
+            "endLine": 235
+          },
+          "complexity": 18,
+          "nesting": 6,
+          "length": 84
+        },
+        {
+          "subject": {
+            "file": "ci/compare_windows_wire.py",
+            "function": "main",
+            "line": 42,
+            "endLine": 263
+          },
+          "complexity": 31,
+          "nesting": 4,
+          "length": 222
+        },
+        {
+          "subject": {
+            "file": "ci/firefox_wire.py",
+            "function": "Reference.__init__",
+            "line": 325,
+            "endLine": 357
+          },
+          "complexity": 26,
+          "nesting": 1,
+          "length": 33
+        },
+        {
+          "subject": {
+            "file": "ci/firefox_wire.py",
+            "function": "analyze_official",
+            "line": 441,
+            "endLine": 502
+          },
+          "complexity": 35,
+          "nesting": 5,
+          "length": 62
+        },
+        {
+          "subject": {
+            "file": "ci/firefox_wire.py",
+            "function": "stable_wire",
+            "line": 213,
+            "endLine": 305
+          },
+          "complexity": 64,
+          "nesting": 4,
+          "length": 93
+        },
+        {
+          "subject": {
+            "file": "ci/smoke_firefox_profiles.py",
+            "function": "main",
+            "line": 439,
+            "endLine": 511
+          },
+          "complexity": 27,
+          "nesting": 6,
+          "length": 73
+        },
+        {
+          "subject": {
+            "file": "ci/smoke_h2_early_response.py",
+            "function": "serve",
+            "line": 87,
+            "endLine": 127
+          },
+          "complexity": 12,
+          "nesting": 6,
+          "length": 41
+        },
+        {
+          "subject": {
+            "file": "ci/smoke_h2_flow.py",
+            "function": "origin.<locals>.serve",
+            "line": 45,
+            "endLine": 142
+          },
+          "complexity": 25,
+          "nesting": 5,
+          "length": 98
+        },
+        {
+          "subject": {
+            "file": "ci/smoke_masque.py",
+            "function": "check_origin",
+            "line": 942,
+            "endLine": 971
+          },
+          "complexity": 31,
+          "nesting": 1,
+          "length": 30
+        },
+        {
+          "subject": {
+            "file": "ci/smoke_masque.py",
+            "function": "check_scenario",
+            "line": 983,
+            "endLine": 1065
+          },
+          "complexity": 63,
+          "nesting": 2,
+          "length": 83
+        },
+        {
+          "subject": {
+            "file": "ci/smoke_native_target.py",
+            "function": "serve_h2_once",
+            "line": 79,
+            "endLine": 111
+          },
+          "complexity": 5,
+          "nesting": 6,
+          "length": 33
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_connect.py",
+            "function": "race",
+            "line": 54,
+            "endLine": 153
+          },
+          "complexity": 27,
+          "nesting": 5,
+          "length": 100
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_http2.py",
+            "function": "Connection._execute",
+            "line": 450,
+            "endLine": 549
+          },
+          "complexity": 42,
+          "nesting": 3,
+          "length": 100
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_http2.py",
+            "function": "Connection._run",
+            "line": 551,
+            "endLine": 662
+          },
+          "complexity": 40,
+          "nesting": 5,
+          "length": 112
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_http2.py",
+            "function": "Connection.receive",
+            "line": 304,
+            "endLine": 413
+          },
+          "complexity": 35,
+          "nesting": 5,
+          "length": 110
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_http3.py",
+            "function": "Connection._event_batch",
+            "line": 265,
+            "endLine": 345
+          },
+          "complexity": 32,
+          "nesting": 5,
+          "length": 81
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_http3.py",
+            "function": "Connection._execute",
+            "line": 397,
+            "endLine": 453
+          },
+          "complexity": 25,
+          "nesting": 3,
+          "length": 57
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_masque.py",
+            "function": "_Relay._process_events",
+            "line": 646,
+            "endLine": 686
+          },
+          "complexity": 26,
+          "nesting": 4,
+          "length": 41
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_masque.py",
+            "function": "_Relay.run",
+            "line": 729,
+            "endLine": 779
+          },
+          "complexity": 18,
+          "nesting": 7,
+          "length": 51
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_transport.py",
+            "function": "HTTPAdapter._connect",
+            "line": 862,
+            "endLine": 959
+          },
+          "complexity": 27,
+          "nesting": 4,
+          "length": 98
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_transport.py",
+            "function": "HTTPAdapter._send_once",
+            "line": 1182,
+            "endLine": 1451
+          },
+          "complexity": 97,
+          "nesting": 6,
+          "length": 270
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_transport.py",
+            "function": "HTTPAdapter.send",
+            "line": 1068,
+            "endLine": 1180
+          },
+          "complexity": 30,
+          "nesting": 3,
+          "length": 113
+        },
+        {
+          "subject": {
+            "file": "ruyihttp/_transport.py",
+            "function": "_Pool.acquire",
+            "line": 411,
+            "endLine": 453
+          },
+          "complexity": 27,
+          "nesting": 4,
+          "length": 43
+        },
+        {
+          "subject": {
+            "file": "tools/check_linux_candidate.py",
+            "function": "check",
+            "line": 111,
+            "endLine": 178
+          },
+          "complexity": 53,
+          "nesting": 4,
+          "length": 68
+        },
+        {
+          "subject": {
+            "file": "tools/linux_baseline.py",
+            "function": "validate_policy_records",
+            "line": 149,
+            "endLine": 206
+          },
+          "complexity": 48,
+          "nesting": 1,
+          "length": 58
+        },
+        {
+          "subject": {
+            "file": "tools/promote_native_candidate.py",
+            "function": "promote",
+            "line": 93,
+            "endLine": 281
+          },
+          "complexity": 57,
+          "nesting": 4,
+          "length": 189
+        },
+        {
+          "subject": {
+            "file": "tools/promote_native_candidate.py",
+            "function": "verify_wire_receipts",
+            "line": 33,
+            "endLine": 90
+          },
+          "complexity": 27,
+          "nesting": 3,
+          "length": 58
+        },
+        {
+          "subject": {
+            "file": "tools/sync_windows_native.py",
+            "function": "inspect_wheel",
+            "line": 127,
+            "endLine": 191
+          },
+          "complexity": 25,
+          "nesting": 3,
+          "length": 65
+        },
+        {
+          "subject": {
+            "file": "tools/verify_linux_floor.py",
+            "function": "verify_floor",
+            "line": 84,
+            "endLine": 181
+          },
+          "complexity": 52,
+          "nesting": 3,
+          "length": 98
+        }
+      ],
+      "internalImportContext": [
+        {
+          "entries": [
+            "ruyihttp/__init__.py"
+          ],
+          "entrySource": "detected",
+          "internalFiles": [
+            "ruyihttp/_firefox.py",
+            "ruyihttp/_http2.py",
+            "ruyihttp/_http3.py",
+            "ruyihttp/_masque.py",
+            "ruyihttp/_nss.py",
+            "ruyihttp/_transport.py"
+          ],
+          "moduleFiles": 17,
+          "consumers": [
+            "benchmarks",
+            "ci"
+          ],
+          "viaEntry": 25,
+          "totalImports": 10,
+          "files": [
+            "benchmarks/transport.py",
+            "ci/smoke_firefox_profiles.py",
+            "ci/smoke_h2_flow.py",
+            "ci/smoke_masque.py",
+            "ci/smoke_native_target.py",
+            "ci/smoke_posix_quic_policy.py",
+            "ci/verify_installed.py"
+          ],
+          "imports": [
+            {
+              "file": "benchmarks/transport.py",
+              "line": 26,
+              "to": "ruyihttp/_nss.py"
+            },
+            {
+              "file": "ci/smoke_firefox_profiles.py",
+              "line": 432,
+              "to": "ruyihttp/_firefox.py",
+              "lazy": true
+            },
+            {
+              "file": "ci/smoke_h2_flow.py",
+              "line": 163,
+              "to": "ruyihttp/_http2.py",
+              "lazy": true
+            },
+            {
+              "file": "ci/smoke_masque.py",
+              "line": 727,
+              "to": "ruyihttp/_http3.py",
+              "lazy": true
+            },
+            {
+              "file": "ci/smoke_masque.py",
+              "line": 800,
+              "to": "ruyihttp/_firefox.py",
+              "lazy": true
+            },
+            {
+              "file": "ci/smoke_masque.py",
+              "line": 830,
+              "to": "ruyihttp/_masque.py",
+              "lazy": true
+            },
+            {
+              "file": "ci/smoke_native_target.py",
+              "line": 30,
+              "to": "ruyihttp/_transport.py"
+            },
+            {
+              "file": "ci/smoke_posix_quic_policy.py",
+              "line": 25,
+              "to": "ruyihttp/_firefox.py"
+            },
+            {
+              "file": "ci/smoke_posix_quic_policy.py",
+              "line": 26,
+              "to": "ruyihttp/_transport.py"
+            },
+            {
+              "file": "ci/verify_installed.py",
+              "line": 11,
+              "to": "ruyihttp/_firefox.py"
+            }
+          ],
+          "threshold": {
+            "minFiles": 3
+          }
+        }
+      ],
+      "rawHtmlSha256": "9d816d613fe17414912623674c2014a5bd4240653035f003572f3796f5145373",
+      "publishedHtmlSha256": "618fb47074094668fc82efa0c354ebd7038efa88d1f880514f740e28eae8b1d7"
+    },
+    "runtime": {
+      "scope": "ruyihttp",
+      "cleanGitHead": "9e88bfe023fd46a96254f8de66e8d72517339911",
+      "sourceKind": "working-tree",
+      "snapshotId": "2b921202f4fc34a685d5eacd24e5746421c71e902d35b4c49be01cc2774bfb4a",
+      "adapter": "pyright-parser@1.1.414/python-3.14",
+      "preparationSeconds": 9.95,
+      "coverage": {
+        "language": "py",
+        "adapter": "pyright-parser@1.1.414/python-3.14",
+        "files": {
+          "analyzed": 17,
+          "excludedByRole": 0,
+          "excludedRoles": [
+            "generated",
+            "test"
+          ],
+          "excludePatterns": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/build/**",
+            "**/target/**/*.java",
+            "**/coverage/**",
+            "**/*.d.ts",
+            "**/venv/**",
+            "**/venv-*/**",
+            "**/.venv/**",
+            "**/site-packages/**",
+            "**/__pycache__/**",
+            "**/.pytest_cache/**",
+            "**/.git/**",
+            "**/_archive/**"
+          ],
+          "parseErrors": []
+        },
+        "otherLanguages": [],
+        "unresolved": {
+          "external": 160,
+          "outside": 0,
+          "unknown": 0,
+          "opaque": 0
+        },
+        "rules": {
+          "run": [
+            "coupling/import-cycle",
+            "coupling/cycle",
+            "coupling/hub",
+            "coupling/concentration",
+            "coupling/internal-leak",
+            "complexity/function"
+          ],
+          "suppressed": []
+        },
+        "unmappedModules": [],
+        "boundaries": null,
+        "duplicates": null
+      },
+      "counts": {
+        "findings": 35,
+        "error": 0,
+        "warning": 13,
+        "info": 22,
+        "accepted": 0,
+        "acceptedErrors": 0,
+        "offDiagram": null
+      },
+      "countsByRule": {
+        "complexity/function": 30,
+        "coupling/concentration": 5
+      },
+      "modules": 17,
+      "groupedImportEdges": 30,
+      "topFanOut": [
+        {
+          "label": "_transport.py",
+          "files": 1,
+          "loc": 1588,
+          "fanIn": 3,
+          "fanOut": 9
+        },
+        {
+          "label": "__init__.py",
+          "files": 1,
+          "loc": 101,
+          "fanIn": 0,
+          "fanOut": 5
+        },
+        {
+          "label": "_nss.py",
+          "files": 1,
+          "loc": 476,
+          "fanIn": 2,
+          "fanOut": 4
+        },
+        {
+          "label": "_http2.py",
+          "files": 1,
+          "loc": 777,
+          "fanIn": 1,
+          "fanOut": 3
+        },
+        {
+          "label": "_http3.py",
+          "files": 1,
+          "loc": 753,
+          "fanIn": 2,
+          "fanOut": 3
+        },
+        {
+          "label": "sessions.py",
+          "files": 1,
+          "loc": 194,
+          "fanIn": 2,
+          "fanOut": 2
+        }
+      ],
+      "complexityWarnings": [
+        {
+          "subject": {
+            "file": "_connect.py",
+            "function": "race",
+            "line": 54,
+            "endLine": 153
+          },
+          "complexity": 27,
+          "nesting": 5,
+          "length": 100
+        },
+        {
+          "subject": {
+            "file": "_http2.py",
+            "function": "Connection._execute",
+            "line": 450,
+            "endLine": 549
+          },
+          "complexity": 42,
+          "nesting": 3,
+          "length": 100
+        },
+        {
+          "subject": {
+            "file": "_http2.py",
+            "function": "Connection._run",
+            "line": 551,
+            "endLine": 662
+          },
+          "complexity": 40,
+          "nesting": 5,
+          "length": 112
+        },
+        {
+          "subject": {
+            "file": "_http2.py",
+            "function": "Connection.receive",
+            "line": 304,
+            "endLine": 413
+          },
+          "complexity": 35,
+          "nesting": 5,
+          "length": 110
+        },
+        {
+          "subject": {
+            "file": "_http3.py",
+            "function": "Connection._event_batch",
+            "line": 265,
+            "endLine": 345
+          },
+          "complexity": 32,
+          "nesting": 5,
+          "length": 81
+        },
+        {
+          "subject": {
+            "file": "_http3.py",
+            "function": "Connection._execute",
+            "line": 397,
+            "endLine": 453
+          },
+          "complexity": 25,
+          "nesting": 3,
+          "length": 57
+        },
+        {
+          "subject": {
+            "file": "_masque.py",
+            "function": "_Relay._process_events",
+            "line": 646,
+            "endLine": 686
+          },
+          "complexity": 26,
+          "nesting": 4,
+          "length": 41
+        },
+        {
+          "subject": {
+            "file": "_masque.py",
+            "function": "_Relay.run",
+            "line": 729,
+            "endLine": 779
+          },
+          "complexity": 18,
+          "nesting": 7,
+          "length": 51
+        },
+        {
+          "subject": {
+            "file": "_transport.py",
+            "function": "HTTPAdapter._connect",
+            "line": 862,
+            "endLine": 959
+          },
+          "complexity": 27,
+          "nesting": 4,
+          "length": 98
+        },
+        {
+          "subject": {
+            "file": "_transport.py",
+            "function": "HTTPAdapter._send_once",
+            "line": 1182,
+            "endLine": 1451
+          },
+          "complexity": 97,
+          "nesting": 6,
+          "length": 270
+        },
+        {
+          "subject": {
+            "file": "_transport.py",
+            "function": "HTTPAdapter.send",
+            "line": 1068,
+            "endLine": 1180
+          },
+          "complexity": 30,
+          "nesting": 3,
+          "length": 113
+        },
+        {
+          "subject": {
+            "file": "_transport.py",
+            "function": "_Pool.acquire",
+            "line": 411,
+            "endLine": 453
+          },
+          "complexity": 27,
+          "nesting": 4,
+          "length": 43
+        }
+      ],
+      "internalImportContext": [],
+      "rawHtmlSha256": "ce07b31a7dfcddc4cb5585ca0390b15af779f9b5a563a68fc6ffc70db4aebed2",
+      "publishedHtmlSha256": "0b5dedd135598ecd292505dbf08bea16433a387ab29fc22ab8ee8d10ae523db3"
+    }
+  }
+}

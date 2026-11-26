@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "HTTP/2：消费驱动接收信用",
+    "output": "docs/architecture/diagrams/h2-flow.html",
+    "locale": "zh-CN",
+    "parentHref": "overview.html",
+    "quality_profile": "showcase",
+    "repository": {"url": "https://github.com/Facetomyself/ruyihttp.git", "revision": "9e88bfe023fd46a96254f8de66e8d72517339911"}
+  },
+  "participants": [
+    {
+      "id": "caller", "type": "frontend", "label": "调用线程", "sublabel": "_Body · Exchange",
+      "sources": [
+        {"path": "ruyihttp/_transport.py", "line": 683, "end_line": 745, "label": "读取与归还租约"},
+        {"path": "ruyihttp/_http2.py", "line": 217, "end_line": 257, "label": "命令与取消"},
+        {"path": "ruyihttp/_http2.py", "line": 756, "end_line": 777, "label": "上传、读取与结束"}
+      ]
+    },
+    {
+      "id": "worker", "type": "backend", "label": "连接 worker", "sublabel": "hyper-h2 · 逐流缓冲",
+      "sources": [
+        {"path": "ruyihttp/_http2.py", "line": 96, "end_line": 156, "label": "连接信用与 GOAWAY"},
+        {"path": "ruyihttp/_http2.py", "line": 381, "end_line": 411, "label": "排队 DATA 与回收填充"},
+        {"path": "ruyihttp/_http2.py", "line": 450, "end_line": 628, "label": "执行、ACK、调度"}
+      ]
+    },
+    {
+      "id": "peer", "type": "external", "label": "远端 HTTP/2", "sublabel": "协商 h2 的源站",
+      "sources": [
+        {"path": "ruyihttp/_transport.py", "line": 928, "end_line": 947, "label": "TLS、ALPN 与连接 owner"},
+        {"path": "ruyihttp/_nss.py", "line": 381, "end_line": 388, "label": "证书验证回调"},
+        {"path": "ruyihttp/_http2.py", "line": 280, "end_line": 326, "label": "双向 TLS 数据与 GOAWAY"}
+      ]
+    }
+  ],
+  "segments": [
+    {"from": 147, "to": 284, "label": "发送：以 TLS 传送 HTTP/2 帧"},
+    {"from": 296, "to": 427, "label": "接收：暂存 DATA，先结算 padding"},
+    {"from": 440, "to": 647, "label": "消费：读者归还信用，慢流停在自身上限"}
+  ],
+  "messages": [
+    {"id": "fetch", "from": "caller", "to": "worker", "y": 178, "label": "fetch 入队并唤醒"},
+    {"id": "headers", "from": "worker", "to": "peer", "y": 216, "label": "HEADERS；可选流级加额", "variant": "emphasis"},
+    {"id": "upload", "from": "worker", "to": "peer", "y": 256, "label": "DATA（若有上传且两级窗口足够）"},
+    {"id": "download", "from": "peer", "to": "worker", "y": 326, "label": "HEADERS → DATA（可重复）", "variant": "return", "note": "DATA 按流排队；填充从 payload 分离。"},
+    {"id": "padding", "from": "worker", "to": "peer", "y": 394, "label": "padding 可触发窗口更新"},
+    {"id": "read", "from": "caller", "to": "worker", "y": 465, "label": "read(size)；无数据且未结束则等待"},
+    {"id": "body", "from": "worker", "to": "caller", "y": 500, "label": "取出 payload", "variant": "return"},
+    {"id": "ack", "from": "worker", "to": "peer", "y": 535, "label": "流与连接 WINDOW_UPDATE（若达阈值）", "variant": "emphasis"},
+    {"id": "stream_end", "from": "peer", "to": "worker", "y": 570, "label": "后续 DATA 与 END_STREAM", "variant": "return"},
+    {"id": "reader_eof", "from": "worker", "to": "caller", "y": 605, "label": "读完余量，到 EOF；只退连接信用", "variant": "return"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "接收预算", "items": ["连接 12 MiB；流基础 128 KiB；最多 7 个各加 512 KiB。", "64 份保留（包括读者未释放的响应），最多暂存 11.5 MiB payload。"]},
+    {"dot": "amber", "title": "信用与公平", "items": ["连接信用按 64 KiB 批量，低水位 6 MiB，窗口为零可提前返还。", "待办逐轮尝试：一条流等上传信用、读数据或 SETTINGS，其他流仍可推进。"]},
+    {"dot": "rose", "title": "结束与排空", "items": ["取消或失败丢弃 payload 时只归还连接信用。", "GOAWAY 停止新流；TLS EOF 后完整响应仍可读，未完成响应报错。"]}
+  ]
+}

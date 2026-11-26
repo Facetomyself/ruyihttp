@@ -13,3 +13,9 @@ ruyihttp/licenses/rust-quinn-udp-0.6.3-LICENSE-*.txt text eol=lf
 # A blank context line in a unified diff is one space. Check the applied
 # patch's added lines in the native build instead; preserve its exact SHA.
 native/patches/*.patch text eol=lf whitespace=-blank-at-eol
+# Archify hashes the exact rendered bytes. Review the authored JSON and Markdown;
+# do not reformat renderer CSS, font notices or whitespace in generated outputs.
+docs/architecture/diagrams/*.html text eol=lf linguist-generated=true whitespace=-blank-at-eol,-blank-at-eof
+docs/architecture/diagrams/*.svg text eol=lf linguist-generated=true whitespace=-blank-at-eol,-blank-at-eof
+docs/architecture/analysis/*.html text eol=lf linguist-generated=true whitespace=-blank-at-eol,-blank-at-eof
+docs/architecture/licenses/*.txt text eol=lf linguist-vendored=true whitespace=-blank-at-eol,-blank-at-eof

@@ -6,6 +6,8 @@ RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 Python HTTP 客户端�
 
 本仓是 [PyPI `ruyihttp`](https://pypi.org/project/ruyihttp/) 的独立维护分支。要安装**本仓版本**，请使用下方 GitHub Release 的 wheel；`pip install -U ruyihttp` 从公共 PyPI 解析的是上游发行包。
 
+维护者入口：[实现与架构手册](docs/architecture/README.md)从一次请求的连接租约追到协议引擎、信任与原生库，并提供可交互的 Archify 图和[有测量依据的优化路线](docs/architecture/06-maintenance-roadmap.md)。
+
 ## 平台矩阵
 
 使用 **64 位 Python 3.10+**。以下是正式 Release 中可单独下载的五份 wheel，链接附带 SHA-256，可直接交给 pip。
@@ -76,6 +78,19 @@ with ruyihttp.Session(firefox="161") as session:
 本版对照的是相同系统和 CPU 架构上的 **Mozilla 官方 en-US Firefox 159.0、160.0 和 161.0**。H1/H2 验证顶层导航，H3 验证同源文档发起的普通 `fetch`。完整 UA、有序请求头、TLS ClientHello 的稳定字段、H2 首帧和优先级、H3 SETTINGS、QUIC 初始与协商版本及选定传输参数都进入发布门禁。[0.9.4 五平台安装验收](https://github.com/Facetomyself/ruyihttp/actions/runs/45810139410)覆盖从 0.9.0 基线、本仓 0.9.1、0.9.2 和 0.9.3 的正常升级。两个 Linux 架构的最终 wheel 还分别在 Debian 11 / glibc 2.31 的 CPython 3.10 与 3.14 上原样安装并验证了经代理 H3，见[最低系统验收](docs/linux-glibc231-qualification.md)。
 
 Linux ARM64 始终加载 ARM64 原生库；从 Firefox 123 配置起，对外发送官方约简后的 UA `X11; Linux x86_64`。100–158 的历史配置按版本源码规则维护，五平台实机对照的结论限于前述三个版本和请求场景。见[线路对照与边界](docs/firefox-profile-wire.md)、[签名浏览器采样](docs/firefox-reference-collection.md)和[H2 首帧证据](docs/firefox-h2-preface.md)。
+
+## 实现与维护
+
+[手册索引与文件地图](docs/architecture/README.md) · [请求路由](docs/architecture/01-request-routing.md) · [协议与线程所有权](docs/architecture/02-protocol-engines.md) · [双层 H3 代理](docs/architecture/03-masque.md) · [图文维护流程](docs/architecture/07-keeping-current.md)
+
+<details>
+<summary>查看请求的出站架构图</summary>
+
+![RuyiHttp 的 TCP、直连 H3 与经代理 H3 三类路径](docs/architecture/diagrams/overview.svg)
+
+[交互版](docs/architecture/diagrams/overview.html)可在检出后离线打开；图中节点链接到固定提交的实现。
+
+</details>
 
 ## 目录
 

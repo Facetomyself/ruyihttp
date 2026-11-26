@@ -11,3 +11,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+# Machine-specific raw diagram receipts, locks and screenshots are not deliverables.
+/.archify/
+/docs/architecture/diagrams/.archify-*
+/docs/architecture/diagrams/*.delivery.json
+/docs/architecture/diagrams/*.delivery-pending.json
+/docs/architecture/diagrams/*.finalize*.json
+/docs/architecture/diagrams/*.browser-check.json
+/docs/architecture/diagrams/*.visual-check.*

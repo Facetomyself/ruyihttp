@@ -1,0 +1,80 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "HTTP/3：连接 owner 与逐流收尾",
+    "output": "docs/architecture/diagrams/h3-owner.html",
+    "locale": "zh-CN",
+    "parentHref": "overview.html",
+    "quality_profile": "showcase",
+    "repository": {"url": "https://github.com/Facetomyself/ruyihttp.git", "revision": "9e88bfe023fd46a96254f8de66e8d72517339911"}
+  },
+  "mainPath": ["attach", "auth", "commands", "release"],
+  "states": [
+    {
+      "id": "attach", "type": "start", "label": "owner 建连", "sublabel": "UDP → new / attach", "tag": "连接",
+      "sources": [
+        {"path": "ruyihttp/_http3.py", "line": 175, "end_line": 202, "label": "启动线程与等候建连"},
+        {"path": "ruyihttp/_http3.py", "line": 513, "end_line": 552, "label": "UDP、selector 和 handle"}
+      ]
+    },
+    {
+      "id": "auth", "type": "decision", "label": "验证对端", "sublabel": "events → Context.verify", "tag": "信任门",
+      "sources": [
+        {"path": "ruyihttp/_http3.py", "line": 257, "end_line": 300, "label": "认证事件和 connected 后备分支"},
+        {"path": "ruyihttp/_nss.py", "line": 234, "end_line": 259, "label": "源站名、证书链及约束"}
+      ]
+    },
+    {
+      "id": "commands", "type": "active", "label": "owner 驱动流", "sublabel": "pump + events + 命令", "tag": "逐流",
+      "sources": [
+        {"path": "ruyihttp/_http3.py", "line": 217, "end_line": 252, "label": "调用线程入队与唤醒"},
+        {"path": "ruyihttp/_http3.py", "line": 321, "end_line": 453, "label": "事件、读写与 FIN"},
+        {"path": "ruyihttp/_http3.py", "line": 455, "end_line": 511, "label": "循环与 selector"}
+      ]
+    },
+    {
+      "id": "release", "type": "success", "label": "释放流租约", "sublabel": "读到 FIN；归池", "tag": "完成",
+      "sources": [
+        {"path": "ruyihttp/_http3.py", "line": 421, "end_line": 452, "label": "结束标记和流登记回收"},
+        {"path": "ruyihttp/_transport.py", "line": 693, "end_line": 745, "label": "body 完成并归还租约"}
+      ]
+    },
+    {
+      "id": "send_stopped", "type": "waiting", "label": "停传，继续收", "sublabel": "只关闭上传意图", "tag": "早响应",
+      "sources": [
+        {"path": "ruyihttp/_http3.py", "line": 324, "end_line": 344, "label": "STOP_SENDING 与 reset 分开"},
+        {"path": "ruyihttp/_http3.py", "line": 694, "end_line": 741, "label": "跳过后续上传，仍等最终头"}
+      ]
+    },
+    {
+      "id": "stream_error", "type": "failure", "label": "关闭该流", "sublabel": "唤醒等待者；回收", "tag": "逐流失败",
+      "sources": [
+        {"path": "ruyihttp/_http3.py", "line": 223, "end_line": 252, "label": "超时和取消入队"},
+        {"path": "ruyihttp/_http3.py", "line": 332, "end_line": 344, "label": "对端错误分类"},
+        {"path": "ruyihttp/_http3.py", "line": 442, "end_line": 453, "label": "移除登记及可选 native cancel"}
+      ]
+    },
+    {
+      "id": "shutdown", "type": "failure", "label": "owner 退出", "sublabel": "native close + I/O 回收", "tag": "连接关闭",
+      "sources": [
+        {"path": "ruyihttp/_http3.py", "line": 553, "end_line": 599, "label": "连接关闭、唤醒与资源释放"}
+      ]
+    }
+  ],
+  "transitions": [
+    {"id": "attached", "from": "attach", "to": "auth", "label": "pump 取事件"},
+    {"id": "verified", "from": "auth", "to": "commands", "label": "验证通过 + ready", "variant": "security"},
+    {"id": "read_complete", "from": "commands", "to": "release", "label": "响应完成", "variant": "emphasis"},
+    {"id": "auth_failed", "from": "auth", "to": "shutdown", "label": "证书校验失败", "variant": "security"},
+    {"id": "connection_ends", "from": "commands", "to": "shutdown", "label": "连接关闭"},
+    {"id": "stop", "from": "commands", "to": "send_stopped", "label": "STOP 0x100", "variant": "dashed"},
+    {"id": "stop_receive", "from": "send_stopped", "to": "commands", "label": "等最终头、读响应", "variant": "dashed"},
+    {"id": "stream_failed", "from": "commands", "to": "stream_error", "label": "取消、reset 或超时"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "线程与数据方向", "items": ["调用线程 → Queue / socketpair → owner；UDP 可读或定时器也驱动 pump。", "owner → native：JSON 新建、认证和控制；流 body 优先 ABI v1，Windows donor 用 JSON/Base64。"]},
+    {"dot": "amber", "title": "两个方向分开", "items": ["finish 只结束上传，响应 FIN 来自最终头或读 body。", "已完成响应可释放单流；正常 STOP_SENDING 后仍须等最终头，例如 413。"]},
+    {"dot": "rose", "title": "关闭的作用域", "items": ["逐流 cancel 删除该流登记；读侧未结束时才尝试 native cancel。", "连接退出结算等待者，在 owner 上关闭 handle，再回收 selector、UDP/隧道及 wake socket。"]}
+  ]
+}

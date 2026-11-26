@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "直连 HTTPS：从选路到租约移交",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "docs/architecture/diagrams/request-route.html",
+    "parentHref": "overview.html",
+    "repository": {
+      "url": "https://github.com/Facetomyself/ruyihttp.git",
+      "revision": "9e88bfe023fd46a96254f8de66e8d72517339911"
+    },
+    "legend": { "mode": "hidden" }
+  },
+  "lanes": [
+    { "id": "reuse", "label": "池内复用" },
+    { "id": "alternate", "label": "Alt-Svc" },
+    { "id": "origin", "label": "常规直连" }
+  ],
+  "mainPath": ["acquire", "race", "exchange"],
+  "nodes": [
+    {
+      "id": "acquire", "lane": "alternate", "col": 0, "type": "backend", "label": "申请连接池租约", "sublabel": "同一连接截止时间",
+      "explanation": "本图只画直连 HTTPS 且未指定客户端证书、未强制 HTTP/1.1 的一次尝试。允许 H3 且有有效 Alt-Svc 时优先取 H3；连接池也可在剩余预算不超过 100 毫秒时直接借温 TCP。有竞争时在截止时间内等池。",
+      "sources": [
+        { "path": "ruyihttp/_transport.py", "line": 1186, "end_line": 1199 },
+        { "path": "ruyihttp/_transport.py", "line": 1233, "end_line": 1245 },
+        { "path": "ruyihttp/_transport.py", "line": 411, "end_line": 453 }
+      ]
+    },
+    {
+      "id": "pooled", "lane": "reuse", "col": 1, "type": "backend", "label": "使用已有连接", "sublabel": "共享流或独占连接",
+      "sources": [
+        { "path": "ruyihttp/_transport.py", "line": 411, "end_line": 453 },
+        { "path": "ruyihttp/_transport.py", "line": 1245, "end_line": 1250 }
+      ]
+    },
+    {
+      "id": "race", "lane": "alternate", "col": 1, "type": "backend", "label": "选择 H3 或 TCP", "sublabel": "必要时竞速，只留胜者",
+      "explanation": "取得拨号预留后重新检查提示。预算紧且存在可借温 TCP 时直接使用；否则 H3 先行，TCP 后备可以借温连接、合并 H2 或拨源站。胜出为 TCP 才冷却该候选；直接取温连接的短路没有发起探测。",
+      "sources": [
+        { "path": "ruyihttp/_transport.py", "line": 1250, "end_line": 1260 },
+        { "path": "ruyihttp/_transport.py", "line": 961, "end_line": 1015 },
+        { "path": "ruyihttp/_transport.py", "line": 1017, "end_line": 1044 }
+      ]
+    },
+    {
+      "id": "tcp", "lane": "origin", "col": 1, "type": "backend", "label": "走常规源站分支", "sublabel": "尝试复用，否则拨 TCP",
+      "explanation": "提示失效时可借本池温 TCP；启用证书验证时可以尝试跨主机合并，该合并仍受本次 H3 开关限制。均无可用连接才发起常规 TCP 建连；以已获得的 DNS 结果继续。",
+      "sources": [
+        { "path": "ruyihttp/_transport.py", "line": 1261, "end_line": 1283 },
+        { "path": "ruyihttp/_transport.py", "line": 829, "end_line": 860 }
+      ]
+    },
+    {
+      "id": "exchange", "lane": "alternate", "col": 2, "type": "backend", "label": "按 ALPN 创建交换", "sublabel": "响应体接管租约",
+      "explanation": "新连接登记在目标池；借来的连接由原池持有，退回本次拨号预留。收到头后由 _Body 持有租约；读完、读失败或显式关闭后归还。图只画成功交接；失败清理、协议重启与业务重试见正文。",
+      "sources": [
+        { "path": "ruyihttp/_transport.py", "line": 1284, "end_line": 1305 },
+        { "path": "ruyihttp/_transport.py", "line": 1336, "end_line": 1387 },
+        { "path": "ruyihttp/_transport.py", "line": 724, "end_line": 745 }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "reuse-pool", "from": "acquire", "to": "pooled", "label": "命中池内租约", "role": "branch" },
+    { "id": "probe-alt", "from": "acquire", "to": "race", "label": "预留 · 提示有效", "role": "main", "variant": "emphasis" },
+    { "id": "origin-tcp", "from": "acquire", "to": "tcp", "label": "预留 · 无可用提示", "role": "branch" },
+    { "id": "lease-existing", "from": "pooled", "to": "exchange", "label": "沿用租约" },
+    { "id": "lease-winner", "from": "race", "to": "exchange", "label": "取到连接", "role": "main", "variant": "emphasis" },
+    { "id": "lease-tcp", "from": "tcp", "to": "exchange", "label": "取到连接" }
+  ]
+}

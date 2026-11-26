@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/Facetomyself/ruyihttp.git",
+  "sourceRevision": "9e88bfe023fd46a96254f8de66e8d72517339911",
+  "release": {
+    "tag": "v0.9.4",
+    "commit": "74953f70e87f5935a9ce4410c639727d26ea323e"
+  },
+  "tool": {
+    "name": "Archify",
+    "version": "3.3.2"
+  },
+  "diagrams": [
+    {
+      "id": "overview",
+      "type": "architecture",
+      "chapter": "README.md",
+      "sourcesVerified": 27,
+      "sha256": {
+        "json": "c88839ba5d148e5eb6efea1d51ad9e1db16b07c1095336a8584d6031c50d5596",
+        "html": "27f021b32423060cd791440052ab7376551e80f902781f1c42fdc2fec0847d76",
+        "svg": "68c23f74fe545960734cd5cffb755b55b2858c22f0a982eee0329490da4dfa90"
+      },
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      }
+    },
+    {
+      "id": "request-route",
+      "type": "workflow",
+      "chapter": "01-request-routing.md",
+      "sourcesVerified": 13,
+      "sha256": {
+        "json": "0ed52bdedc85e2a9965d371e081a3be50d7c6f7d7d66d5026f95c037a57a863d",
+        "html": "88eddd71e6687bb4c964079575499f1bffbfebec42d77c5ae8877740879a857d",
+        "svg": "233488d34407aa59d097b4e2090c1973c2a7cc1c4781328c9279bb0dbcbe23bb"
+      },
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      }
+    },
+    {
+      "id": "h2-flow",
+      "type": "sequence",
+      "chapter": "02-protocol-engines.md",
+      "sourcesVerified": 9,
+      "sha256": {
+        "json": "71c88b52b6b3a4dcb4dab2145ded4c128a24df15df91c0450943f5e466e15a0d",
+        "html": "2c023c50fcb3c7fe46c3b50e1ec65a1721bd82df133fafbf619532afc9c1033e",
+        "svg": "2894788986d41a19dec588c86021538f43fd6f68ba9e479d5baf9d8dfe676a8c"
+      },
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      }
+    },
+    {
+      "id": "h3-owner",
+      "type": "lifecycle",
+      "chapter": "02-protocol-engines.md",
+      "sourcesVerified": 15,
+      "sha256": {
+        "json": "6723401d60d7473c109a7429cdbe1278820689d3af9081e810b541ae4418f924",
+        "html": "2500d9320657b74c5e4f9555186563e7718a23fc2a49fd9631e3302822605fee",
+        "svg": "410a72280f30f17b68b68082a6191dc0c0060ca50e392a60bd8b602e15626df3"
+      },
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      }
+    },
+    {
+      "id": "masque-tunnel",
+      "type": "sequence",
+      "chapter": "03-masque.md",
+      "sourcesVerified": 14,
+      "sha256": {
+        "json": "79177d073646769d586f0743a3bbb5b0b9ddba1e98060174310e31c6db586b79",
+        "html": "d053be456eb4d18477b542bd93e114a57d271531c2e87e91f122ceebd7adaaaf",
+        "svg": "fbbb49c6794f4c1ecc208388229ba9f8da5524d3f193fa3546af55cc065258a4"
+      },
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      }
+    },
+    {
+      "id": "trust-path",
+      "type": "dataflow",
+      "chapter": "04-trust-profiles.md",
+      "sourcesVerified": 15,
+      "sha256": {
+        "json": "19ee992a3848e76171a895d61a6cf7e0e9865e713c58294c13de84f9055824fc",
+        "html": "2dbbd0836b72b90460aa0535f119d9388ae4ef78fe25e4ab11f79dd09f80b4cf",
+        "svg": "3fdb24a7f7f88b7f634a632cf7672c5f31bb50f16ed7d90ddce1b4dcbaa235cc"
+      },
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      }
+    },
+    {
+      "id": "native-delivery",
+      "type": "workflow",
+      "chapter": "05-native-delivery.md",
+      "sourcesVerified": 20,
+      "sha256": {
+        "json": "742d9df9ab1687197f8b1744c4f1bab17e13394f03351173a7c72ff03b26f08b",
+        "html": "e4324301daa05fa6ce5c8f137af4f70d28ef488f52fe6869201a7777499996ee",
+        "svg": "e9b95810c69872e6dd2f5dc15e6a2e93d03364c1411354d90170d6c27a5f362c"
+      },
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      }
+    }
+  ],
+  "analysis": {
+    "repository": {
+      "html": "analysis/repository.html",
+      "sha256": "618fb47074094668fc82efa0c354ebd7038efa88d1f880514f740e28eae8b1d7",
+      "scope": "."
+    },
+    "runtime": {
+      "html": "analysis/runtime.html",
+      "sha256": "0b5dedd135598ecd292505dbf08bea16433a387ab29fc22ab8ee8d10ae523db3",
+      "scope": "ruyihttp"
+    }
+  }
+}

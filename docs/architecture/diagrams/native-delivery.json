@@ -1,0 +1,52 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "原生交付：从库字节到已验收 wheel",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "docs/architecture/diagrams/native-delivery.html",
+    "parentHref": "overview.html",
+    "repository": {
+      "url": "https://github.com/Facetomyself/ruyihttp.git",
+      "revision": "9e88bfe023fd46a96254f8de66e8d72517339911"
+    },
+    "legend": {"mode": "hidden"}
+  },
+  "lanes": [
+    {"id": "native", "label": "原生库准入"},
+    {"id": "wheel", "label": "最终 wheel 验收"},
+    {"id": "ci", "label": "验收产物"},
+    {"id": "owner", "label": "发布交接"}
+  ],
+  "mainPath": ["compile", "qualify", "promote", "package", "install", "artifact", "release"],
+  "semanticChecks": {
+    "allowedRoots": ["compile", "windows"],
+    "allowedTerminals": ["release"],
+    "requiredPaths": [{"from":"compile","to":"artifact"},{"from":"windows","to":"artifact"}],
+    "requiredEdges": [{"from":"qualify","to":"promote"},{"from":"install","to":"artifact"},{"from":"artifact","to":"release"}]
+  },
+  "nodes": [
+    {"id":"compile","lane":"native","col":0,"type":"backend","label":"四个 POSIX 槽编译","sublabel":"固定源码、顺序补丁、原生 CPU","sources":[{"path":"ci/build_native_target.sh","line":8,"end_line":55},{"path":"ci/build_linux_baseline.sh","line":9,"end_line":28},{"path":"tools/posix_firefox161.py","line":10,"end_line":53}]},
+    {"id":"qualify","lane":"native","col":1,"type":"security","label":"候选与真机回执","sublabel":"预检；3.10 / 3.14 实装","explanation":"预检决定是否能暂存候选。现代真机作业产出协议回执；Linux 低基线还要由独立 Bullseye 作业验证原始候选 wheel。","sources":[{"path":".github/workflows/native-arm64-intel.yml","line":201,"end_line":258},{"path":".github/workflows/native-arm64-intel.yml","line":286,"end_line":327},{"path":".github/workflows/linux-minimum.yml","line":73,"end_line":114}]},
+    {"id":"promote","lane":"native","col":2,"type":"database","label":"维护者准入 POSIX bank","sublabel":"查同字节回执，写入库与清单","explanation":"promote_native_candidate.py 核验成功的目标作业、候选清单和每个库的 SHA-256。Linux 2.31 另需独立 Bullseye 双端证明，再转正清单字段。","sources":[{"path":"tools/promote_native_candidate.py","line":93,"end_line":153},{"path":"tools/promote_native_candidate.py","line":167,"end_line":200},{"path":"tools/promote_native_candidate.py","line":242,"end_line":280}]},
+    {"id":"windows","lane":"wheel","col":1,"type":"database","label":"Windows 原样导入","sublabel":"PyPI 0.11.0 的六个 DLL","sources":[{"path":"tools/sync_windows_native.py","line":127,"end_line":188},{"path":"native/win_amd64/provenance.json","line":1,"end_line":34}]},
+    {"id":"package","lane":"wheel","col":2,"type":"backend","label":"各平台打包一次","sublabel":"复制已提交库、数据与溯源","sources":[{"path":"setup.py","line":116,"end_line":180},{"path":".github/workflows/wheels.yml","line":29,"end_line":48}]},
+    {"id":"install","lane":"wheel","col":3,"type":"security","label":"最终 wheel 原样实装","sublabel":"现代双端；Linux 加测最低系统","explanation":"同一个 wheel 在 3.10 与 3.14 验证身份、升级和线路；Linux 两端还在各自架构的 glibc 2.31 容器中验证，Windows 另做实测三方比较。","sources":[{"path":".github/workflows/wheels.yml","line":95,"end_line":127},{"path":"ci/qualify_wheel.py","line":61,"end_line":103},{"path":"ci/linux_floor/run.sh","line":91,"end_line":118}]},
+    {"id":"artifact","lane":"ci","col":3,"type":"cloud","label":"Actions 产物","sublabel":"成功才上传 verified wheel","sources":[{"path":".github/workflows/wheels.yml","line":128,"end_line":140}]},
+    {"id":"release","lane":"owner","col":3,"type":"external","icon":"person","label":"维护者核对并发布","sublabel":"提交、wheel 摘要与验收凭证","explanation":"Wheels 到 Actions artifact 为止。图中 GitHub Release 是维护者在工作流外核对和交付的发布步骤，而非仓库提供的发布 API。","sources":[{"path":".github/workflows/wheels.yml","line":128,"end_line":140},{"path":"docs/build-native.md","line":46,"end_line":49},{"path":"pyproject.toml","line":34,"end_line":38}]}
+  ],
+  "edges": [
+    {"id":"compiled","from":"compile","to":"qualify","label":"候选字节","variant":"emphasis"},
+    {"id":"passed","from":"qualify","to":"promote","label":"真机通过","variant":"security"},
+    {"id":"committed","from":"promote","to":"package","label":"提交 bank","variant":"emphasis"},
+    {"id":"imported","from":"windows","to":"package","label":"提交 bank","variant":"emphasis","role":"branch"},
+    {"id":"same-wheel","from":"package","to":"install","label":"同一 wheel","variant":"emphasis"},
+    {"id":"verified","from":"install","to":"artifact","label":"所有必测通过","variant":"security"},
+    {"id":"handoff","from":"artifact","to":"release","label":"交接产物","variant":"emphasis"}
+  ],
+  "cards": [
+    {"dot":"amber","title":"Linux 有两道最低系统门禁","items":["源候选依独立 Bullseye 回执晋级；最终发行 wheel 再在 glibc 2.31 原样安装。","ELF 最高需求为 GLIBC_2.30；实际验收与发布标记为 2.31。"]},
+    {"dot":"cyan","title":"验收与发布职责","items":["Actions 上传 CI 产物；Wheels 工作流没有 PyPI 或 GitHub Release 发布步骤。","成对性能测量单独记录，由最终 wheel 门禁之外的工作流执行。"]}
+  ]
+}
