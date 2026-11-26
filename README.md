@@ -9,7 +9,7 @@ RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。每个
 | | 上游 PyPI 发行 | 本仓 `Facetomyself/ruyihttp` |
 | --- | --- | --- |
 | 版本（2026-11-26 核对） | [0.11.0](https://pypi.org/project/ruyihttp/0.11.0/)，默认 Firefox 161，范围 100–161 | **0.9.2**，默认 Firefox 159，范围 100–161；独立版本线 |
-| 原生运行时（NSS / Neqo） | Windows：3.133 / 0.34.0 | 按下方平台矩阵及每个 wheel 的原生来源记录核对 |
+| 原生运行时（NSS / Neqo） | Windows：3.133 / 0.34.0 | 五平台均为 3.133 / 0.34.0；Windows 原样导入，Linux/macOS 从源码构建 |
 | 该版本的 wheel | PyPI 仅列 Windows x64 | Windows x64、Linux x86_64 / ARM64、macOS Intel / Apple Silicon；见[逐平台验收](docs/platform-support.md)与[Wheels 工作流](https://github.com/Facetomyself/ruyihttp/actions/workflows/wheels.yml) |
 
 **安装时请区分来源：** 两条线的包名和导入名都是 `ruyihttp`。从公共 PyPI 执行 `pip install -U ruyihttp` 会按平台解析**上游**发行包；要使用本仓，请在独立虚拟环境安装本仓 CI 的对应 wheel，或按下文从本仓源码安装。这里的 `0.9.2` 并非上游 `0.11.0` 的五平台重打包。
@@ -21,10 +21,10 @@ RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。每个
 | 平台 | 状态 | 原生来源 Firefox / NSS / Neqo | wheel tag | 原生库 |
 | --- | --- | --- | --- | --- |
 | `win_amd64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-win_amd64` | `native/win_amd64/*.dll` |
-| `darwin_arm64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-macosx_26_0_arm64` | `native/darwin_arm64/*.dylib` |
-| `linux_x86_64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-manylinux_2_39_x86_64` | `native/linux_x86_64/*.so` |
-| `darwin_x86_64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-macosx_15_0_x86_64` | `native/darwin_x86_64/*.dylib` |
-| `linux_aarch64` | ready | 159.0 / 3.132 / 0.33.0 | `py3-none-manylinux_2_39_aarch64` | `native/linux_aarch64/*.so` |
+| `darwin_arm64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-macosx_26_0_arm64` | `native/darwin_arm64/*.dylib` |
+| `linux_x86_64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-manylinux_2_39_x86_64` | `native/linux_x86_64/*.so` |
+| `darwin_x86_64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-macosx_15_0_x86_64` | `native/darwin_x86_64/*.dylib` |
+| `linux_aarch64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-manylinux_2_39_aarch64` | `native/linux_aarch64/*.so` |
 
 Intel Mac 的最低系统版本为 macOS 15.0，Apple Silicon 为 macOS 26.0；两个 Linux wheel 均要求 glibc 2.39 或更高。各平台的编译、安装与实际网络测试分别记录在[平台验收说明](docs/platform-support.md)。
 

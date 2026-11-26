@@ -4,11 +4,11 @@
 
 | Platform | Status | Runtime | Wheel tag | Notes |
 | --- | --- | --- | --- | --- |
-| Windows x64 | ready | NSS 3.131 / NSPR 4.40 / Neqo 0.32.0 | `py3-none-win_amd64` | Original, hash-verified 0.9.0 DLLs; JSON body ABI, H3 reports the historical NSS/Neqo field set. |
-| macOS arm64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_26_0_arm64` | Six source-built arm64 dylibs, deployment floor 26.0; measured NSS H3 telemetry and binary body ABI v1. |
-| Linux x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_x86_64` | Fourteen source-built ELF libraries, glibc 2.39 policy, H3 binary body ABI v1. |
-| macOS x86_64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-macosx_15_0_x86_64` | Six source-built thin Intel dylibs; deployment floor 15.0, tested on 15.7.9. |
-| Linux aarch64 | ready | NSS 3.132 / NSPR 4.40 / Neqo 0.33.0 | `py3-none-manylinux_2_39_aarch64` | 14 source-built ELF libraries. See native ARM acceptance below. |
+| [Windows x64](https://github.com/Facetomyself/ruyihttp/actions/runs/45739200837/job/139639762634) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-win_amd64` | Hash-verified upstream 0.11.0 DLLs; JSON body ABI, H3 reports the historical NSS/Neqo field set. |
+| [macOS arm64](https://github.com/Facetomyself/ruyihttp/actions/runs/45740624232/job/139644438167) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-macosx_26_0_arm64` | Six source-built arm64 dylibs, deployment floor 26.0; measured NSS H3 telemetry and binary body ABI v1. |
+| [Linux x86_64](https://github.com/Facetomyself/ruyihttp/actions/runs/45739571628/job/139640964778) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-manylinux_2_39_x86_64` | Fourteen source-built ELF libraries, glibc 2.39 policy, H3 binary body ABI v1. |
+| [macOS x86_64](https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247/job/139645896716) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-macosx_15_0_x86_64` | Six source-built thin Intel dylibs; deployment floor 15.0, see receipt for exact runner version. |
+| [Linux aarch64](https://github.com/Facetomyself/ruyihttp/actions/runs/45739575273/job/139640973963) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-manylinux_2_39_aarch64` | 14 source-built ELF libraries. See native ARM acceptance below. |
 
 `build-required` means the Python path, manifest slot and wheel tag exist, but
 `setup.py` raises `native runtime missing` rather than packaging another
@@ -16,10 +16,9 @@ platform's binary.
 
 ## TLS / HTTP profiles
 
-- `ruyihttp/_tls_profiles.py` holds the 100–159 cluster table. The clusters were
+- `ruyihttp/_tls_profiles.py` holds the 100–161 cluster table (default 159). The clusters were
   derived from Firefox release sources and checked against Windows x64 captures.
-- macOS and Linux select the same clusters. The NSS 3.132 runtimes are validated
-  by cipher/group/key-share counts, not by byte-identical ClientHello records.
+- macOS and Linux select the same clusters. Explicit 159/160/161 configurations are compared on each native wheel with an independent origin and [official Firefox observations](firefox-profile-wire.md); this scoped comparison does not establish byte-identical ClientHello records.
 - `ruyihttp/_firefox.py` supplies the platform User-Agent:
   - Windows: `Windows NT 10.0; Win64; x64`
   - macOS: `Macintosh; Intel Mac OS X 10.15`
@@ -63,11 +62,13 @@ with ruyihttp.Session(firefox="159") as session:
 
 Expected: `200`, ALPN `h2`, and the NSS version from the platform manifest.
 
-## 0.9.1 qualification policy
+## 0.9.2 qualification policy
 
 Every [wheel job](../.github/workflows/wheels.yml) builds the platform wheel once, installs that same artifact on CPython 3.10 and 3.14, and records the interpreter, installed paths, native hashes and actual protocol results. Wire-level HTTP/3, strict certificate negatives, early response, IPv4/IPv6 Alt-Svc, blocked UDP/warm TCP, two-hop TCP proxies, H2 EOF/backpressure and source-to-destination upgrade are distinct checks. See [transport performance and limitations](performance.md) for budgets and the weekly comparison.
 
-Windows uses the original x64 DLLs (NSS 3.131). Its H3 TLS result is `NSS/Neqo` and contains the negotiated protocol/version/cipher/resumption flag; it does not invent a Firefox-profile or NSS-version field. The core NSS version is measured separately. The four POSIX sets use source-built versioned body exports and provide the native NSS/Neqo TLS report. Binary ABI tests send and receive real bodies with embedded zeros, test owner isolation, and force the same bridge through JSON as an independent compatibility control. Protocol support here does not mean H3 through an ordinary TCP proxy.
+Windows uses the unmodified 0.11.0 upstream x64 DLLs (NSS 3.133), distinct from the original upgrade fixture. Its H3 TLS result is `NSS/Neqo` and contains the negotiated protocol/version/cipher/resumption flag; it does not invent a Firefox-profile or NSS-version field. The core NSS version is measured separately. The four POSIX sets use source-built versioned body exports and provide the native NSS/Neqo TLS report. Binary ABI tests send and receive real bodies with embedded zeros, test owner isolation, and force the same bridge through JSON as an independent compatibility control. Protocol support here does not mean H3 through an ordinary TCP proxy.
+
+The matrix links are the native candidate job receipts. The [release-wheel workflow](../.github/workflows/wheels.yml) also verifies ordinary upgrades from both the 0.9.0 lineage and our preceding 0.9.1, the retired/retained TLS root controls, per-file identities and real UDP-only profile handshakes on CPython 3.10 and 3.14. The 0.11.0 PyPI distribution is a different version line.
 
 ## Validation record
 

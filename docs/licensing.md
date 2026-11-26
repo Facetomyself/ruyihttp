@@ -11,7 +11,7 @@ and notice files when redistributing a wheel.
 
 ## macOS and Linux native runtimes
 
-Earlier builds imported macOS arm64 and Linux x86_64 donor wheels. The 0.9.1 POSIX sets use pinned ff-ruyijs and Firefox sources; the corresponding revisions and local patch hashes are recorded in each platform’s provenance. See [source rebuild instructions](build-native.md).
+Earlier builds imported macOS arm64 and Linux x86_64 donor wheels. The 0.9.1 and 0.9.2 POSIX sets use pinned ff-ruyijs and Firefox sources; 0.9.2 pairs the donor with the independent official Firefox 161 release; the corresponding revisions and local patch hashes are recorded in each platform’s provenance. See [source rebuild instructions](build-native.md).
 
 `ff-ruyijs` is dual-licensed:
 

@@ -8,12 +8,12 @@ covered source files.
 | --- | --- | --- |
 | ruyihttp Python package | Fork based on 0.9.0, with local transport and other changes | Original PyPI `ruyihttp` wheel |
 | Standalone Necko core (Windows) | Unchanged DLLs imported from the upstream 0.11.0 wheel | [LoseNine's PyPI publication](https://pypi.org/project/ruyihttp/0.11.0/) |
-| Standalone Necko core (macOS/Linux) | pinned ff-ruyijs native sources, local ABI patches | `Facetomyself/ff-ruyijs` |
+| Standalone Necko core (macOS/Linux) | pinned ff-ruyijs native sources, local ABI patches | [cutetailbud/ff-ruyijs](https://github.com/cutetailbud/ff-ruyijs) |
 | Firefox / Necko / mozglue / roots and suffix data | Windows runtime built against Firefox 161 per donor; macOS/Linux from pinned donor and Firefox sources | https://github.com/mozilla-firefox/firefox |
-| NSS | 3.133 on Windows; 3.132 on macOS/Linux | https://firefox-source-docs.mozilla.org/security/nss/ |
+| NSS | 3.133 on all five targets | https://firefox-source-docs.mozilla.org/security/nss/ |
 | NSPR | 4.40 | https://firefox-source-docs.mozilla.org/nspr/ |
-| Neqo | 0.34.0 on Windows; 0.33.0 on macOS/Linux | https://github.com/mozilla/neqo |
-| nss-rs | 0.16.2 in Windows donor inventory; 0.16.1, locally modified, in ff-ruyijs | https://github.com/mozilla/nss-rs |
+| Neqo | 0.34.0 on all five targets | https://github.com/mozilla/neqo |
+| nss-rs | 0.16.2 (Windows donor inventory; POSIX uses the pinned Firefox vendor overlay) | https://github.com/mozilla/nss-rs |
 | SQLite | Bundled in the Linux runtime as `libsqlite3.so`; also used by NSS softoken | https://www.sqlite.org/ |
 
 ## Native file sets
@@ -53,7 +53,7 @@ MPL-2.0 section 3.2 requires making the corresponding Source Code Form of
 covered software available to recipients of its executable form, including
 covered modifications. This repository contains Python sources, prebuilt native
 libraries, per-platform provenance and hashes. The full ff-ruyijs native source
-and build scripts live in `Facetomyself/ff-ruyijs`; redistributors of these
+and build scripts live in [the pinned donor](https://github.com/cutetailbud/ff-ruyijs/tree/f557fcd437aae5f18f313eb330bd3ef50f5fc7df) and [Firefox 161](https://github.com/mozilla-firefox/firefox/tree/9c70d5d48c866afc2e581d6b7ff6de98a1371d99); redistributors of these
 binaries either point recipients at that source or obtain terms that cover the
 distribution.
 

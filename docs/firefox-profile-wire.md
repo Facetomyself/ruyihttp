@@ -22,4 +22,4 @@ python -I /absolute/path/to/ruyihttp/ci/smoke_firefox_profiles.py <slot>
 
 在该环境另用 Firefox 161.0，通过 HTTPS Alt-Svc 和同源 JavaScript fetch 观察到官方浏览器使用 ALPN `h3`、QUIC v2（`0x6b3343cf`）；浏览器配置允许本地测试 CA 的 H3。它与同机实测 fork wheel 的选定 QUIC 传输参数一致。浏览器发出了 `SETTINGS_ENABLE_CONNECT_PROTOCOL (8)=1`，该 wheel 未发送这一项；其余选定 H3 SETTINGS 相同。fetch 与库的导航上下文有别，H3 请求头分别记录，未作逐项匹配断言。
 
-在 ARM64 上，官方这三个浏览器版本的约简 UA 使用 `X11; Linux x86_64`；本仓保留原有 `X11; Linux aarch64`。wheel 验收要求本仓宿主 UA 正确，同时在报告中明确显露这一差异。Linux ARM64 基线 wheel（NSS 3.132 / Neqo 0.33.0）实测 159/160/161 三套配置，全部通过 H1、H2、H3；这组对照限于已测字段和环境。其他原生 slot 的结论以各自安装后的验收结果为准。
+在 ARM64 上，官方这三个浏览器版本的约简 UA 使用 `X11; Linux x86_64`；本仓保留原有 `X11; Linux aarch64`。wheel 验收要求本仓宿主 UA 正确，同时在报告中明确显露这一差异。Linux ARM64 基线 wheel（NSS 3.132 / Neqo 0.33.0）实测 159/160/161 三套配置，全部通过 H1、H2、H3；这组对照限于已测字段和环境。升级后的 Linux ARM64 候选（NSS 3.133 / Neqo 0.34.0）重复通过这三套配置，归一化的 H1/H2 ClientHello 未见字段差异，H3 仍明确显示上述设置差异。其他原生 slot 的结论以[各自安装后的验收](platform-support.md)为准。

@@ -6,10 +6,10 @@ set; do not mix core/QUIC/NSS files across directories.
 | Directory | Status | Runtime | Source |
 | --- | --- | --- | --- |
 | `win_amd64/` | ready | NSS 3.133 / Neqo 0.34.0 | exact six DLLs from LoseNine's official ruyihttp 0.11.0 PyPI wheel; import only |
-| `darwin_arm64/` | ready | NSS 3.132 / Neqo 0.33.0 | pinned source build on Apple Silicon macOS; minOS 26.0 |
-| `linux_x86_64/` | ready | NSS 3.132 / Neqo 0.33.0 | pinned source build on Ubuntu 24.04 x86_64 |
-| `darwin_x86_64/` | ready | NSS 3.132 / Neqo 0.33.0 | pinned source build on Intel macOS 15 |
-| `linux_aarch64/` | ready | NSS 3.132 / Neqo 0.33.0 | pinned source build on Ubuntu 24.04 ARM64 |
+| `darwin_arm64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Apple Silicon macOS; minOS 26.0 |
+| `linux_x86_64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Ubuntu 24.04 x86_64 |
+| `darwin_x86_64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Intel macOS 15 |
+| `linux_aarch64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Ubuntu 24.04 ARM64 |
 
 `ruyihttp/runtime-manifest.json` is the authoritative list. Each ready directory
 has `provenance.json` and `SHA256SUMS`.
