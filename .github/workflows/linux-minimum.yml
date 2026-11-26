@@ -1,0 +1,136 @@
+name: Linux glibc 2.31 floor
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Probe userlands, verify a source candidate, or verify an exact release wheel
+        type: choice
+        default: probe
+        options: [probe, candidate, release]
+      platform:
+        description: Native hosted Linux architectures
+        type: choice
+        default: all
+        options: [all, linux_x86_64, linux_aarch64]
+      candidate_run_id:
+        description: Exact producing run ID (required outside probe mode)
+        type: string
+        default: ''
+      candidate_attempt:
+        description: Exact producing run attempt
+        type: string
+        default: '1'
+      artifact_kind:
+        description: Prefix of the producing run's wheel artifact
+        type: choice
+        default: source-native-wheel
+        options: [source-native-wheel, verified-ruyihttp]
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        default: probe
+      platform:
+        type: string
+        default: all
+      candidate_run_id:
+        type: string
+        default: ''
+      candidate_attempt:
+        type: string
+        default: '1'
+      artifact_kind:
+        type: string
+        default: source-native-wheel
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  minimum:
+    name: glibc 2.31 / ${{ matrix.slot }} / CPython ${{ matrix.python }}
+    runs-on: ${{ matrix.slot == 'linux_aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        slot: ${{ fromJSON(inputs.platform == 'linux_x86_64' && '["linux_x86_64"]' || inputs.platform == 'linux_aarch64' && '["linux_aarch64"]' || '["linux_x86_64","linux_aarch64"]') }}
+        python: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate floor request
+        env:
+          MODE: ${{ inputs.mode }}
+          PLATFORM: ${{ inputs.platform }}
+          SOURCE_RUN: ${{ inputs.candidate_run_id }}
+          SOURCE_ATTEMPT: ${{ inputs.candidate_attempt }}
+          ARTIFACT_KIND: ${{ inputs.artifact_kind }}
+        run: |
+          set -euo pipefail
+          case "$PLATFORM" in all|linux_x86_64|linux_aarch64) ;; *) exit 2 ;; esac
+          case "$ARTIFACT_KIND" in source-native-wheel|verified-ruyihttp) ;; *) exit 2 ;; esac
+          case "$MODE" in
+            probe) [[ -z $SOURCE_RUN ]] ;;
+            candidate|release) [[ $SOURCE_RUN =~ ^[1-9][0-9]*$ && $SOURCE_ATTEMPT =~ ^[1-9][0-9]*$ ]] ;;
+            *) exit 2 ;;
+          esac
+      - uses: actions/download-artifact@v4
+        if: inputs.mode != 'probe'
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+          name: ${{ inputs.artifact_kind }}-${{ matrix.slot }}-${{ inputs.candidate_run_id }}-${{ inputs.candidate_attempt }}
+          path: ${{ runner.temp }}/floor-wheel
+      - name: Isolated native floor qualification
+        env:
+          MODE: ${{ inputs.mode }}
+        run: bash ci/linux_floor/run.sh '${{ matrix.slot }}' "$RUNNER_TEMP/floor-wheel" "$RUNNER_TEMP/floor-evidence" "$MODE" '${{ matrix.python }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: glibc231-${{ matrix.slot }}-cp${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/floor-evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+  modern-upgrade:
+    if: inputs.mode == 'candidate' || inputs.mode == 'release'
+    name: 0.9.3 upgrade on modern glibc / ${{ matrix.slot }} / CPython ${{ matrix.python }}
+    runs-on: ${{ matrix.slot == 'linux_aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        slot: ${{ fromJSON(inputs.platform == 'linux_x86_64' && '["linux_x86_64"]' || inputs.platform == 'linux_aarch64' && '["linux_aarch64"]' || '["linux_x86_64","linux_aarch64"]') }}
+        python: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+          name: ${{ inputs.artifact_kind }}-${{ matrix.slot }}-${{ inputs.candidate_run_id }}-${{ inputs.candidate_attempt }}
+          path: ${{ runner.temp }}/floor-wheel
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.slot == 'linux_aarch64' && 'arm64' || 'x64' }}
+      - name: Ordinary v0.9.3 in-place upgrade on supported modern glibc
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          python -I ci/qualify_glibc231.py upgrade '${{ matrix.slot }}' '${{ matrix.python }}' \
+            "$RUNNER_TEMP/floor-wheel" "$RUNNER_TEMP/upgrade-evidence" "$RUNNER_TEMP" "$RUNNER_TEMP/upgrade-baseline" "$MODE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: modern-upgrade-${{ matrix.slot }}-cp${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/upgrade-evidence
+          if-no-files-found: warn
+          retention-days: 14
