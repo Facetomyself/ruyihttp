@@ -10,8 +10,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from build_native import (NATIVE, PLATFORM_FILES, ROOT, check_architecture, load_manifest,
+from build_native import (NATIVE, PLATFORM_FILES, check_architecture, load_manifest,
                           sha256, write_manifest)
+from posix_firefox161 import (DONOR_COMMIT, DONOR_FIREFOX, FIREFOX_COMMIT, FIREFOX_TAG,
+                              NEQO_COMMIT, NSS_RUST_COMMIT, ROOT, VERSIONS,
+                              runtime_expected, source_patches, validate_candidate)
 
 TARGETS = {
     'linux_aarch64': ('Linux', 'aarch64'),
@@ -113,11 +116,9 @@ def main():
     for source_patch in args.source_patch:
         path = source_patch.resolve(strict=True)
         patches.append({'path': path.relative_to(ROOT).as_posix(), 'sha256': sha256(path)})
-    names_expected = ['h3-body-abi-v1.patch']
-    if args.platform.startswith('darwin_'):
-        names_expected.insert(0, 'macos-necko-quic-tls-info.patch')
-        names_expected.append('macos-h3-global-handles.patch')
-    if [p['path'] for p in patches] != [f'native/patches/{name}' for name in names_expected]:
+    if (args.donor, args.firefox) != (DONOR_COMMIT, FIREFOX_COMMIT):
+        parser.error('expected the pinned Firefox 161 POSIX source recipe')
+    if [p['path'] for p in patches] != source_patches(args.platform):
         parser.error('expected pinned patches in build application order')
     source = args.source.resolve(strict=True)
     dest = NATIVE / args.platform
@@ -136,7 +137,12 @@ def main():
         arch = TARGETS[args.platform][1]
         result = check(source, arch)
         print(json.dumps(result, indent=2))
+        if not result['highest_glibc_dynamic_requirement']:
+            parser.error('the candidate must establish its dynamic glibc symbol requirement')
+        # This is the project's tested Ubuntu 24.04 wheel policy, not a lower
+        # claimed host minimum. Auditwheel then validates the exact wheel.
         tag = f'manylinux_2_39_{arch}'
+        deployment['highest_glibc_dynamic_requirement'] = result['highest_glibc_dynamic_requirement']
     else:
         tag, minimum, floors = macos_deployment(libs, args.platform)
         deployment = {'minimum_macos': minimum, 'macho_minimum_macos': floors}
@@ -144,11 +150,14 @@ def main():
     for path in libs:
         copied = Path(shutil.copy2(path, dest / path.name))
         inventory[path.name] = {"size": copied.stat().st_size, "sha256": sha256(copied)}
-    runtime = {name: entry[name] for name in ("firefox", "nss", "nspr", "neqo")}
+    entry.update(runtime_expected(args.platform))
     provenance = {"platform": args.platform, "source": "source-built candidate, native verification required",
-                  "ff_ruyijs_commit": args.donor, "firefox_source_commit": args.firefox,
-                  "wheel_platform_tag": tag, "runtime_expected": runtime, "files": inventory,
+                  "ff_ruyijs_commit": args.donor, "ff_ruyijs_firefox_gitlink": DONOR_FIREFOX,
+                  "firefox_source_commit": args.firefox, "firefox_source_tag": FIREFOX_TAG,
+                  "neqo_source_commit": NEQO_COMMIT, "nss_rs_source_commit": NSS_RUST_COMMIT,
+                  "wheel_platform_tag": tag, "runtime_expected": VERSIONS, "files": inventory,
                   "source_patches": patches, "h3_body_abi_expected": 1, **deployment}
+    validate_candidate(args.platform, entry, provenance)
     (dest / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     hashes = {name: item["sha256"] for name, item in inventory.items()}
     (dest / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in hashes.items()))

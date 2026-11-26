@@ -8,15 +8,16 @@ mkdir -p "$output"
 manifest_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$donor"
 apply_patch() {
-  local patch="$manifest_root/native/patches/$1"
+  local patch="$manifest_root/$1"
   python -c 'import hashlib, pathlib, sys; p=pathlib.Path(sys.argv[1]); print(p.name, hashlib.sha256(p.read_bytes()).hexdigest())' "$patch"
   git apply --whitespace=error --check "$patch"
   git apply "$patch"
 }
+patches=$(python -B "$manifest_root/tools/posix_firefox161.py" patches "$slot")
+while IFS= read -r patch; do apply_patch "$patch"; done <<< "$patches"
 case "$slot" in
   linux_aarch64|linux_x86_64)
     [[ $(uname -sm) == "Linux ${slot#linux_}" ]]
-    apply_patch h3-body-abi-v1.patch
     sudo apt-get update -qq
     sudo apt-get install -y -qq --no-install-recommends clang libclang-dev ninja-build patchelf
     python -B tools/build_necko_linux.py --firefox-source "$donor/firefox" --jobs 3 --http3
@@ -31,9 +32,6 @@ case "$slot" in
       # Retain the verified Apple Silicon wheel's deployment target.
       export MACOSX_DEPLOYMENT_TARGET=26.0
     fi
-    apply_patch macos-necko-quic-tls-info.patch
-    apply_patch h3-body-abi-v1.patch
-    apply_patch macos-h3-global-handles.patch
     export MOZCONFIG="$donor/ci/firefox/macos/mozconfig.browser"
     cd firefox
     mach() { ./mach --no-interactive "$@" </dev/null; }
@@ -46,16 +44,6 @@ case "$slot" in
       if [[ -n $target ]]; then mach build --directory "$dir" "$target"; else mach build --allow-subdirectory-build "$dir"; fi
     done < "$donor/obj/browser-steps.txt"
     cd "$donor"
-    if [[ $slot == darwin_x86_64 ]]; then
-      python - <<'PY'
-from pathlib import Path
-p = Path('tools/build.py')
-s = p.read_text()
-old = '"-arch", "arm64",\n        "-I", str(include / "nss"),'
-assert s.count(old) == 1
-p.write_text(s.replace(old, old.replace('arm64', 'x86_64')))
-PY
-    fi
     python -B tools/build.py --necko-core-only --firefox-gfx-obj "$donor/obj/browser"
     RUYIJS_DONOR_OBJ="$donor/obj/browser" python -B tools/build_necko_quic.py library
     input="$donor/dist/necko_tls"

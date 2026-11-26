@@ -45,8 +45,6 @@ jobs:
       TARGET_ARCH: ${{ fromJSON('{"linux_aarch64":"aarch64","linux_x86_64":"x86_64","darwin_x86_64":"x86_64","darwin_arm64":"arm64","win_amd64":"amd64"}')[matrix.slot] }}
       PYTHON_ARCH: ${{ (endsWith(matrix.slot, 'aarch64') || endsWith(matrix.slot, 'arm64')) && 'arm64' || 'x64' }}
       PYTHONUTF8: '1'
-      DONOR_COMMIT: f557fcd437aae5f18f313eb330bd3ef50f5fc7df
-      FIREFOX_COMMIT: 2887d9de1f69c0e9776413da80e7ba0d1225dd9b
       SOURCE_RUN: ${{ inputs.candidate_run }}
       SOURCE_ATTEMPT: ${{ inputs.candidate_attempt }}
       PIP_NO_CACHE_DIR: '1'
@@ -141,6 +139,10 @@ jobs:
               print(f'ready={str(state == "ready").lower()}', file=output)
           print(f'Slot state: {state}')
           PY
+      - name: Select Firefox 161 recipe and standalone Rust toolchain
+        if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
+        run: |
+          python -B tools/posix_firefox161.py pins >> "$GITHUB_ENV"
       - name: Fetch pinned public sources
         if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
         run: |
@@ -157,25 +159,31 @@ jobs:
             done
             return 128
           }
+          rustup toolchain install "$RUST_VERSION" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=$RUST_VERSION" >> "$GITHUB_ENV"
+          rustc +"$RUST_VERSION" -vV | tee "$RUNNER_TEMP/native-evidence/standalone-rust.txt"
+          tagref="refs/tags/$FIREFOX_TAG"
+          [[ "$(git -c http.version=HTTP/1.1 ls-remote --exit-code "$FIREFOX_REPO" "$tagref")" == "$FIREFOX_COMMIT"$'\t'"$tagref" ]]
           donor="$RUNNER_TEMP/ff-ruyijs"
           git init -q "$donor"
-          retry_fetch "$donor" https://github.com/cutetailbud/ff-ruyijs.git "$DONOR_COMMIT"
+          retry_fetch "$donor" "$DONOR_REPO" "$DONOR_COMMIT"
           git -C "$donor" checkout -q --detach FETCH_HEAD
           test "$(git -C "$donor" rev-parse HEAD)" = "$DONOR_COMMIT"
-          test "$(git -C "$donor" ls-tree HEAD firefox | awk '{print $3}')" = "$FIREFOX_COMMIT"
+          test "$(git -C "$donor" ls-tree HEAD firefox | awk '{print $3}')" = "$DONOR_FIREFOX"
           git init -q "$donor/firefox"
-          git -C "$donor/firefox" remote add origin https://github.com/mozilla-firefox/firefox.git
+          git -C "$donor/firefox" remote add origin "$FIREFOX_REPO"
           if [[ $RUNNER_OS == Linux ]]; then
             git -C "$donor/firefox" config remote.origin.promisor true
             git -C "$donor/firefox" config remote.origin.partialclonefilter blob:none
             retry_fetch "$donor/firefox" --filter=blob:none origin "$FIREFOX_COMMIT"
-            git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust build/rust
+            git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust build/rust browser/config
           else
             retry_fetch "$donor/firefox" origin "$FIREFOX_COMMIT"
           fi
           git -C "$donor/firefox" -c checkout.workers=0 checkout -q --detach FETCH_HEAD
           test "$(git -C "$donor/firefox" rev-parse HEAD)" = "$FIREFOX_COMMIT"
           { git -C "$donor" log -1 --format='%H %cI %s'; git -C "$donor/firefox" log -1 --format='%H %cI %s'; } > "$RUNNER_TEMP/native-evidence/sources.txt"
+          python -B tools/posix_firefox161.py verify-sources "$donor" | tee "$RUNNER_TEMP/native-evidence/source.json"
           df -h "$RUNNER_TEMP"
       - name: Compile native libraries
         if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
@@ -184,21 +192,25 @@ jobs:
       - name: Stage locally compiled candidate
         if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
         run: |
+          if [[ $RUNNER_OS == macOS ]]; then
+            lock=/tmp/neqo-hello-ws/Cargo.lock
+          else
+            lock="$RUNNER_TEMP/ff-ruyijs/build/necko-quic/Cargo.lock"
+          fi
+          python -B tools/posix_firefox161.py verify-lock "$lock" | tee "$RUNNER_TEMP/native-evidence/standalone-lock.json"
+          cp "$lock" "$RUNNER_TEMP/native-evidence/standalone-Cargo.lock"
+          patches=$(python -B tools/posix_firefox161.py patches "${{ matrix.slot }}")
           patch_args=()
-          if [[ $RUNNER_OS == macOS ]]; then
-            patch_args=(--source-patch native/patches/macos-necko-quic-tls-info.patch)
-          fi
-          patch_args+=(--source-patch native/patches/h3-body-abi-v1.patch)
-          if [[ $RUNNER_OS == macOS ]]; then
-            patch_args+=(--source-patch native/patches/macos-h3-global-handles.patch)
-          fi
+          while IFS= read -r patch; do patch_args+=(--source-patch "$patch"); done <<< "$patches"
           python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
             --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" "${patch_args[@]}" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
       - name: Stage exact replay libraries from the diagnostic artifact
         if: inputs.mode == 'requalify'
         run: |
           python -B tools/stage_native_replay.py "${{ matrix.slot }}" "$RUNNER_TEMP/source-wheel" "$RUNNER_TEMP/source-evidence" "$SOURCE_RUN" "$SOURCE_ATTEMPT" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
-          cp "$RUNNER_TEMP/source-evidence/sources.txt" "$RUNNER_TEMP/native-evidence/"
+          for item in sources.txt source.json standalone-Cargo.lock standalone-lock.json standalone-rust.txt; do
+            cp "$RUNNER_TEMP/source-evidence/$item" "$RUNNER_TEMP/native-evidence/"
+          done
           cp "$RUNNER_TEMP/source-evidence/runner.txt" "$RUNNER_TEMP/native-evidence/source-runner.txt"
           cp "$RUNNER_TEMP/source-evidence/wheel.json" "$RUNNER_TEMP/native-evidence/source-wheel.json"
           printf '%s %s\n' "$SOURCE_RUN" "$SOURCE_ATTEMPT" > "$RUNNER_TEMP/native-evidence/source-run.txt"
@@ -230,6 +242,19 @@ jobs:
           if not match or int(match[1]) > 39:
               raise SystemExit('auditwheel did not establish a compatible target manylinux floor')
           PY
+      - name: Reconstruct exact POSIX 0.9.0 upgrade baseline
+        if: inputs.mode != 'verify'
+        env:
+          BASELINE: ea44f8fe4468bbee80996e4e73745d6d53c072cc
+        run: |
+          old="$RUNNER_TEMP/ruyihttp-previous"
+          echo "RUYIHTTP_PREVIOUS_BUILD=$old" >> "$GITHUB_ENV"
+          mkdir -p "$old"
+          git init -q "$old/source"
+          git -C "$old/source" -c http.version=HTTP/1.1 fetch --depth=1 --no-tags https://github.com/Facetomyself/ruyihttp.git "$BASELINE"
+          git -C "$old/source" checkout -q --detach FETCH_HEAD
+          test "$(git -C "$old/source" rev-parse HEAD)" = "$BASELINE"
+          python -m pip wheel --no-deps --no-build-isolation -w "$old/wheels" "$old/source"
       - name: Qualify installed runtime on CPython 3.14
         env:
           RUYIHTTP_REQUIRE_H3_BODY_ABI: ${{ (inputs.mode == 'requalify' || steps.slot.outputs.ready == 'false') && '1' || '0' }}

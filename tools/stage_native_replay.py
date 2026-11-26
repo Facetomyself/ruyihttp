@@ -11,6 +11,7 @@ from pathlib import Path
 import sys
 
 from build_native import NATIVE, inspect_stable_wheel, load_manifest, wheel_members, write_manifest
+from posix_firefox161 import validate_candidate
 
 
 def read(path):
@@ -31,15 +32,16 @@ def main():
     source_suffix = f'.dev{source_run}+gha.{source_attempt}'
     assert candidate['version'].endswith(source_suffix)
     original = load_manifest()
-    assert candidate['version'].removesuffix(source_suffix) == original['version']
+    # Packaging can move from 0.9.1 to 0.9.2 without changing any replayed library.
+    assert candidate['version'].removesuffix(source_suffix) in {'0.9.1', '0.9.2'}
     entry = candidate['platforms'][slot]
     assert entry['status'] == 'ready' and entry['h3_body_abi'] == 1
     assert entry['files'] == {name: information['sha256'] for name, information in actual.items()}
     baseline = original['platforms'][slot]
     assert baseline['status'] == 'build-required' and not baseline['files']
-    assert all(baseline[key] == entry[key] for key in ('firefox', 'nss', 'nspr', 'neqo', 'h3_version_export'))
     provenance = read(evidence / 'provenance.json')
     assert provenance['platform'] == slot and provenance['files'] == actual
+    validate_candidate(slot, entry, provenance)
     target = NATIVE / slot
     assert target.resolve(strict=True) == target and target.is_dir()
     assert not any((target / name).exists() or (target / name).is_symlink() for name in files)
