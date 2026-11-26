@@ -9,6 +9,7 @@ import asyncio
 import ctypes
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -130,7 +131,8 @@ def nss_import(browser, profile, root):
     db = bind('CERT_GetDefaultCertDB', pointer)
     new_cert = bind('CERT_NewTempCertificate', pointer, pointer, ctypes.POINTER(Item), charptr, status, status)
     decode = bind('CERT_DecodeTrustString', status, ctypes.POINTER(Trust), charptr)
-    add = bind('__CERT_AddTempCertToPerm', status, pointer, charptr, ctypes.POINTER(Trust))
+    add = bind('PK11_ImportCert', status, pointer, pointer, ctypes.c_ulong, charptr, status)
+    change_trust = bind('CERT_ChangeCertTrust', status, pointer, pointer, ctypes.POINTER(Trust))
     destroy = bind('CERT_DestroyCertificate', None, pointer)
     shutdown = bind('NSS_Shutdown', status)
     get_error = bind('PORT_GetError', status)
@@ -149,29 +151,36 @@ def nss_import(browser, profile, root):
         try:
             if needs_init(slot):
                 check(init_pin(slot, None, b''), 'initialize isolated key slot')
+            der = root.read_bytes()
+            array = (ctypes.c_ubyte * len(der)).from_buffer_copy(der)
+            item = Item(0, array, len(der))
+            database = db()
+            cert = new_cert(database, ctypes.byref(item), None, 0, 1)
+            expect(cert, f'NSS decode certificate failed: {get_error()}')
+            try:
+                trust = Trust()
+                check(decode(ctypes.byref(trust), b'C,,'), 'decode trust')
+                check(add(slot, cert, 0, b'RuyiHttp loopback CA', 0), 'install local certificate')
+                check(change_trust(database, cert, ctypes.byref(trust)), 'trust local CA for TLS')
+            finally:
+                destroy(cert)
         finally:
             free_slot(slot)
-        der = root.read_bytes()
-        array = (ctypes.c_ubyte * len(der)).from_buffer_copy(der)
-        item = Item(0, array, len(der))
-        cert = new_cert(db(), ctypes.byref(item), None, 0, 1)
-        expect(cert, f'NSS decode certificate failed: {get_error()}')
-        try:
-            trust = Trust()
-            check(decode(ctypes.byref(trust), b'C,,'), 'decode trust')
-            check(add(cert, b'RuyiHttp loopback CA', ctypes.byref(trust)), 'install local trust anchor')
-        finally:
-            destroy(cert)
     finally:
         check(shutdown(), 'shutdown')
         if dll_path:
             dll_path.close()
 
 
-def write_profile(browser, directory, root):
+def write_profile(browser, directory, root, case):
     profile = directory / 'profile'
     profile.mkdir()
-    prefs = ''.join(f'user_pref({json.dumps(key)}, {json.dumps(value)});\n' for key, value in sorted(PREFS.items()))
+    settings = dict(PREFS)
+    if case == 'h3':
+        # Transport eligibility only. Certificate/host validation still uses the
+        # isolated profile's NSS trust database with the generated test anchor.
+        settings['network.http.http3.disable_when_third_party_roots_found'] = False
+    prefs = ''.join(f'user_pref({json.dumps(key)}, {json.dumps(value)});\n' for key, value in sorted(settings.items()))
     (profile / 'user.js').write_text(prefs, encoding='ascii')
     import_profile_ca(browser, profile, root)
     return profile
@@ -180,7 +189,8 @@ def write_profile(browser, directory, root):
 def launch(browser, arch, profile, url, directory):
     argv = [str(browser), '-headless', '-no-remote', '-new-instance', '-profile', str(profile), url]
     if sys.platform == 'darwin':
-        seatbelt = '(version 1) (allow default) (deny network-outbound) (allow network-outbound (remote ip "localhost:*"))'
+        seatbelt = ('(version 1) (allow default) (deny network-outbound (remote ip "*:*")) '
+                    '(allow network-outbound (remote ip "127.0.0.1:*") (remote ip "localhost:*"))')
         argv[:0] = ['/usr/bin/sandbox-exec', '-p', seatbelt, '/usr/bin/arch', '-' + arch]
     if sys.platform == 'win32':
         argv.insert(1, '-wait-for-browser')
@@ -195,9 +205,40 @@ def launch(browser, arch, profile, url, directory):
             isolated = directory / key.lower()
             isolated.mkdir()
             env[key] = str(isolated)
-    return subprocess.Popen(argv, cwd=directory, env=env, stdin=subprocess.DEVNULL,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                            start_new_session=sys.platform != 'win32')
+    with (directory / 'browser.log').open('wb') as log:
+        return subprocess.Popen(argv, cwd=directory, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                start_new_session=sys.platform != 'win32')
+
+
+def log_summary(directory):
+    with (directory / 'browser.log').open('rb') as source:
+        data = source.read(8192).decode('utf-8', errors='replace')
+    # Retain bounded startup diagnostics, redacting filesystem paths and all URL strings.
+    selected = []
+    for row in data.splitlines():
+        if re.search(r'error|failed|denied|sandbox|headless|xpcom|dyld|warn|network|security|certificate', row, re.I):
+            row = re.sub(r'(?:[a-z]+://|[A-Za-z]:[\\/]|/)[^\s\])>,;]+', '<omitted>', row)
+            selected.append(row[:240])
+    return selected[:16]
+
+
+def darwin_process(pid, browser, arch):
+    libproc = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
+    pidpath = libproc.proc_pidpath
+    pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+    pidpath.restype = ctypes.c_int
+    path = ctypes.create_string_buffer(4096)
+    expect(pidpath(pid, path, len(path)) > 0 and Path(os.fsdecode(path.value)).resolve() == browser,
+           'macOS did not launch the verified executable')
+    pidinfo = libproc.proc_pidinfo
+    pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.c_void_p, ctypes.c_int]
+    pidinfo.restype = ctypes.c_int
+    result = (ctypes.c_int32 * 2)()
+    size = ctypes.sizeof(result)
+    expected = 0x0100000C if arch == 'arm64' else 0x01000007
+    expect(pidinfo(pid, 19, 0, ctypes.byref(result), size) == size and result[0] == expected,
+           'macOS process is not using the expected native Mach-O architecture')
+    return {'launch_arch': f'/usr/bin/arch -{arch}', 'cpu_type': result[0], 'cpu_subtype': result[1]}
 
 
 def stop(process):
@@ -249,7 +290,7 @@ async def collect(slot, release, browser, case, diagnostic):
     with TemporaryDirectory(prefix='ff-reference-') as temp:
         directory = Path(temp)
         leaf, key, root = certificate(directory)
-        profile = write_profile(browser, directory, root)
+        profile = write_profile(browser, directory, root, case)
         async with Origin(case, leaf, key) as origin:
             process = launch(browser, SLOTS[slot][1], profile, origin.url, directory)
             try:
@@ -257,14 +298,17 @@ async def collect(slot, release, browser, case, diagnostic):
                 process_record = {'native': arch}
                 if sys.platform == 'win32':
                     process_record.update(windows_machine(int(process._handle)))
-                elif sys.platform == 'darwin':
-                    process_record['launch_arch'] = f'/usr/bin/arch -{arch}'
                 try:
                     record = await asyncio.wait_for(origin.result, timeout=23)
                 except TimeoutError:
-                    diagnostic.update(origin.diagnostics(), browser_returncode=process.poll())
+                    diagnostic.update(origin.diagnostics(), browser_returncode=process.poll(), browser_messages=log_summary(directory))
                     raise RuntimeError(f'{case}: no valid request from the official browser in 23 seconds') from None
                 validate(case, record, release)
+                if sys.platform == 'darwin':
+                    process_record.update(darwin_process(process.pid, browser, arch))
+                elif sys.platform == 'linux':
+                    expect(Path(f'/proc/{process.pid}/exe').resolve(strict=True) == browser,
+                           'Linux did not launch the verified ELF executable')
                 record['process'] = process_record
                 diagnostic.update(origin.diagnostics())
                 return record

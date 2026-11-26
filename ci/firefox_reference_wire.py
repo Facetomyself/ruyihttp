@@ -126,14 +126,15 @@ def headers_text(headers):
     return [[name.decode('ascii'), value.decode('latin-1')] for name, value in headers]
 
 
-def alpn_context(leaf, key, alpn, hellos):
+def alpn_context(leaf, key, alpn, origin):
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.set_alpn_protocols([alpn])
     context.load_cert_chain(leaf, key)
 
     def on_message(tls, direction, _version, content, message, data):
         if direction == 'read' and content == 22 and message == 1:
-            hellos.setdefault(tls, []).append(client_hello(data))
+            origin.tls_client_hellos += 1
+            origin.hellos.setdefault(tls, []).append(client_hello(data))
 
     context._msg_callback = on_message
     return context
@@ -166,6 +167,9 @@ class Origin:
         self.result = asyncio.get_running_loop().create_future()
         self.hellos = WeakKeyDictionary()
         self.bootstrap = []
+        self.tcp_fallback = []
+        self.tls_client_hellos = 0
+        self.h3_handshakes = []
         self.other_paths = []
         self.errors = deque(maxlen=10)
         self.tasks = set()
@@ -174,7 +178,7 @@ class Origin:
 
     async def __aenter__(self):
         alpn = 'http/1.1' if self.case == 'h1' else 'h2'
-        context = alpn_context(self.leaf, self.key, alpn, self.hellos)
+        context = alpn_context(self.leaf, self.key, alpn, self)
         self.tcp = await asyncio.start_server(self.accept, IP, 0, ssl=context, ssl_handshake_timeout=8)
         self.port = self.tcp.sockets[0].getsockname()[1]
         if self.case == 'h3':
@@ -275,6 +279,14 @@ class Origin:
                 headers = requests.pop(stream)
                 fields = dict(headers)
                 expected = BOOT if self.case == 'h3' else PATH
+                if self.case == 'h3' and (fields.get(':method'), fields.get(':path')) == ('GET', PATH):
+                    if len(self.tcp_fallback) < 20:
+                        self.tcp_fallback.append(dict(base, settings=settings, headers=headers))
+                    # Allow Alt-Svc validation to complete on the live origin.
+                    # A TCP request for the strict path can never succeed.
+                    http.send_headers(stream, [(b':status', b'503'), (b'cache-control', b'no-store'),
+                                               (b'alt-svc', f'h3=":{self.port}"; ma=60'.encode('ascii'))], end_stream=True)
+                    continue
                 if (fields.get(':method'), fields.get(':path')) != ('GET', expected):
                     self.extra('h2', fields.get(':path'))
                     http.send_headers(stream, [(b':status', b'404')], end_stream=True)
@@ -285,17 +297,15 @@ class Origin:
                 record = dict(base, settings=settings, headers=headers)
                 if self.case == 'h3':
                     response += [(b'alt-svc', f'h3=":{self.port}"; ma=60'.encode('ascii'))]
-                    self.bootstrap.append(record)
-                    self.tcp.close()  # No TCP route can satisfy the strict H3 fetch.
+                    if len(self.bootstrap) < 5:
+                        self.bootstrap.append(record)
                 http.send_headers(stream, response)
                 http.send_data(stream, body, end_stream=True)
-                if self.case == 'h3':
-                    http.close_connection(error_code=0, last_stream_id=stream)
                 writer.write(http.data_to_send())
                 await writer.drain()
                 if self.case == 'h2':
                     self.finish(record)
-                return
+                    return
             writer.write(http.data_to_send())
             await writer.drain()
 
@@ -326,6 +336,7 @@ class Origin:
             def quic_event_received(self, event):
                 if isinstance(event, HandshakeCompleted):
                     self.handshake = event
+                    origin.h3_handshakes.append([event.alpn_protocol, int(self._quic._version)])
                 for message in self.http.handle_event(event):
                     if not isinstance(message, HeadersReceived) or message.push_id is not None:
                         continue
@@ -351,6 +362,7 @@ class Origin:
                                                                (b'cache-control', b'no-store')])
                     self.http.send_data(message.stream_id, b'h3', end_stream=True)
                     self.transmit()
+                    origin.tcp.close()
                     origin.finish({'port': origin.port, 'mode': 'same-origin-fetch', 'protocol': self.handshake.alpn_protocol,
                                    'quic_version': int(self._quic._version), 'initial': initial, 'hello': self.hello,
                                    'settings': settings, 'grease_settings': grease_settings(settings), 'headers': headers,
@@ -360,6 +372,9 @@ class Origin:
         return Protocol
 
     def diagnostics(self):
-        return {'case': self.case, 'port': self.port, 'bootstrap': self.bootstrap,
+        traces = self.quic_log.to_dict()['traces'] if self.quic_log else []
+        return {'case': self.case, 'port': self.port, 'bootstrap': self.bootstrap, 'tcp_fallback': self.tcp_fallback,
                 'other_paths': self.other_paths, 'server_errors': list(self.errors),
-                'quic_traces': len(self.quic_log.to_dict()['traces']) if self.quic_log else 0}
+                'tls_client_hellos': self.tls_client_hellos, 'quic_traces': len(traces),
+                'h3_handshakes': self.h3_handshakes,
+                'quic_events': [[event['name'] for event in trace['events'][:64]] for trace in traces[:3]]}
