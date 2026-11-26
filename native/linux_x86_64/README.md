@@ -1,13 +1,13 @@
 # Linux x86_64 native runtime
 
-This directory is a complete Linux x86_64 Necko/NSS set built from pinned
-Firefox 161.0 and the pinned ff-ruyijs donor on an Ubuntu 24.04 x86_64 runner.
-The [hosted qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419)
-replayed the source libraries by digest. The installed wheel passed H1/H2/H3,
-proxy checks, the same-slot comparison against official Firefox 159/160/161 with
-fresh TLS permutation witnesses, and the in-place upgrade from the 0.9.0 fork.
-On CPython 3.10 and 3.14, the 1,048,579-byte binary and JSON echo controls and
-argument bounds with two simultaneous native owners passed.
+This is the complete Linux x86_64 Necko/NSS set built from pinned Firefox 161.0
+and ff-ruyijs in a digest-pinned Debian Bullseye container on a native Ubuntu
+24.04 x86_64 runner. The [source build and modern qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435)
+and [independent Bullseye qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837)
+used the same wheel bytes. Installed-wheel HTTP/1.1, HTTP/2, HTTP/3, Firefox
+159/160/161 wire parity with fresh TLS permutation witnesses, and native body
+ABI v1 with two simultaneous owners passed on CPython 3.10 and 3.14. Clean
+Bullseye pip rejected the v0.9.3 wheel; modern glibc upgraded it in place.
 
 | File | Role |
 | --- | --- |
@@ -19,12 +19,11 @@ argument bounds with two simultaneous native owners passed.
 | `libsqlite3.so` | NSS softoken's SQLite dependency |
 | `libnssckbi.so`, `libnsssysinit.so` | NSS built-in roots and system initialization |
 
-Both `libnecko_core.so` and `libnecko_quic.so` carry a `$ORIGIN` runpath, so the
-sibling libraries load without setting `LD_LIBRARY_PATH`. Keep the directory
-together.
-
-The tested wheel policy is `manylinux_2_39_x86_64` (Ubuntu 24.04); `auditwheel`
-agrees. ELF inspection recorded `GLIBC_2.38` as the highest required versioned
-symbol, which does not establish a lower tested host floor. [Provenance](provenance.json)
-records source pins, per-file SHA-256, candidate wheel hash and hosted runs.
-NSS reports `3.133`; the H3 version export still returns integer ABI `32`.
+All 14 libraries carry `DT_RUNPATH=$ORIGIN`; no loader environment changes are
+needed. The external requirements are standard system libraries, including
+Bullseye's libgcc and libstdc++. `auditwheel show` inferred `manylinux_2_31_x86_64`;
+the highest required ELF glibc symbol was `GLIBC_2.30`, while the independent
+installed-wheel runtime floor was glibc 2.31. [Provenance](provenance.json)
+records compiler and sysroot pins, each dependency and symbol-version family,
+per-file SHA-256, and both hosted proofs. NSS reports `3.133`; the H3 version
+export returns integer ABI `32`.

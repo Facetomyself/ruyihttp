@@ -1,10 +1,13 @@
 # Linux aarch64 native runtime
 
-The checked-in `manylinux_2_39_aarch64` runtime was built and tested on GitHub's
-Ubuntu 24.04 ARM64 runner, including a clean installed-wheel HTTP/1.1, NSS HTTP/2,
-and NSS/Neqo HTTP/3 exchange. See [provenance.json](provenance.json) for the exact
-source pins, run and wheel digest, and [SHA256SUMS](SHA256SUMS) for the native bytes.
-The standalone SpiderMonkey donor is separate from this Necko ABI. The complete set is:
+The checked-in `manylinux_2_31_aarch64` runtime was built in a digest-pinned
+Debian Bullseye container on a native Ubuntu 24.04 ARM64 runner. The [source build
+and modern qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45792538631)
+and [independent Bullseye qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45796424436)
+used the same wheel bytes. See [provenance.json](provenance.json) for the pins,
+ELF requirements and hosted proofs, and [SHA256SUMS](SHA256SUMS) for the native
+inventory. The standalone SpiderMonkey donor is separate from this Necko ABI.
+The complete set is:
 
 - `libnecko_core.so`
 - `libnecko_quic.so`
@@ -13,21 +16,21 @@ The standalone SpiderMonkey donor is separate from this Necko ABI. The complete 
 - `libsoftokn3.so`, `libfreebl3.so`, `libfreeblpriv3.so`
 - `libsqlite3.so`, `libnssckbi.so`, `libnsssysinit.so`
 
-The runtime uses Firefox 161.0 sources with NSS 3.133 / NSPR 4.40 /
-Neqo 0.34.0. `auditwheel` agrees with the tested `manylinux_2_39_aarch64` tag;
-ELF inspection recorded `GLIBC_2.38` as the highest required versioned symbol,
-which does not establish a lower tested host floor. CPython 3.10 and 3.14 passed
-H3 with two simultaneous owners, the 1,048,579-byte binary ABI v1 and JSON echo
-controls, exact-slot comparison against official Firefox 159/160/161 with
-fresh TLS permutation witnesses, and the in-place upgrade from the 0.9.0 fork.
-The [hosted qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45769279791)
-replayed the original source libraries by digest. The manifest inventory and
-exact hashes are required for packaging.
+The runtime uses Firefox 161.0 sources with NSS 3.133 / NSPR 4.40 / Neqo 0.34.0.
+`auditwheel show` inferred `manylinux_2_31_aarch64`; the highest required ELF
+glibc symbol was `GLIBC_2.30`, while the independent installed-wheel runtime
+floor was glibc 2.31. CPython 3.10 and 3.14 passed HTTP/1.1, HTTP/2, HTTP/3 body
+ABI v1 with two simultaneous owners, and exact-slot Firefox 159/160/161 wire
+parity with fresh TLS permutation witnesses. Clean Bullseye pip rejected the
+v0.9.3 wheel; modern glibc upgraded it in place.
 
 Run the read-only preflight from the project root:
 
 ```sh
-python3 -B tools/check_linux_candidate.py /absolute/path/to/runtime --arch aarch64
+python3 -B tools/check_linux_candidate.py /absolute/path/to/runtime --arch aarch64 --baseline
 ```
 
-This checks 14 ELF shared objects, 31 defined core functions, two QUIC bridge functions, the dynamic dependency names, sibling-only loader paths for the two bridges, and parsed `GLIBC_*` requirements up to 2.39. The tool neither loads libraries nor marks the manifest ready. Next verify runtime versions and real local HTTP/2 and QUIC behavior on the target architecture before promoting the slot.
+The preflight checks all 14 ELF shared objects for defined ABI exports, `DT_NEEDED`,
+`DT_RUNPATH=$ORIGIN`, and the `GLIBC`, `GLIBCXX`, `CXXABI` and `GCC` version families.
+The read-only helper establishes a static ABI bound. Hosted installed-wheel
+qualification establishes the independent runtime floor before admission.

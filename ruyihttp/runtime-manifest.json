@@ -86,30 +86,36 @@
       "nspr": "4.40",
       "neqo": "0.34.0",
       "files": {
-        "libnecko_core.so": "60f02888accfd33d5e8d43018769afe8798248f4eccddf344c05406e6609738c",
-        "libnecko_quic.so": "1bb4518c74d90ac37fe67d4038a2612621b954cb52a18f5b392757049e1e4a27",
-        "libnss3.so": "d8eb5dc3359938bd23aebcff1aa112f4a5922f0afe90527099e9c981cf956e24",
-        "libnssutil3.so": "3492fa41ed8325d27ba1af243682924c97f1d4309098799dfd61ab83293548af",
-        "libssl3.so": "f3a8fa03871928c2321cb2fdea2deaad746878c6672105a6e2ecb6556ab03e4e",
-        "libnspr4.so": "2cb4e0fe2e3dfc03e982727f25ddc3d03de22311c1423299ff3819d4c32b5a58",
-        "libplc4.so": "3ca9db035b51cce8e18b39e98d528a989786e36af6ba9ad3668ac94796a74540",
-        "libplds4.so": "0930212708d4d7273de21b6d84aa00d45eecf0c6722c025e035dde293981a62c",
-        "libsoftokn3.so": "1f281e2ca452a7e6345b41701e5c2d4c76f56e71241780a862cac7faa23b0389",
-        "libfreebl3.so": "a11ea2368b54ac26aed993ce2af4484244a0fb384cbd888caf46e7a9b4f14314",
-        "libfreeblpriv3.so": "7650a070bc6a9ed5c56134116f4ff32260cd777020785f42ef12466934ac076f",
-        "libsqlite3.so": "ff6b02a71643c9dd2176b48a494c5219d915e6f14af285e3b33433d8eef3deb4",
-        "libnssckbi.so": "23064ef7a1fd75caedc7b8393d7492ed5a6c4605daee7d2a5dcb44b3211ac64c",
-        "libnsssysinit.so": "ddeb3a912777a65b523ca97cc1f7740c014d1a66000bcd95c2956ac885fff124"
+        "libnecko_core.so": "30bb0708f7c6e4cf6c280f6ac6d036cec6e2ce99f20ebf028f35e652bc4ca359",
+        "libnecko_quic.so": "866e9d84ac9f4af48102c6176eddae1c1070134ed2f508b5ad6abf69ed2edd2b",
+        "libnss3.so": "ee79d366db0848d947f58abfd637588ad8234f5da5eb5dc14d50045b32e771cc",
+        "libnssutil3.so": "fe84251b511858cd5f76310fb874addb3911cc07ea3ddfbbda902e7575d8e433",
+        "libssl3.so": "d536bd56b3deb271d8dc0a2de19e11774e7f9ca49802037afcef5388c5bac765",
+        "libnspr4.so": "832d5e62eacbb067eee30f8e5c899ec44157aaca51030473a296c584b95791d6",
+        "libplc4.so": "c837bdec2daf84e0558e1fbfdc68830969085d20d2869372d8adbcebf2faca4a",
+        "libplds4.so": "949db68dcda2a077af321684c62d7adf170f2c5e2c75f131994bc13bdc20daf7",
+        "libsoftokn3.so": "6744e029216d68bb99942544f306ec684074fd88a33e1cd81df0c7df232794b7",
+        "libfreebl3.so": "f82a335ffefd5513291567d7b2ad26ff7f41f72352bb590172fe4d15080136ce",
+        "libfreeblpriv3.so": "7cd39039b7e2669b31d06a1bba5f6740972100423b07c1a8b799a594061d1a07",
+        "libsqlite3.so": "a72f4e9fc3db1d34696e76f34e3deb1e6a96ca2368c1f678abcea3b7b00ec622",
+        "libnssckbi.so": "f52ee23da0dbbe6de7bb1c753b3848960e8a30afca9a38b7ec1198a0dbcb18d9",
+        "libnsssysinit.so": "4beab5125eb787f77c6df3be2c9418487039b4d7b5c774646eca4e508900aa02"
       },
       "h3_tls": "nss",
       "h3_version_export": {
         "type": "u32",
         "value": 32
       },
-      "wheel_platform_tag": "manylinux_2_39_x86_64",
+      "wheel_platform_tag": "manylinux_2_31_x86_64",
       "h3_body_abi": 1,
-      "highest_glibc_dynamic_requirement": "2.38",
-      "h3_protocol_policy": 1
+      "highest_glibc_dynamic_requirement": "2.30",
+      "h3_protocol_policy": 1,
+      "linux_baseline": {
+        "policy": "manylinux_2_31",
+        "candidate_tag": "manylinux_2_31_x86_64",
+        "elf_sha256": "0004836c6d3d1bd68faecd6f8b9223500c5d9f47de1ebbbfa7c9153cb01bc455",
+        "build_sha256": "c165079ca6f6d57dad849ec3edd7147aeaf39078893ed57c73129fc2af8b4773"
+      }
     },
     "darwin_x86_64": {
       "status": "ready",
@@ -150,30 +156,36 @@
       "nspr": "4.40",
       "neqo": "0.34.0",
       "files": {
-        "libnecko_core.so": "0fa68cf71c27fb8514167de0d33997b48d97bc3c0b8902748d357c150cb6ee08",
-        "libnecko_quic.so": "f1cfd6797da4bf1e64cb4545a7158defda470ae4315faa3e37e5bf763fbd2d94",
-        "libnss3.so": "bc2afb087ae7749b7d0d48e5b959d305046e9c31867766d7543f6676af01e04e",
-        "libnssutil3.so": "79b0413ca30926f1a731f8957b181486c518359993bbd94481af963db9735bb3",
-        "libssl3.so": "aebf2c225cc511b537cfbc42cbdb1f33bd103b02dc2127e54ea76e97988d502e",
-        "libnspr4.so": "3c0d803de97a90e3170361d6640f944c640c476575b6ab96365d29248d604af9",
-        "libplc4.so": "b199ed6ed2bed61a58e2679d0d6df33ef725af315353339ec0a2c0f28a7bca8d",
-        "libplds4.so": "0a114120ea57d16b2b28e08741aa3234140b2abf52288c464ff428650d486b9f",
-        "libsoftokn3.so": "0acb0ad97651923df4f267b42234a645dbee1699864b7e7dfed3afe2db3d5b79",
-        "libfreebl3.so": "fab3f651dbe93e0c8055c5c01b3e33f6585b7194d61bfb8a5679540d0cbbe65a",
-        "libfreeblpriv3.so": "43f64a4abcd626049c07ab12f620fa6cde3feb80213767eda1a2cc5aa4c5a74f",
-        "libsqlite3.so": "ffa41b80f839883d03610c92df9d31cdd4bdbe8517648812467f3d8d98db9f41",
-        "libnssckbi.so": "81f5217ece8f88714ae9a1f7315609b9b0a41e505e557ba77c581b8c0932c774",
-        "libnsssysinit.so": "ce4f0ddc9300a1732af10e22813a775b0c835810c9232b1b6ffc7e0110e95566"
+        "libnecko_core.so": "d3d47244aa10b5261fef27500a81918b650c2e457e8a890920440b98cf9d8aa4",
+        "libnecko_quic.so": "3d653af343b0f40d1d587fda5d9c2bf17d218272db55b1f8feba950f51d40e68",
+        "libnss3.so": "b70ffb6efab786046766c580fa87baccf52b8f1e09fe7a9ac6f729e81cdc3589",
+        "libnssutil3.so": "53f13f366ce1e036f7445b7996ee599f5d5f61cc596401e79593b766f8ecda8c",
+        "libssl3.so": "cf21be0422836a51bb5b8dfad0983b2ef7c598836c16f32696da18f0cf6eacec",
+        "libnspr4.so": "708c09f36dd7e1ccafced261e555629ff0bebe44ca5fadd1ae45f588e71d08cd",
+        "libplc4.so": "f58b8e85a7a2466b284cba6dcb1fc0ea7a85575ff4406ab88a07c0b51de619a1",
+        "libplds4.so": "83bcfbe411c5b3bc78c9148c78ea53176479fbc2c46dfb9abcdcfa5ed4eb5c54",
+        "libsoftokn3.so": "4efe3a7763f4d33a9c48052b9cc8a37d4b4d5efaa0f99aa4bfd95f74f34ffef5",
+        "libfreebl3.so": "43b8b9a524d7f63547c979a1ed63406bbdddc875ec1ba1fcb0975ab9c49a945f",
+        "libfreeblpriv3.so": "6441c97fb821655edd28f91e20ec4845ce9db110fa7cf39808be9736deff0dfb",
+        "libsqlite3.so": "8f150c52d76128c1babcc01e29b6b5a21ba9f791c075d1c37aa49417ae942bec",
+        "libnssckbi.so": "a259f907a01f5cc9411c7f967880b1755daaaea777e03a3a0526c58886c2b21e",
+        "libnsssysinit.so": "98ee4899f036dc4ea1c8b4150795299d51e5b0e6a0bdbefa5d678d15d4618653"
       },
-      "wheel_platform_tag": "manylinux_2_39_aarch64",
+      "wheel_platform_tag": "manylinux_2_31_aarch64",
       "h3_tls": "nss",
       "h3_version_export": {
         "type": "u32",
         "value": 32
       },
       "h3_body_abi": 1,
-      "highest_glibc_dynamic_requirement": "2.38",
-      "h3_protocol_policy": 1
+      "highest_glibc_dynamic_requirement": "2.30",
+      "h3_protocol_policy": 1,
+      "linux_baseline": {
+        "policy": "manylinux_2_31",
+        "candidate_tag": "manylinux_2_31_aarch64",
+        "elf_sha256": "546168c7fc18ef8e0305e92699c78b321fdf1cc195c1971345bef17e3c868740",
+        "build_sha256": "2c764bc92081361c6a2013cc8d56a52955f364404141bf3ba7977b7b9c317030"
+      }
     }
   }
 }
