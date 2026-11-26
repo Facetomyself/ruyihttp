@@ -48,6 +48,30 @@ def test_tunnel_owns_private_pair_and_latches_failure_once():
     assert tunnel.socket.fileno() == tunnel._relay.fileno() == -1
 
 
+@pytest.mark.parametrize("from_owner", [False, True])
+def test_stop_discards_remaining_prepared_udp_packets(from_owner):
+    relay = _Relay.__new__(_Relay)
+    relay.cancel_event = threading.Event()
+    relay.tunnel = SimpleNamespace(_stop=threading.Event())
+    stopped = relay.tunnel._stop if from_owner else relay.cancel_event
+    sent, builds = [], []
+
+    def build(**_):
+        builds.append(True)
+        return [(b"first", ()), (b"second", ())]
+
+    class Socket:
+        def send(self, data):
+            sent.append(data)
+            stopped.set()
+
+    relay.connection = SimpleNamespace(datagrams_to_send=build)
+    relay._flush(Socket())
+    relay._flush(Socket())
+    assert sent == [b"first"]
+    assert builds == [True]
+
+
 def test_udp_backpressure_and_oversized_packets_have_bounded_loss():
     sock, peer = _udp_pair()
     try:
@@ -224,6 +248,8 @@ def _wire_test(tmp_path, mode):
                 seen.drops.append(len(data))
                 return
             super().datagram_received(data, addr)
+            if self._quic._close_event is not None:
+                seen.closing.set()
 
         def quic_event_received(self, event):
             if isinstance(event, ProtocolNegotiated):
@@ -273,6 +299,7 @@ def _wire_test(tmp_path, mode):
 
     async def run():
         seen.request = asyncio.Event()
+        seen.closing = asyncio.Event()
         woke = threading.Event()
         server = await serve(loopback, 0, configuration=config, create_protocol=FixedPeer,
                             session_ticket_handler=seen.tickets.append)
@@ -347,6 +374,7 @@ def _wire_test(tmp_path, mode):
             finally:
                 tunnel.close()
             assert woke.is_set() == (mode == "bad-capsule")
+            await asyncio.wait_for(seen.closing.wait(), timeout=1)
         finally:
             server.close()
 

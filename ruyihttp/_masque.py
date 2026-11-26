@@ -662,8 +662,19 @@ class _Relay:
         if self.accepted and not self.tunnel._ready.is_set():
             self.tunnel._established(mtu=self.mtu_size, payload=self.limit)
 
-    def _flush(self, sock):
+    def _local_stop_requested(self):
+        return self.tunnel._stop.is_set() or (
+            self.cancel_event is not None and self.cancel_event.is_set()
+        )
+
+    def _flush(self, sock, *, teardown=False):
+        if not teardown and self._local_stop_requested():
+            return
         for packet, _address in self.connection.datagrams_to_send(now=time.monotonic()):
+            # A caller may stop the tunnel while QUIC builds or sends a burst.
+            # Do not submit the remaining prebuilt packets to the OS after stop.
+            if not teardown and self._local_stop_requested():
+                return
             # Connected socket fixes the UDP peer. QUIC migration to a different
             # address is deliberately outside the scope of this proxy session.
             try:
@@ -736,10 +747,11 @@ class _Relay:
                 self.connection.cancel_probe()
                 self.connection._datagrams_pending.clear()
                 try:
-                    # Emit any requested stream reset before closing the transport.
-                    self._flush(sock)
+                    # With queued payloads cleared, still emit a requested
+                    # stream reset and the final QUIC CONNECTION_CLOSE.
+                    self._flush(sock, teardown=True)
                     self.connection.close(error_code=self.code.H3_NO_ERROR)
-                    self._flush(sock)
+                    self._flush(sock, teardown=True)
                 except Exception:
                     pass  # The socket is still closed by the worker's context.
 
