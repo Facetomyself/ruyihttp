@@ -1,0 +1,93 @@
+{
+  "source": "Mozilla official Firefox en-US Linux aarch64",
+  "captured_utc": "2026-11-26",
+  "captures": {
+    "159": {
+      "build_id": "20261022150525",
+      "sha256": "de7b16588bf3ab11774f6c1b1461dafde943c1cf0ea93dc15aa5f7bd99aa1191",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/159.0/linux-aarch64/en-US/firefox-159.0.tar.xz",
+      "protocols": ["h1", "h2"]
+    },
+    "160": {
+      "build_id": "20261104181552",
+      "sha256": "0fd9e4fd7ab97f7b1eec42f70e809080679498ebabd78fd692f0b94f9b6bf92f",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/160.0/linux-aarch64/en-US/firefox-160.0.tar.xz",
+      "protocols": ["h1", "h2"]
+    },
+    "161": {
+      "build_id": "20261118180411",
+      "sha256": "b3c2992292efc4a2f7ab6abe2de0ba6e15a482d41813e469c255a2528cacf10a",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/161.0/linux-aarch64/en-US/firefox-161.0.tar.xz",
+      "protocols": ["h1", "h2", "h3"]
+    }
+  },
+  "observations": {
+    "user_agent_template": "Mozilla/5.0 (X11; Linux x86_64; rv:{major}.0) Gecko/20100101 Firefox/{major}.0",
+    "h1": {
+      "headers": [
+        ["Host", "<loopback-authority>"],
+        ["User-Agent", "<version-specific>"],
+        ["Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"],
+        ["Accept-Language", "en-US,en;q=0.9"],
+        ["Accept-Encoding", "gzip, deflate, br, zstd"],
+        ["Connection", "keep-alive"],
+        ["Upgrade-Insecure-Requests", "1"],
+        ["Sec-Fetch-Dest", "document"],
+        ["Sec-Fetch-Mode", "navigate"],
+        ["Sec-Fetch-Site", "none"],
+        ["Sec-Fetch-User", "?1"],
+        ["Priority", "u=0, i"]
+      ]
+    },
+    "h2": {
+      "headers": [
+        [":method", "GET"],
+        [":path", "/profile-wire"],
+        [":authority", "<loopback-authority>"],
+        [":scheme", "https"],
+        ["user-agent", "<version-specific>"],
+        ["accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"],
+        ["accept-language", "en-US,en;q=0.9"],
+        ["accept-encoding", "gzip, deflate, br, zstd"],
+        ["upgrade-insecure-requests", "1"],
+        ["sec-fetch-dest", "document"],
+        ["sec-fetch-mode", "navigate"],
+        ["sec-fetch-site", "none"],
+        ["sec-fetch-user", "?1"],
+        ["priority", "u=0, i"],
+        ["te", "trailers"]
+      ],
+      "settings": [[1, 65536], [2, 0], [4, 131072], [5, 16384]]
+    },
+    "client_hello": {
+      "legacy_version": 771,
+      "ciphers": [4865, 4867, 4866, 49195, 49199, 52393, 52392, 49196, 49200, 49171, 49172, 156, 157, 47, 53],
+      "extensions": [0, 5, 10, 11, 13, 16, 18, 23, 27, 28, 34, 35, 43, 45, 51, 65037, 65281],
+      "groups": [4588, 29, 23, 24, 25],
+      "signatures": [1027, 1283, 1539, 2052, 2053, 2054, 1025, 1281, 1537, 515, 513],
+      "cert_compression": [1, 2, 3],
+      "supported_versions": [772, 771],
+      "key_share_groups": [4588, 29, 23],
+      "offered_alpn": ["h2", "http/1.1"]
+    },
+    "h3_fetch": {
+      "firefox": "161",
+      "alpn": "h3",
+      "quic_version": 1798521807,
+      "settings": [[1, 65536], [7, 20], [8, 1], [51, 1], [16765559, 1], [727725890, 0]],
+      "transport_parameters": {
+        "active_connection_id_limit": 8,
+        "disable_active_migration": false,
+        "initial_max_data": 25165824,
+        "initial_max_stream_data_bidi_local": 12582912,
+        "initial_max_stream_data_bidi_remote": 1048576,
+        "initial_max_stream_data_uni": 1048576,
+        "initial_max_streams_bidi": 100,
+        "initial_max_streams_uni": 100,
+        "max_ack_delay": 20,
+        "max_datagram_frame_size": 65535,
+        "max_idle_timeout": 30000
+      }
+    }
+  }
+}
