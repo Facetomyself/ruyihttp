@@ -193,12 +193,14 @@ def launch(browser, arch, profile, url, directory, case):
         argv[:0] = ['/usr/bin/arch', '-' + arch]
     if sys.platform == 'win32':
         argv.insert(1, '-wait-for-browser')
-    env = dict(os.environ)
-    reserved = ('MOZ_', 'XRE_', 'NSS_', 'SSLKEYLOGFILE', 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY',
-                'LD_PRELOAD', 'LD_LIBRARY_PATH', 'DYLD_')
-    env = {k: v for k, v in env.items() if not k.upper().startswith(reserved)}
+    allowed = {'PATH', 'SYSTEMROOT', 'WINDIR', 'SYSTEMDRIVE', 'PROGRAMFILES', 'PROGRAMFILES(X86)',
+               'PROGRAMDATA', 'COMSPEC', 'LANG', 'LC_ALL'}
+    env = {k: v for k, v in os.environ.items() if k.upper() in allowed}
     (directory / 'home').mkdir()
-    env.update(HOME=str(directory / 'home'), MOZ_CRASHREPORTER_DISABLE='1', MOZ_NO_REMOTE='1', MOZ_HEADLESS='1')
+    scratch = directory / 'scratch'
+    scratch.mkdir()
+    env.update(HOME=str(directory / 'home'), TMPDIR=str(scratch), TEMP=str(scratch), TMP=str(scratch),
+               MOZ_CRASHREPORTER_DISABLE='1', MOZ_NO_REMOTE='1', MOZ_HEADLESS='1')
     if case == 'h3':
         env['MOZ_LOG'] = 'neqo_http3:3,neqo_transport:3,pipnss:3,certverifier:3'
     if sys.platform == 'win32':
@@ -332,7 +334,7 @@ def identity(slot, record, work):
 
 
 def save_json(path, value):
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=True) + '\n', encoding='utf-8')
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=True) + '\n', encoding='utf-8', newline='\n')
 
 
 def capture(slot, release, work, out, samples):

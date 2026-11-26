@@ -52,16 +52,20 @@ def admit(slot, run, artifact, jobs, archive, destination):
             expect(h3['grease_settings'] == grease_settings(h3['settings']), 'H3 GREASE positions are inconsistent')
             expect(h3['initial']['transport_parameter_ids'] and h3['initial']['udp_payload_bytes'] >= 1200,
                    'missing first QUIC Initial metadata')
+    # The repository's JSON files are LF; a Windows runner may have emitted
+    # CRLF before LF writing was explicit. Retain the exact raw artifact hash.
+    canonical = raw.replace(b'\r\n', b'\n')
     destination.mkdir(parents=True, exist_ok=True)
     path = destination / f'{slot}.json'
     if path.exists():
-        expect(path.read_bytes() == raw, 'different fixture already exists; retain the original before replacing')
+        expect(path.read_bytes() == canonical, 'different fixture already exists; retain the original before replacing')
     else:
         with path.open('xb') as file:
-            file.write(raw)
+            file.write(canonical)
     return {'slot': slot, 'run_id': ident, 'run_attempt': attempt, 'run_head_sha': head, 'run_url': run['html_url'],
             'job_id': job['id'], 'job_url': job['html_url'], 'artifact_id': artifact['id'],
-            'artifact_digest': artifact['digest'], 'fixture_digest': f'sha256:{hashlib.sha256(raw).hexdigest()}'}
+            'artifact_digest': artifact['digest'], 'artifact_member_digest': f'sha256:{hashlib.sha256(raw).hexdigest()}',
+            'fixture_digest': f'sha256:{hashlib.sha256(canonical).hexdigest()}'}
 
 
 def main():
