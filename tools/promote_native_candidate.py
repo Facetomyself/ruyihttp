@@ -28,20 +28,27 @@ def require(condition, detail):
         raise ValueError(detail)
 
 
-def verify_wire_receipts(report, slot, package_version, entry):
-    """Recompute the exact-slot official comparison, rather than trust a success string."""
+def verify_wire_receipts(report, receipt_path, slot, package_version, entry):
+    """Recompute stable fields and repeat proof against the same-slot official reference."""
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'ci'))
     try:
-        from firefox_wire import (MODES, REFERENCE_DIR, RELEASES, SCHEMA_VERSION, SLOTS,
-                                  decode_json, diff, load_reference, stable_wire)
+        from firefox_wire import (MODES, REFERENCE_DIR, RELEASES, REPEAT_LIMIT, SCHEMA_VERSION,
+                                  SLOTS, decode_json, load_reference)
     except ImportError as error:
-        raise ValueError('Strict same-slot Firefox wire gate is required for admission') from error
+        raise ValueError('Repeat-aware same-slot Firefox wire gate is required for admission') from error
+    reference_path = REFERENCE_DIR / f'{slot}.json'
+    reference_sha256 = sha256(reference_path)
     expected = load_reference(REFERENCE_DIR, slot)
+    require(sha256(reference_path) == reference_sha256, 'Official reference changed during verification')
     platform, arch, _ = SLOTS[slot]
     version_numbers = {'h1': 11, 'h2': 20, 'h3': 30}
-    records = [decode_json(line) for line in report.splitlines() if line.startswith('{')]
+    receipts = receipt_path.read_bytes()
+    lines = receipts.decode('utf-8').splitlines()
+    require(lines == [line for line in report.splitlines() if line.startswith('{')],
+            'Machine-readable wire receipts differ from the hosted qualification log')
+    records = [decode_json(line) for line in lines]
     require(tuple(record['firefox'] for record in records) == RELEASES,
-            'Expected one installed-wheel receipt for each of 159, 160, 161')
+            'Expected one installed-wheel receipt series for each of 159, 160, 161')
     for record in records:
         release = record['firefox']
         require((record['schema_version'], record['source'], record['slot'], record['platform'], record['arch'],
@@ -49,21 +56,36 @@ def verify_wire_receipts(report, slot, package_version, entry):
                 (SCHEMA_VERSION, 'installed-wheel', slot, platform, arch,
                  package_version, entry['firefox'], entry['nss'], entry['neqo']),
                 f'Wrong installed-wheel receipt identity: Firefox {release}')
-        require(record['differences'] == {} and 'capture_error' not in record and
-                not diff(expected[release], stable_wire(record['wire'])),
+        repeats = record.get('repeats')
+        require(isinstance(repeats, list) and len(repeats) < REPEAT_LIMIT and
+                all(isinstance(sample, dict) and sample.keys() == {'wire', 'responses'} for sample in repeats),
+                f'Missing or malformed wire repeat receipts: Firefox {release}')
+        samples = [record, *repeats]
+        wires = [sample['wire'] for sample in samples]
+        policy = expected[release]
+        proof = policy.repeat_proof(wires)
+        require(proof['complete'] is True and record.get('repeat_proof') == proof,
+                f'Missing or inconsistent fresh TLS permutation evidence: Firefox {release}')
+        require(record['differences'] == {} and 'capture_error' not in record and 'repeat_capture_error' not in record and
+                not policy.compare_receipt(wires[0], repeats),
                 f'Official Firefox wire comparison did not pass: Firefox {release}')
-        responses = record['responses']
-        require(responses.keys() == MODES.keys(), f'Incomplete Firefox {release} response witnesses')
-        for protocol, mode in MODES.items():
-            response = responses[protocol]
-            tls = response['tls']
-            allowed_alpn = ('', 'http/1.1') if protocol == 'h1' else (protocol,)
-            require(record['wire'][protocol]['mode'] == mode and
-                    (response['status'], response['http_version']) == (200, version_numbers[protocol]) and
-                    (tls['backend'], tls['nss'], tls['profile'], tls['version']) ==
-                    ('NSS', entry['nss'], f'firefox-{release}', 0x0304) and tls['alpn'] in allowed_alpn,
-                    f'Wrong Firefox {release} {protocol} installed-wheel context or TLS witness')
-    return sha256(REFERENCE_DIR / f'{slot}.json')
+        require(len({tuple(wire[protocol]['port'] for protocol in MODES) for wire in wires}) == len(wires),
+                f'Repeated Firefox {release} receipts reuse the same origin set')
+        for sample in samples:
+            responses = sample['responses']
+            require(responses.keys() == MODES.keys() | {'bootstrap'},
+                    f'Incomplete Firefox {release} response witnesses')
+            for role, response in responses.items():
+                protocol = 'h1' if role == 'bootstrap' else role
+                wire = sample['wire']['h3']['bootstrap'][0] if role == 'bootstrap' else sample['wire'][role]
+                tls = response['tls']
+                allowed_alpn = ('', 'http/1.1') if protocol == 'h1' else (protocol,)
+                require(wire['mode'] == MODES[protocol] and
+                        (response['status'], response['http_version']) == (200, version_numbers[protocol]) and
+                        (tls['backend'], tls['nss'], tls['profile'], tls['version']) ==
+                        ('NSS', entry['nss'], f'firefox-{release}', 0x0304) and tls['alpn'] in allowed_alpn,
+                        f'Wrong Firefox {release} {role} installed-wheel context or TLS witness')
+    return reference_sha256, digest(receipts).hexdigest()
 
 
 def promote(args):
@@ -79,10 +101,17 @@ def promote(args):
     require(job['run_id'] == run_id and job['head_sha'] == run['head_sha'] and
             job['conclusion'] == 'success' and job['html_url'] == f'{run["html_url"]}/job/{job["id"]}',
             'Target job did not successfully qualify those bytes')
-    required_artifact = f'verified-native-wheel-{slot}-{run_id}-{attempt}'
-    artifacts = [a for a in artifacts['artifacts'] if a['name'] == required_artifact]
-    require(len(artifacts) == 1 and not artifacts[0]['expired'], 'Verified wheel artifact missing or expired')
-    artifact, = artifacts
+    def run_artifact(prefix):
+        required = f'{prefix}-{slot}-{run_id}-{attempt}'
+        selected = [a for a in artifacts['artifacts'] if a['name'] == required]
+        require(len(selected) == 1 and not selected[0]['expired'], f'{prefix} artifact missing or expired')
+        item, = selected
+        require((item['workflow_run']['id'], item['workflow_run']['head_sha']) == (run_id, run['head_sha']),
+                f'{prefix} artifact belongs to a different run or commit')
+        return item
+
+    artifact = run_artifact('verified-native-wheel')
+    evidence_artifact = run_artifact('native-evidence')
     require(evidence.joinpath('runner.txt').read_text(encoding='utf-8').splitlines()[0] == run['head_sha'],
             'Evidence does not identify the qualifying commit')
     source_id, source_attempt, source_sha = run_id, attempt, run['head_sha']
@@ -95,8 +124,10 @@ def promote(args):
     candidate = read(evidence / 'runtime-manifest.json')
     entry = candidate['platforms'][slot]
     require(provenance['platform'] == slot and entry['status'] == 'ready', 'Unexpected candidate slot')
-    require(re.fullmatch(r'\d+\.\d+\.\d+', candidate['version'].split('.dev', 1)[0]) and
-            candidate['version'].endswith(f'.dev{run_id}+gha.{attempt}') and
+    manifest = load_manifest()
+    version = manifest['version']
+    require(re.fullmatch(r'\d+\.\d+\.\d+', version) and
+            candidate['version'] == f'{version}.dev{run_id}+gha.{attempt}' and
             wheel.name == f'ruyihttp-{candidate["version"]}-py3-none-{entry["wheel_platform_tag"]}.whl',
             'Candidate wheel version or platform does not match the qualifying run')
     actual_files, wheel_digest = inspect_stable_wheel(wheel, slot)
@@ -138,6 +169,7 @@ def promote(args):
         require(provenance['macho_minimum_macos'] == entry['macho_minimum_macos'] and
                 provenance['minimum_macos'] == entry['minimum_macos'], 'Missing Mach-O deployment evidence')
     reference_hashes = set()
+    wire_receipts = {}
     for endpoint in ('3.10', '3.14'):
         markers = {'http1': ['local smoke OK'],
                    'native-transactions': ['H3 binary body ABI: 1', 'h2 200 20', 'h3 200 30',
@@ -155,7 +187,10 @@ def promote(args):
             require(report.endswith('Exit status: 0\n') and all(needle in report for needle in needles),
                     f'Native qualification witness missing at CPython {endpoint}: {name}')
             if name == 'firefox-profile-wire':
-                reference_hashes.add(verify_wire_receipts(report, slot, candidate['version'], entry))
+                reference_hash, receipt_hash = verify_wire_receipts(
+                    report, evidence / endpoint / 'firefox-profile-wire.jsonl', slot, candidate['version'], entry)
+                reference_hashes.add(reference_hash)
+                wire_receipts[endpoint] = receipt_hash
             if name == 'full-h3':
                 require('skipped' not in report and '127.0.0.1' in report and '[::1]' in report,
                         f'IPv4/IPv6 H3 proof missing at CPython {endpoint}')
@@ -164,7 +199,7 @@ def promote(args):
                         f'H3 ABI owner-thread proof missing at CPython {endpoint}')
     require(len(reference_hashes) == 1, 'Official reference changed during verification')
     reference_sha256, = reference_hashes
-    manifest = load_manifest()
+    require(load_manifest() == manifest, 'Local manifest changed during promotion verification')
     if args.check_only:
         print(f'Accepted proof for {slot} from {job["html_url"]}: {wheel.name}, SHA-256 {wheel_digest}')
         return
@@ -176,12 +211,14 @@ def promote(args):
     provenance['native_verification'] = {
         'run': run['html_url'], 'job': job['html_url'], 'ruyihttp_commit': run['head_sha'],
         'wheel_artifact': f'{run["html_url"]}/artifacts/{artifact["id"]}', 'wheel_sha256': wheel_digest,
+        'evidence_artifact': f'{run["html_url"]}/artifacts/{evidence_artifact["id"]}',
         'source_build_run': repo_url + str(source_id), 'source_build_attempt': source_attempt,
         'source_build_commit': source_sha,
         'cpython_runtime_endpoints': ['3.10', '3.14'], 'tested_http': ['http/1.1', 'h2', 'h3'], 'h3_body_abi': 1,
         'in_place_upgrade_from': '0.9.0', 'tested_firefox_profiles': ['159', '160', '161'],
         'h3_protocol_policy': H3_PROTOCOL_POLICY,
         'same_slot_firefox_reference_sha256': reference_sha256,
+        'same_slot_firefox_wire_receipt_sha256': wire_receipts,
         'tested_quic_policy_profiles': ['144', '145', '154', '155', '159', '160', '161'],
     }
     for name, data in actual_files.items():
@@ -201,5 +238,5 @@ if __name__ == '__main__':
         parser.add_argument(name, type=Path)
     try:
         promote(parser.parse_args())
-    except (KeyError, OSError, ValueError) as error:
+    except (KeyError, OSError, TypeError, ValueError) as error:
         parser.error(str(error))
