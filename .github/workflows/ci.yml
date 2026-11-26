@@ -10,7 +10,12 @@ permissions:
   contents: read
 
 jobs:
+  official-firefox-reference:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/parity/official-wire-20261126-133128-captures'
+    uses: ./.github/workflows/firefox-reference.yml
+
   lint:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/parity/official-wire-20261126-133128-captures'
     name: Lint
     runs-on: ubuntu-latest
     steps:
@@ -26,6 +31,7 @@ jobs:
           python -m pyflakes ruyihttp tests tools ci
 
   test:
+    if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/parity/official-wire-20261126-133128-captures'
     name: ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     strategy:
