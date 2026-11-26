@@ -11,12 +11,13 @@ import sys
 import tempfile
 
 from aioquic.asyncio import QuicConnectionProtocol, serve
+from aioquic.buffer import Buffer
 from aioquic.h3.connection import H3Connection, Setting
 from aioquic.h3.events import HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.events import HandshakeCompleted
 from aioquic.quic.logger import QuicLogger
-from aioquic.quic.packet import QuicProtocolVersion
+from aioquic.quic.packet import QuicPacketType, QuicProtocolVersion, pull_quic_header
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import Encoding
 
@@ -48,6 +49,13 @@ class Origin(QuicConnectionProtocol):
 
         self.http = PeerHTTP3(self._quic)
         assert (self.http.sent_settings.get(CONNECT) == 1) == peer_connect
+
+    def datagram_received(self, data, addr):
+        if 'initial_packet' not in self.observed:
+            header = pull_quic_header(Buffer(data=data), host_cid_length=self._quic._configuration.connection_id_length)
+            assert header.packet_type == QuicPacketType.INITIAL, header
+            self.observed['initial_packet'] = (int(header.version), len(header.source_cid), len(data))
+        super().datagram_received(data, addr)
 
     def quic_event_received(self, event):
         if isinstance(event, HandshakeCompleted):
@@ -196,13 +204,17 @@ async def policy(slot):
         for version in ('144', '145', '154', '155', '159', '160', '161'):
             profile = quic_profile(version, platform)
             observed = await transactions(call, cert, version, profile, both)
-            assert observed['initial'] == V1, observed
+            initial_version, scid_length, udp_bytes = observed['initial_packet']
+            assert observed['initial'] == initial_version == V1 and scid_length == 3, observed
+            if int(version) >= 159:
+                assert udp_bytes == 1252, observed
             assert observed['available'] == ([V2, V1] if profile['version2'] else [V1]), observed
             assert observed['version'] == (V2 if profile['version2'] else V1), observed
             assert observed['settings'].get(CONNECT) == (1 if profile['h3_connect'] else None), observed
             assert observed['settings'].get(WT, 0) == 0 and observed['windows'] == MAX_WINDOWS, observed
-            print(f'Firefox {version}: Initial=v1 negotiated=0x{observed["version"]:08x} '
-                  f'CONNECT={observed["settings"].get(CONNECT)} windows={observed["windows"]}', flush=True)
+            print(f'Firefox {version}: Initial=v1 SCID={scid_length} first_udp={udp_bytes} '
+                  f'negotiated=0x{observed["version"]:08x} CONNECT={observed["settings"].get(CONNECT)} '
+                  f'windows={observed["windows"]}', flush=True)
 
         observed = await transactions(call, cert, '161', current, (V1,), peer_connect=False)
         assert observed['initial'] == observed['version'] == V1 and observed['available'] == [V2, V1], observed

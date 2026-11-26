@@ -1,5 +1,5 @@
 diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
-index 07536c3..30c292d 100644
+index 07536c3..4a77e7a 100644
 --- a/native/necko_quic/src/lib.rs
 +++ b/native/necko_quic/src/lib.rs
 @@ -29,7 +29,7 @@ use neqo_http3::{
@@ -52,7 +52,7 @@ index 07536c3..30c292d 100644
  }
  
  const APPLE_COMPRESSION_ZLIB: u32 = 0x205;
-@@ -804,12 +814,16 @@ fn command_new(body: &Value) -> Result<Value, String> {
+@@ -804,16 +814,21 @@ fn command_new(body: &Value) -> Result<Value, String> {
          .map_err(|_| "HTTP/3 remote address is invalid".to_string())?;
      let profile = body.get("profile").cloned().unwrap_or_else(|| json!({}));
      let firefox = body.get("firefox").and_then(Value::as_str).map(str::to_owned);
@@ -71,3 +71,9 @@ index 07536c3..30c292d 100644
      let mut connection = Connection::new_client(
          host,
          &["h3"],
+-        Rc::new(RefCell::new(RandomConnectionIdGenerator::new(8))),
++        // Gecko's HTTP/3 client uses a three-byte source connection ID.
++        Rc::new(RefCell::new(RandomConnectionIdGenerator::new(3))),
+         local,
+         remote,
+         http3.get_connection_parameters().clone(),
