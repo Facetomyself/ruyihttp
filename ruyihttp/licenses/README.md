@@ -10,6 +10,11 @@ export to their declared license, version, upstream repository, and included
 license documents. The export includes build-time and optional dependencies;
 this is a notice inventory, not a list of crates proven to be linked into the DLL.
 
+`firefox-161-license.html` and `rust-dependencies-windows-0.11.0.json` supplement
+these notices for the six imported Windows DLLs. The latter records 107 upstream
+build dependencies and references the extra Rust license texts for the 0.11.0 donor.
+The older notices remain available alongside the supplemental Windows notices.
+
 License documents are copied verbatim. Identical documents are stored once and
 referenced by every applicable package. Copyright and license headers are
 retained in the index where a package has no separate license file. The Neqo

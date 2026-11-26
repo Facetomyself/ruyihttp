@@ -6,7 +6,9 @@ Firefox/NSS by themselves.
 | Script | Purpose |
 | --- | --- |
 | `build_native.py --inspect-wheel <wheel> --platform <platform>` | Read declared native entries with bounded ZIP inspection, verify their names and ELF/Mach-O/PE architecture, and report hashes. |
-| `build_native.py --wheel <wheel> --platform <platform>` | Historical import path. Validates the entire selected set before touching native files or the runtime manifest. |
+| `build_native.py --wheel <wheel> --platform <platform>` | Historical POSIX import path. Validates the entire selected set before touching native files or the runtime manifest. |
+| `sync_windows_native.py --wheel <wheel> [--apply]` | Read-only by default; verify the pinned PyPI 0.11.0 wheel, RECORD and PE ABI policy, then optionally update only the six Windows DLLs and their slot metadata. |
+| `sync_windows_native.py --check-slot [--wheel <wheel>]` | Recompute Windows PE export inventory and check the tracked DLLs and metadata; with `--wheel`, also compare the exact donor bytes. |
 | `build_native.py --check` | Verify every ready platform's files against the manifest hashes. |
 | `verify_runtime.py` | Check the required `necko_*` exports and NSS version markers. |
 | `check_linux_candidate.py DIR --arch aarch64` | Read-only ELF, ABI, loader-path and glibc dependency preflight for a complete Linux candidate. Use `--reference` for historical artifact analysis; no runtime qualification. |
@@ -14,8 +16,8 @@ Firefox/NSS by themselves.
 Use the [Native runtime qualification and source candidates workflow](../.github/workflows/native-arm64-intel.yml)
 for POSIX `rebuild` (pinned builds) or `requalify` (the exact native bytes of a
 named diagnostic artifact rebuilt into a fresh candidate wheel). Both run
-installed wheels on CPython 3.10 and 3.14. Windows uses the `verify` mode with
-its original DLL set.
+installed wheels on CPython 3.10 and 3.14. Windows uses `platform=win_amd64`
+with `mode=verify` to qualify the tracked DLL import on hosted Windows x64.
 
 For promotion, download the successful target job's `verified-native-wheel`
 and `native-evidence` artifacts. Save the read-only GitHub Actions API responses

@@ -1,0 +1,37 @@
+{
+  "wheel": "ruyihttp-0.11.0-py3-none-win_amd64.whl",
+  "wheel_sha256": "79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332",
+  "normalization": "CRLF to LF",
+  "files": {
+    "firefox-161-license.html": {
+      "wheel_member": "ruyihttp-0.11.0.dist-info/licenses/ruyihttp/licenses/firefox-license.html",
+      "wheel_sha256": "573b275dfb82a9c20ad8bd76ee52ff9c01b36d16b0bdb207b1695c1db98bd423",
+      "installed_sha256": "573b275dfb82a9c20ad8bd76ee52ff9c01b36d16b0bdb207b1695c1db98bd423"
+    },
+    "rust-dependencies-windows-0.11.0.json": {
+      "wheel_member": "ruyihttp-0.11.0.dist-info/licenses/ruyihttp/licenses/rust-dependencies.json",
+      "wheel_sha256": "a67c072fb25380c874ced3d74cab73262a8641e59691e600b274f2cfdc11a2c4",
+      "installed_sha256": "dcdf4cfb8c1886c4f4b1a398ff0e899c69528dfc6f11e70a92f76deafe519d02"
+    },
+    "rust-humantime-2.4.0-LICENSE-MIT.txt": {
+      "wheel_member": "ruyihttp-0.11.0.dist-info/licenses/ruyihttp/licenses/rust-humantime-2.4.0-LICENSE-MIT.txt",
+      "wheel_sha256": "f6deca8261a8f4a3403dc74c725c46051157fd36c27cd4b100277eb1f303ad11",
+      "installed_sha256": "f6deca8261a8f4a3403dc74c725c46051157fd36c27cd4b100277eb1f303ad11"
+    },
+    "rust-qlog-0.18.1-COPYING.txt": {
+      "wheel_member": "ruyihttp-0.11.0.dist-info/licenses/ruyihttp/licenses/rust-qlog-0.18.1-COPYING.txt",
+      "wheel_sha256": "2ef4b5abfce387a83933bda738e72467a79d15c1c17679143ec55011dae66b84",
+      "installed_sha256": "2ef4b5abfce387a83933bda738e72467a79d15c1c17679143ec55011dae66b84"
+    },
+    "rust-quinn-udp-0.6.3-LICENSE-APACHE.txt": {
+      "wheel_member": "ruyihttp-0.11.0.dist-info/licenses/ruyihttp/licenses/rust-quinn-udp-0.6.3-LICENSE-APACHE.txt",
+      "wheel_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "installed_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    "rust-quinn-udp-0.6.3-LICENSE-MIT.txt": {
+      "wheel_member": "ruyihttp-0.11.0.dist-info/licenses/ruyihttp/licenses/rust-quinn-udp-0.6.3-LICENSE-MIT.txt",
+      "wheel_sha256": "4b2d0aca6789fa39e03d6738e869ea0988cceba210ca34ebb59c15c463e93a04",
+      "installed_sha256": "4b2d0aca6789fa39e03d6738e869ea0988cceba210ca34ebb59c15c463e93a04"
+    }
+  }
+}

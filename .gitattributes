@@ -5,6 +5,11 @@
 *.dat text eol=lf
 *.json text eol=lf
 SHA256SUMS text eol=lf
+# Preserve the exact Mozilla notice template, including blank indentation.
+ruyihttp/licenses/firefox-161-license.html text eol=lf whitespace=-blank-at-eol,-blank-at-eof
+ruyihttp/licenses/rust-humantime-2.4.0-LICENSE-MIT.txt text eol=lf
+ruyihttp/licenses/rust-qlog-0.18.1-COPYING.txt text eol=lf
+ruyihttp/licenses/rust-quinn-udp-0.6.3-LICENSE-*.txt text eol=lf
 # A blank context line in a unified diff is one space. Check the applied
 # patch's added lines in the native build instead; preserve its exact SHA.
 native/patches/*.patch text eol=lf whitespace=-blank-at-eol
