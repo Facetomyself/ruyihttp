@@ -35,7 +35,7 @@
       "packaged_executables": {
         "firefox.exe": "d8b5ed82fcd9c0f159dc86dc1c4526ceae981c4d9651f21908b6de90d0a56d85"
       },
-      "acquired_unix": 1795672817,
+      "acquired_unix": 1795673687,
       "samples": [
         {
           "h1": {
@@ -134,7 +134,7 @@
             },
             "client_hello_count": 1,
             "protocol": "http/1.1",
-            "port": 50059,
+            "port": 54767,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -144,7 +144,7 @@
             "headers": [
               [
                 "Host",
-                "localhost:50059"
+                "localhost:54767"
               ],
               [
                 "User-Agent",
@@ -294,7 +294,7 @@
             },
             "client_hello_count": 1,
             "protocol": "h2",
-            "port": 50069,
+            "port": 54802,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -329,7 +329,7 @@
               ],
               [
                 ":authority",
-                "localhost:50069"
+                "localhost:54802"
               ],
               [
                 ":scheme",
@@ -388,17 +388,18 @@
             }
           },
           "h3": {
-            "port": 50091,
+            "port": 54836,
             "mode": "same-origin-fetch",
             "protocol": "h3",
             "quic_version": 1798521807,
             "initial": {
               "version": 1,
               "udp_payload_bytes": 1252,
-              "packet_bytes": 994,
-              "dcid_length": 10,
+              "packet_bytes": 992,
+              "dcid_length": 8,
               "scid_length": 3,
               "token_length": 0,
+              "packet_number_length": 1,
               "transport_parameter_ids": [
                 1,
                 4,
@@ -418,7 +419,7 @@
               "version_information": {
                 "chosen": 1,
                 "available": [
-                  441092634,
+                  3932834410,
                   1798521807,
                   1
                 ]
@@ -436,19 +437,19 @@
                 0
               ],
               "extensions": [
-                23,
-                51,
+                16,
                 34,
-                45,
+                43,
                 27,
                 0,
+                5,
+                45,
+                23,
                 10,
-                16,
+                28,
                 13,
                 65281,
-                28,
-                5,
-                43,
+                51,
                 57,
                 65037
               ],
@@ -537,7 +538,7 @@
               ],
               [
                 ":authority",
-                "localhost:50091"
+                "localhost:54836"
               ],
               [
                 ":path",
@@ -561,11 +562,11 @@
               ],
               [
                 "referer",
-                "https://localhost:50091/boot"
+                "https://localhost:54836/boot"
               ],
               [
                 "alt-used",
-                "localhost:50091"
+                "localhost:54836"
               ],
               [
                 "sec-fetch-dest",
@@ -597,6 +598,7 @@
               "max_datagram_frame_size": 65535,
               "max_idle_timeout": 30000
             },
+            "bootstrap_protocol": "h1",
             "bootstrap": [
               {
                 "hello": {
@@ -693,91 +695,62 @@
                   ]
                 },
                 "client_hello_count": 1,
-                "protocol": "h2",
-                "port": 50091,
+                "protocol": "http/1.1",
+                "port": 54836,
                 "mode": "navigation",
                 "negotiated_tls": {
                   "version": "TLSv1.3",
                   "cipher": "TLS_AES_256_GCM_SHA384"
                 },
-                "settings": [
-                  [
-                    1,
-                    65536
-                  ],
-                  [
-                    2,
-                    0
-                  ],
-                  [
-                    4,
-                    131072
-                  ],
-                  [
-                    5,
-                    16384
-                  ]
-                ],
+                "request_line": "GET /boot HTTP/1.1",
                 "headers": [
                   [
-                    ":method",
-                    "GET"
+                    "Host",
+                    "localhost:54836"
                   ],
                   [
-                    ":path",
-                    "/boot"
-                  ],
-                  [
-                    ":authority",
-                    "localhost:50091"
-                  ],
-                  [
-                    ":scheme",
-                    "https"
-                  ],
-                  [
-                    "user-agent",
+                    "User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:159.0) Gecko/20100101 Firefox/159.0"
                   ],
                   [
-                    "accept",
+                    "Accept",
                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                   ],
                   [
-                    "accept-language",
+                    "Accept-Language",
                     "en-US,en;q=0.9"
                   ],
                   [
-                    "accept-encoding",
+                    "Accept-Encoding",
                     "gzip, deflate, br, zstd"
                   ],
                   [
-                    "upgrade-insecure-requests",
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
                     "1"
                   ],
                   [
-                    "sec-fetch-dest",
+                    "Sec-Fetch-Dest",
                     "document"
                   ],
                   [
-                    "sec-fetch-mode",
+                    "Sec-Fetch-Mode",
                     "navigate"
                   ],
                   [
-                    "sec-fetch-site",
+                    "Sec-Fetch-Site",
                     "none"
                   ],
                   [
-                    "sec-fetch-user",
+                    "Sec-Fetch-User",
                     "?1"
                   ],
                   [
-                    "priority",
+                    "Priority",
                     "u=0, i"
-                  ],
-                  [
-                    "te",
-                    "trailers"
                   ]
                 ]
               }
@@ -887,7 +860,7 @@
             },
             "client_hello_count": 1,
             "protocol": "http/1.1",
-            "port": 50139,
+            "port": 54887,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -897,7 +870,7 @@
             "headers": [
               [
                 "Host",
-                "localhost:50139"
+                "localhost:54887"
               ],
               [
                 "User-Agent",
@@ -1047,7 +1020,7 @@
             },
             "client_hello_count": 1,
             "protocol": "h2",
-            "port": 50155,
+            "port": 54936,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -1082,7 +1055,7 @@
               ],
               [
                 ":authority",
-                "localhost:50155"
+                "localhost:54936"
               ],
               [
                 ":scheme",
@@ -1141,7 +1114,7 @@
             }
           },
           "h3": {
-            "port": 58967,
+            "port": 54977,
             "mode": "same-origin-fetch",
             "protocol": "h3",
             "quic_version": 1798521807,
@@ -1152,6 +1125,7 @@
               "dcid_length": 8,
               "scid_length": 3,
               "token_length": 0,
+              "packet_number_length": 1,
               "transport_parameter_ids": [
                 1,
                 4,
@@ -1171,7 +1145,7 @@
               "version_information": {
                 "chosen": 1,
                 "available": [
-                  2599041594,
+                  2057980554,
                   1798521807,
                   1
                 ]
@@ -1189,19 +1163,19 @@
                 0
               ],
               "extensions": [
-                10,
-                51,
-                0,
-                27,
-                28,
-                16,
-                43,
-                45,
                 13,
-                23,
+                27,
                 5,
-                65281,
+                45,
+                10,
+                16,
+                23,
                 34,
+                0,
+                65281,
+                51,
+                28,
+                43,
                 57,
                 65037
               ],
@@ -1290,7 +1264,7 @@
               ],
               [
                 ":authority",
-                "localhost:58967"
+                "localhost:54977"
               ],
               [
                 ":path",
@@ -1314,11 +1288,11 @@
               ],
               [
                 "referer",
-                "https://localhost:58967/boot"
+                "https://localhost:54977/boot"
               ],
               [
                 "alt-used",
-                "localhost:58967"
+                "localhost:54977"
               ],
               [
                 "sec-fetch-dest",
@@ -1350,6 +1324,7 @@
               "max_datagram_frame_size": 65535,
               "max_idle_timeout": 30000
             },
+            "bootstrap_protocol": "h1",
             "bootstrap": [
               {
                 "hello": {
@@ -1446,91 +1421,62 @@
                   ]
                 },
                 "client_hello_count": 1,
-                "protocol": "h2",
-                "port": 58967,
+                "protocol": "http/1.1",
+                "port": 54977,
                 "mode": "navigation",
                 "negotiated_tls": {
                   "version": "TLSv1.3",
                   "cipher": "TLS_AES_256_GCM_SHA384"
                 },
-                "settings": [
-                  [
-                    1,
-                    65536
-                  ],
-                  [
-                    2,
-                    0
-                  ],
-                  [
-                    4,
-                    131072
-                  ],
-                  [
-                    5,
-                    16384
-                  ]
-                ],
+                "request_line": "GET /boot HTTP/1.1",
                 "headers": [
                   [
-                    ":method",
-                    "GET"
+                    "Host",
+                    "localhost:54977"
                   ],
                   [
-                    ":path",
-                    "/boot"
-                  ],
-                  [
-                    ":authority",
-                    "localhost:58967"
-                  ],
-                  [
-                    ":scheme",
-                    "https"
-                  ],
-                  [
-                    "user-agent",
+                    "User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:159.0) Gecko/20100101 Firefox/159.0"
                   ],
                   [
-                    "accept",
+                    "Accept",
                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                   ],
                   [
-                    "accept-language",
+                    "Accept-Language",
                     "en-US,en;q=0.9"
                   ],
                   [
-                    "accept-encoding",
+                    "Accept-Encoding",
                     "gzip, deflate, br, zstd"
                   ],
                   [
-                    "upgrade-insecure-requests",
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
                     "1"
                   ],
                   [
-                    "sec-fetch-dest",
+                    "Sec-Fetch-Dest",
                     "document"
                   ],
                   [
-                    "sec-fetch-mode",
+                    "Sec-Fetch-Mode",
                     "navigate"
                   ],
                   [
-                    "sec-fetch-site",
+                    "Sec-Fetch-Site",
                     "none"
                   ],
                   [
-                    "sec-fetch-user",
+                    "Sec-Fetch-User",
                     "?1"
                   ],
                   [
-                    "priority",
+                    "Priority",
                     "u=0, i"
-                  ],
-                  [
-                    "te",
-                    "trailers"
                   ]
                 ]
               }
@@ -1575,7 +1521,7 @@
       "packaged_executables": {
         "firefox.exe": "2454001b2ea1a1021e1d741e0ad808b17f7e2618e7b4c0e8689d91e9151db7be"
       },
-      "acquired_unix": 1795672850,
+      "acquired_unix": 1795673722,
       "samples": [
         {
           "h1": {
@@ -1674,7 +1620,7 @@
             },
             "client_hello_count": 1,
             "protocol": "http/1.1",
-            "port": 59028,
+            "port": 64015,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -1684,7 +1630,7 @@
             "headers": [
               [
                 "Host",
-                "localhost:59028"
+                "localhost:64015"
               ],
               [
                 "User-Agent",
@@ -1834,7 +1780,7 @@
             },
             "client_hello_count": 1,
             "protocol": "h2",
-            "port": 59050,
+            "port": 64054,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -1869,7 +1815,7 @@
               ],
               [
                 ":authority",
-                "localhost:59050"
+                "localhost:64054"
               ],
               [
                 ":scheme",
@@ -1928,17 +1874,18 @@
             }
           },
           "h3": {
-            "port": 59080,
+            "port": 64101,
             "mode": "same-origin-fetch",
             "protocol": "h3",
             "quic_version": 1798521807,
             "initial": {
               "version": 1,
               "udp_payload_bytes": 1252,
-              "packet_bytes": 999,
-              "dcid_length": 14,
+              "packet_bytes": 993,
+              "dcid_length": 8,
               "scid_length": 3,
               "token_length": 0,
+              "packet_number_length": 2,
               "transport_parameter_ids": [
                 1,
                 4,
@@ -1958,7 +1905,7 @@
               "version_information": {
                 "chosen": 1,
                 "available": [
-                  1515903594,
+                  980064778,
                   1798521807,
                   1
                 ]
@@ -1976,19 +1923,19 @@
                 0
               ],
               "extensions": [
-                27,
-                65281,
                 16,
-                13,
-                28,
+                23,
+                27,
+                34,
                 10,
+                5,
+                13,
+                65281,
                 43,
                 45,
-                34,
-                51,
-                5,
-                23,
                 0,
+                51,
+                28,
                 57,
                 65037
               ],
@@ -2077,7 +2024,7 @@
               ],
               [
                 ":authority",
-                "localhost:59080"
+                "localhost:64101"
               ],
               [
                 ":path",
@@ -2101,11 +2048,11 @@
               ],
               [
                 "referer",
-                "https://localhost:59080/boot"
+                "https://localhost:64101/boot"
               ],
               [
                 "alt-used",
-                "localhost:59080"
+                "localhost:64101"
               ],
               [
                 "sec-fetch-dest",
@@ -2137,6 +2084,7 @@
               "max_datagram_frame_size": 65535,
               "max_idle_timeout": 30000
             },
+            "bootstrap_protocol": "h1",
             "bootstrap": [
               {
                 "hello": {
@@ -2233,91 +2181,62 @@
                   ]
                 },
                 "client_hello_count": 1,
-                "protocol": "h2",
-                "port": 59080,
+                "protocol": "http/1.1",
+                "port": 64101,
                 "mode": "navigation",
                 "negotiated_tls": {
                   "version": "TLSv1.3",
                   "cipher": "TLS_AES_256_GCM_SHA384"
                 },
-                "settings": [
-                  [
-                    1,
-                    65536
-                  ],
-                  [
-                    2,
-                    0
-                  ],
-                  [
-                    4,
-                    131072
-                  ],
-                  [
-                    5,
-                    16384
-                  ]
-                ],
+                "request_line": "GET /boot HTTP/1.1",
                 "headers": [
                   [
-                    ":method",
-                    "GET"
+                    "Host",
+                    "localhost:64101"
                   ],
                   [
-                    ":path",
-                    "/boot"
-                  ],
-                  [
-                    ":authority",
-                    "localhost:59080"
-                  ],
-                  [
-                    ":scheme",
-                    "https"
-                  ],
-                  [
-                    "user-agent",
+                    "User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:160.0) Gecko/20100101 Firefox/160.0"
                   ],
                   [
-                    "accept",
+                    "Accept",
                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                   ],
                   [
-                    "accept-language",
+                    "Accept-Language",
                     "en-US,en;q=0.9"
                   ],
                   [
-                    "accept-encoding",
+                    "Accept-Encoding",
                     "gzip, deflate, br, zstd"
                   ],
                   [
-                    "upgrade-insecure-requests",
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
                     "1"
                   ],
                   [
-                    "sec-fetch-dest",
+                    "Sec-Fetch-Dest",
                     "document"
                   ],
                   [
-                    "sec-fetch-mode",
+                    "Sec-Fetch-Mode",
                     "navigate"
                   ],
                   [
-                    "sec-fetch-site",
+                    "Sec-Fetch-Site",
                     "none"
                   ],
                   [
-                    "sec-fetch-user",
+                    "Sec-Fetch-User",
                     "?1"
                   ],
                   [
-                    "priority",
+                    "Priority",
                     "u=0, i"
-                  ],
-                  [
-                    "te",
-                    "trailers"
                   ]
                 ]
               }
@@ -2427,7 +2346,7 @@
             },
             "client_hello_count": 1,
             "protocol": "http/1.1",
-            "port": 59128,
+            "port": 64152,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -2437,7 +2356,7 @@
             "headers": [
               [
                 "Host",
-                "localhost:59128"
+                "localhost:64152"
               ],
               [
                 "User-Agent",
@@ -2587,7 +2506,7 @@
             },
             "client_hello_count": 1,
             "protocol": "h2",
-            "port": 59160,
+            "port": 64190,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -2622,7 +2541,7 @@
               ],
               [
                 ":authority",
-                "localhost:59160"
+                "localhost:64190"
               ],
               [
                 ":scheme",
@@ -2681,17 +2600,18 @@
             }
           },
           "h3": {
-            "port": 59175,
+            "port": 64214,
             "mode": "same-origin-fetch",
             "protocol": "h3",
             "quic_version": 1798521807,
             "initial": {
               "version": 1,
               "udp_payload_bytes": 1252,
-              "packet_bytes": 1004,
-              "dcid_length": 19,
+              "packet_bytes": 992,
+              "dcid_length": 8,
               "scid_length": 3,
               "token_length": 0,
+              "packet_number_length": 1,
               "transport_parameter_ids": [
                 1,
                 4,
@@ -2711,7 +2631,7 @@
               "version_information": {
                 "chosen": 1,
                 "available": [
-                  3391785642,
+                  2324339290,
                   1798521807,
                   1
                 ]
@@ -2729,19 +2649,19 @@
                 0
               ],
               "extensions": [
-                23,
-                34,
-                16,
-                45,
-                51,
-                27,
-                65281,
-                0,
-                28,
-                13,
                 10,
-                43,
+                23,
+                27,
+                34,
+                13,
                 5,
+                43,
+                16,
+                65281,
+                28,
+                51,
+                0,
+                45,
                 57,
                 65037
               ],
@@ -2830,7 +2750,7 @@
               ],
               [
                 ":authority",
-                "localhost:59175"
+                "localhost:64214"
               ],
               [
                 ":path",
@@ -2854,11 +2774,11 @@
               ],
               [
                 "referer",
-                "https://localhost:59175/boot"
+                "https://localhost:64214/boot"
               ],
               [
                 "alt-used",
-                "localhost:59175"
+                "localhost:64214"
               ],
               [
                 "sec-fetch-dest",
@@ -2890,6 +2810,7 @@
               "max_datagram_frame_size": 65535,
               "max_idle_timeout": 30000
             },
+            "bootstrap_protocol": "h1",
             "bootstrap": [
               {
                 "hello": {
@@ -2986,91 +2907,62 @@
                   ]
                 },
                 "client_hello_count": 1,
-                "protocol": "h2",
-                "port": 59175,
+                "protocol": "http/1.1",
+                "port": 64214,
                 "mode": "navigation",
                 "negotiated_tls": {
                   "version": "TLSv1.3",
                   "cipher": "TLS_AES_256_GCM_SHA384"
                 },
-                "settings": [
-                  [
-                    1,
-                    65536
-                  ],
-                  [
-                    2,
-                    0
-                  ],
-                  [
-                    4,
-                    131072
-                  ],
-                  [
-                    5,
-                    16384
-                  ]
-                ],
+                "request_line": "GET /boot HTTP/1.1",
                 "headers": [
                   [
-                    ":method",
-                    "GET"
+                    "Host",
+                    "localhost:64214"
                   ],
                   [
-                    ":path",
-                    "/boot"
-                  ],
-                  [
-                    ":authority",
-                    "localhost:59175"
-                  ],
-                  [
-                    ":scheme",
-                    "https"
-                  ],
-                  [
-                    "user-agent",
+                    "User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:160.0) Gecko/20100101 Firefox/160.0"
                   ],
                   [
-                    "accept",
+                    "Accept",
                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                   ],
                   [
-                    "accept-language",
+                    "Accept-Language",
                     "en-US,en;q=0.9"
                   ],
                   [
-                    "accept-encoding",
+                    "Accept-Encoding",
                     "gzip, deflate, br, zstd"
                   ],
                   [
-                    "upgrade-insecure-requests",
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
                     "1"
                   ],
                   [
-                    "sec-fetch-dest",
+                    "Sec-Fetch-Dest",
                     "document"
                   ],
                   [
-                    "sec-fetch-mode",
+                    "Sec-Fetch-Mode",
                     "navigate"
                   ],
                   [
-                    "sec-fetch-site",
+                    "Sec-Fetch-Site",
                     "none"
                   ],
                   [
-                    "sec-fetch-user",
+                    "Sec-Fetch-User",
                     "?1"
                   ],
                   [
-                    "priority",
+                    "Priority",
                     "u=0, i"
-                  ],
-                  [
-                    "te",
-                    "trailers"
                   ]
                 ]
               }
@@ -3115,7 +3007,7 @@
       "packaged_executables": {
         "firefox.exe": "d2b492b1702b53422cac0beeb93b6e0089631fa61c407831d077988a78c8e27f"
       },
-      "acquired_unix": 1795672874,
+      "acquired_unix": 1795673753,
       "samples": [
         {
           "h1": {
@@ -3214,7 +3106,7 @@
             },
             "client_hello_count": 1,
             "protocol": "http/1.1",
-            "port": 59226,
+            "port": 64278,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -3224,7 +3116,7 @@
             "headers": [
               [
                 "Host",
-                "localhost:59226"
+                "localhost:64278"
               ],
               [
                 "User-Agent",
@@ -3374,7 +3266,7 @@
             },
             "client_hello_count": 1,
             "protocol": "h2",
-            "port": 59258,
+            "port": 64309,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -3409,7 +3301,7 @@
               ],
               [
                 ":authority",
-                "localhost:59258"
+                "localhost:64309"
               ],
               [
                 ":scheme",
@@ -3468,7 +3360,7 @@
             }
           },
           "h3": {
-            "port": 59286,
+            "port": 64344,
             "mode": "same-origin-fetch",
             "protocol": "h3",
             "quic_version": 1798521807,
@@ -3479,6 +3371,7 @@
               "dcid_length": 8,
               "scid_length": 3,
               "token_length": 0,
+              "packet_number_length": 1,
               "transport_parameter_ids": [
                 1,
                 4,
@@ -3498,7 +3391,7 @@
               "version_information": {
                 "chosen": 1,
                 "available": [
-                  3121248794,
+                  3131767482,
                   1798521807,
                   1
                 ]
@@ -3516,18 +3409,18 @@
                 0
               ],
               "extensions": [
-                51,
-                16,
                 34,
-                28,
-                27,
-                43,
-                65281,
-                5,
                 23,
-                13,
                 10,
+                43,
+                27,
                 0,
+                65281,
+                16,
+                5,
+                28,
+                13,
+                51,
                 45,
                 57,
                 65037
@@ -3617,7 +3510,7 @@
               ],
               [
                 ":authority",
-                "localhost:59286"
+                "localhost:64344"
               ],
               [
                 ":path",
@@ -3641,11 +3534,11 @@
               ],
               [
                 "referer",
-                "https://localhost:59286/boot"
+                "https://localhost:64344/boot"
               ],
               [
                 "alt-used",
-                "localhost:59286"
+                "localhost:64344"
               ],
               [
                 "sec-fetch-dest",
@@ -3677,6 +3570,7 @@
               "max_datagram_frame_size": 65535,
               "max_idle_timeout": 30000
             },
+            "bootstrap_protocol": "h1",
             "bootstrap": [
               {
                 "hello": {
@@ -3773,91 +3667,62 @@
                   ]
                 },
                 "client_hello_count": 1,
-                "protocol": "h2",
-                "port": 59286,
+                "protocol": "http/1.1",
+                "port": 64344,
                 "mode": "navigation",
                 "negotiated_tls": {
                   "version": "TLSv1.3",
                   "cipher": "TLS_AES_256_GCM_SHA384"
                 },
-                "settings": [
-                  [
-                    1,
-                    65536
-                  ],
-                  [
-                    2,
-                    0
-                  ],
-                  [
-                    4,
-                    131072
-                  ],
-                  [
-                    5,
-                    16384
-                  ]
-                ],
+                "request_line": "GET /boot HTTP/1.1",
                 "headers": [
                   [
-                    ":method",
-                    "GET"
+                    "Host",
+                    "localhost:64344"
                   ],
                   [
-                    ":path",
-                    "/boot"
-                  ],
-                  [
-                    ":authority",
-                    "localhost:59286"
-                  ],
-                  [
-                    ":scheme",
-                    "https"
-                  ],
-                  [
-                    "user-agent",
+                    "User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:161.0) Gecko/20100101 Firefox/161.0"
                   ],
                   [
-                    "accept",
+                    "Accept",
                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                   ],
                   [
-                    "accept-language",
+                    "Accept-Language",
                     "en-US,en;q=0.9"
                   ],
                   [
-                    "accept-encoding",
+                    "Accept-Encoding",
                     "gzip, deflate, br, zstd"
                   ],
                   [
-                    "upgrade-insecure-requests",
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
                     "1"
                   ],
                   [
-                    "sec-fetch-dest",
+                    "Sec-Fetch-Dest",
                     "document"
                   ],
                   [
-                    "sec-fetch-mode",
+                    "Sec-Fetch-Mode",
                     "navigate"
                   ],
                   [
-                    "sec-fetch-site",
+                    "Sec-Fetch-Site",
                     "none"
                   ],
                   [
-                    "sec-fetch-user",
+                    "Sec-Fetch-User",
                     "?1"
                   ],
                   [
-                    "priority",
+                    "Priority",
                     "u=0, i"
-                  ],
-                  [
-                    "te",
-                    "trailers"
                   ]
                 ]
               }
@@ -3967,7 +3832,7 @@
             },
             "client_hello_count": 1,
             "protocol": "http/1.1",
-            "port": 59330,
+            "port": 64389,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -3977,7 +3842,7 @@
             "headers": [
               [
                 "Host",
-                "localhost:59330"
+                "localhost:64389"
               ],
               [
                 "User-Agent",
@@ -4127,7 +3992,7 @@
             },
             "client_hello_count": 1,
             "protocol": "h2",
-            "port": 59354,
+            "port": 64425,
             "mode": "navigation",
             "negotiated_tls": {
               "version": "TLSv1.3",
@@ -4162,7 +4027,7 @@
               ],
               [
                 ":authority",
-                "localhost:59354"
+                "localhost:64425"
               ],
               [
                 ":scheme",
@@ -4221,7 +4086,7 @@
             }
           },
           "h3": {
-            "port": 59362,
+            "port": 64455,
             "mode": "same-origin-fetch",
             "protocol": "h3",
             "quic_version": 1798521807,
@@ -4232,6 +4097,7 @@
               "dcid_length": 8,
               "scid_length": 3,
               "token_length": 0,
+              "packet_number_length": 1,
               "transport_parameter_ids": [
                 1,
                 4,
@@ -4251,7 +4117,7 @@
               "version_information": {
                 "chosen": 1,
                 "available": [
-                  3124365866,
+                  3667577482,
                   1798521807,
                   1
                 ]
@@ -4269,19 +4135,19 @@
                 0
               ],
               "extensions": [
-                34,
-                5,
-                51,
                 0,
-                45,
-                27,
-                10,
-                23,
-                65281,
-                13,
-                16,
                 43,
+                16,
                 28,
+                45,
+                5,
+                65281,
+                51,
+                27,
+                34,
+                13,
+                23,
+                10,
                 57,
                 65037
               ],
@@ -4370,7 +4236,7 @@
               ],
               [
                 ":authority",
-                "localhost:59362"
+                "localhost:64455"
               ],
               [
                 ":path",
@@ -4394,11 +4260,11 @@
               ],
               [
                 "referer",
-                "https://localhost:59362/boot"
+                "https://localhost:64455/boot"
               ],
               [
                 "alt-used",
-                "localhost:59362"
+                "localhost:64455"
               ],
               [
                 "sec-fetch-dest",
@@ -4430,6 +4296,7 @@
               "max_datagram_frame_size": 65535,
               "max_idle_timeout": 30000
             },
+            "bootstrap_protocol": "h1",
             "bootstrap": [
               {
                 "hello": {
@@ -4526,91 +4393,62 @@
                   ]
                 },
                 "client_hello_count": 1,
-                "protocol": "h2",
-                "port": 59362,
+                "protocol": "http/1.1",
+                "port": 64455,
                 "mode": "navigation",
                 "negotiated_tls": {
                   "version": "TLSv1.3",
                   "cipher": "TLS_AES_256_GCM_SHA384"
                 },
-                "settings": [
-                  [
-                    1,
-                    65536
-                  ],
-                  [
-                    2,
-                    0
-                  ],
-                  [
-                    4,
-                    131072
-                  ],
-                  [
-                    5,
-                    16384
-                  ]
-                ],
+                "request_line": "GET /boot HTTP/1.1",
                 "headers": [
                   [
-                    ":method",
-                    "GET"
+                    "Host",
+                    "localhost:64455"
                   ],
                   [
-                    ":path",
-                    "/boot"
-                  ],
-                  [
-                    ":authority",
-                    "localhost:59362"
-                  ],
-                  [
-                    ":scheme",
-                    "https"
-                  ],
-                  [
-                    "user-agent",
+                    "User-Agent",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:161.0) Gecko/20100101 Firefox/161.0"
                   ],
                   [
-                    "accept",
+                    "Accept",
                     "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                   ],
                   [
-                    "accept-language",
+                    "Accept-Language",
                     "en-US,en;q=0.9"
                   ],
                   [
-                    "accept-encoding",
+                    "Accept-Encoding",
                     "gzip, deflate, br, zstd"
                   ],
                   [
-                    "upgrade-insecure-requests",
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
                     "1"
                   ],
                   [
-                    "sec-fetch-dest",
+                    "Sec-Fetch-Dest",
                     "document"
                   ],
                   [
-                    "sec-fetch-mode",
+                    "Sec-Fetch-Mode",
                     "navigate"
                   ],
                   [
-                    "sec-fetch-site",
+                    "Sec-Fetch-Site",
                     "none"
                   ],
                   [
-                    "sec-fetch-user",
+                    "Sec-Fetch-User",
                     "?1"
                   ],
                   [
-                    "priority",
+                    "Priority",
                     "u=0, i"
-                  ],
-                  [
-                    "te",
-                    "trailers"
                   ]
                 ]
               }
@@ -4627,8 +4465,8 @@
     }
   },
   "ci": {
-    "sha": "fa15143ce1cc51b5a974c3db1b1fba8a36b0bc79",
-    "run_id": "45765150473",
+    "sha": "e7a89e45f883b541de3a6a86a4e4c263d7e76e7f",
+    "run_id": "45766794582",
     "run_attempt": "1",
     "imageos": "win25-vs2026",
     "imageversion": "20261116.315.1"
