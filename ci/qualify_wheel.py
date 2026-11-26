@@ -86,6 +86,7 @@ def main():
     if env.get('RUYIHTTP_FORK_091_BUILD'):
         python('upgrade-fork-0.9.1', '-I', ROOT / 'ci/upgrade_from_090.py', wheel, slot, '--from-fork-091')
     if env.get('RUYIHTTP_RELEASE_092_DIR'):
+        env['RUYIHTTP_UPGRADE_WIRE_EVIDENCE'] = str(evidence)
         python('upgrade-release-0.9.2', '-I', ROOT / 'ci/upgrade_from_090.py', wheel, slot, '--from-fork-092')
     if failed:
         raise SystemExit("Failed runtime gates: " + ", ".join(failed))

@@ -116,9 +116,22 @@ print(f'installed {expected} with Python {sys.version.split()[0]} in {root}', fl
                 expected,
             )
 
-        call("-m", "pip", "install", str(baseline))
+        deps = ["aioquic==1.3.0"] if old_version == "0.9.2" else []
+        call("-m", "pip", "install", str(baseline), *deps)
         version(old_version)
         call(CI / "smoke_local.py")
+        if old_version == "0.9.2" and os.environ.get("RUYIHTTP_UPGRADE_WIRE_EVIDENCE"):
+            evidence = Path(os.environ["RUYIHTTP_UPGRADE_WIRE_EVIDENCE"]).resolve(
+                strict=True
+            )
+            raw = evidence / "release-0.9.2-wire.jsonl"
+            call(CI / "smoke_firefox_profiles.py", slot, "--collect", "--output", raw)
+            call(
+                CI / "compare_previous_wire.py",
+                slot,
+                raw,
+                evidence / "release-0.9.2-differences.json",
+            )
         call("-m", "pip", "install", "--upgrade", str(candidate))
         call("-m", "pip", "check")
         version(candidate_version)
