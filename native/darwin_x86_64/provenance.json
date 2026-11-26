@@ -20,8 +20,8 @@
       "sha256": "16257c1cf9cf44f90a96d52c3e069ae8f4f439723afbc8085b741adf257ac06c"
     },
     "libnecko_quic.dylib": {
-      "size": 2883392,
-      "sha256": "271ddc4159f149131a0c4c3d4bfd936be84601ec876a42274d1e003e9f37a235"
+      "size": 2883712,
+      "sha256": "b72dee9ff1e4a3353948026f97aac86cec8aa6734fc5fbd407430b9032524d89"
     },
     "libnss3.dylib": {
       "size": 3385000,
@@ -56,8 +56,13 @@
     {
       "path": "native/patches/firefox161-macos.patch",
       "sha256": "f7d3e3f56a0a7822e27e2d56f543f80366ba025f837e6ebfc227a6408bf9d657"
+    },
+    {
+      "path": "native/patches/firefox-posix-quic-policy-macos.patch",
+      "sha256": "b2e9a2ad0b41113db178a7c98755975717dc60796804f7e70e3abe2c5c20bfb5"
     }
   ],
+  "h3_protocol_policy": 1,
   "h3_body_abi_expected": 1,
   "minimum_macos": "15.0.0",
   "macho_minimum_macos": {
@@ -69,14 +74,15 @@
     "libmozglue.dylib": "15.0.0"
   },
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247/job/139645896716",
-    "ruyihttp_commit": "b649707042080129eae9f64e4cc8e1fdbb95eafa",
-    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247/artifacts/15082118512",
-    "wheel_sha256": "0e56f919052c8d7966f0843c8a38107f0161546d1aa129f86f8ba2f024511855",
-    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45771612177",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45771612177/job/139745327525",
+    "ruyihttp_commit": "1bc89cf51c5fafd3b31e68dbaa3d5b89ab37954e",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45771612177/artifacts/15095432734",
+    "wheel_sha256": "42042d55c8bf862ee33a0223c86f6b20ff3635645240eefe517752896929a66e",
+    "evidence_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45771612177/artifacts/15096301084",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45771612177",
     "source_build_attempt": 1,
-    "source_build_commit": "b649707042080129eae9f64e4cc8e1fdbb95eafa",
+    "source_build_commit": "1bc89cf51c5fafd3b31e68dbaa3d5b89ab37954e",
     "cpython_runtime_endpoints": [
       "3.10",
       "3.14"
@@ -89,6 +95,21 @@
     "h3_body_abi": 1,
     "in_place_upgrade_from": "0.9.0",
     "tested_firefox_profiles": [
+      "159",
+      "160",
+      "161"
+    ],
+    "h3_protocol_policy": 1,
+    "same_slot_firefox_reference_sha256": "421d553120931c27d82d94ec11a3c4d11293828b6834b16daadec96886c33cd3",
+    "same_slot_firefox_wire_receipt_sha256": {
+      "3.10": "364c4c1db67254866e3dc12e14ef1fd9dafbdd6a4eb0624b731d78e63e38e903",
+      "3.14": "d72e8b052301b721129b84f1fdc225dc79ff10e4ae48ecad6118079371f90838"
+    },
+    "tested_quic_policy_profiles": [
+      "144",
+      "145",
+      "154",
+      "155",
       "159",
       "160",
       "161"
