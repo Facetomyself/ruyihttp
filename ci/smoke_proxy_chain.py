@@ -92,8 +92,14 @@ def listener(handle, tls=None):
 
 def tls_fixtures(directory, *, origin_san="DNS:" + HOST):
     d = Path(directory)
+    # OpenSSL 1.1.1 can concatenate -addext with the host's default v3_ca
+    # extensions, duplicating Basic Constraints. Generate the same fixture
+    # across OpenSSL releases without inheriting a distribution policy.
+    (d / "req.cnf").write_text("[req]\ndistinguished_name = dn\n[dn]\n", encoding="ascii")
 
     def openssl(*args):
+        if args[0] == "req":
+            args = ("req", "-config", "req.cnf", *args[1:])
         subprocess.run(["openssl", *args], cwd=d, capture_output=True, check=True)
 
     openssl(
@@ -114,6 +120,8 @@ def tls_fixtures(directory, *, origin_san="DNS:" + HOST):
         "basicConstraints=critical,CA:TRUE",
         "-addext",
         "keyUsage=critical,keyCertSign,cRLSign",
+        "-addext",
+        "subjectKeyIdentifier=hash",
     )
 
     def server(name, san):
