@@ -15,6 +15,7 @@ The companion TCP canary logs and closes TCP contacts; it serves no HTTP/TLS.
 import argparse
 import asyncio
 import base64
+import builtins
 import contextlib
 import hashlib
 import importlib.metadata
@@ -747,6 +748,30 @@ def response_receipt(response, expected, runtime_slot):
             "body_sha256": sha256(response.content), "tls": tls, "proxy_tls": outer}
 
 
+@contextlib.contextmanager
+def mask_optional_dependency(mode):
+    if mode != "missing-extra":
+        yield
+        return
+    from ruyihttp import _masque
+
+    importer = builtins.__import__
+
+    def guarded_import(name, *args, **kwargs):
+        if name == "aioquic" or name.startswith("aioquic."):
+            raise ModuleNotFoundError("fixture masks the optional aioquic dependency", name="aioquic")
+        return importer(name, *args, **kwargs)
+
+    # The fixture still needs its already-imported server library. Mask the
+    # product's fresh lazy import; do not stub its network or public client.
+    _masque._aioquic.cache_clear()
+    try:
+        with patch.object(builtins, "__import__", guarded_import):
+            yield
+    finally:
+        _masque._aioquic.cache_clear()
+
+
 def client_call(state, origin_pem, relay_pem, runtime_slot, *, positive=False):
     import ruyihttp
     from requests.exceptions import RequestException
@@ -757,11 +782,15 @@ def client_call(state, origin_pem, relay_pem, runtime_slot, *, positive=False):
     user_info = "" if mode == "auth-required" else URL_AUTH
     proxy = f"masque://{user_info}{LOOP}:{state.relay_address[1]}"
     uri = f"https://{ORIGIN}:{state.origin_address[1]}"
-    budget = (1.5, 3) if mode in ("blackhole", "bad-context") else (8, 12)
+    budget = (1.5, 3) if mode in ("blackhole", "bad-context") else (8, 1.5) if mode == "post-stall" else (8, 12)
     options = {"proxies": {"https": proxy}, "allow_redirects": mode == "redirect-http"}
+    if mode == "client-certificate":
+        options["cert"] = (str(origin_pem["good"][0]), str(origin_pem["key"]))
     start = time.monotonic()
     try:
-        with ruyihttp.Session(firefox=FIREFOX, verify=str(roots), proxy_verify=str(relay_roots), timeout=budget) as session:
+        with mask_optional_dependency(mode), ruyihttp.Session(
+            firefox=FIREFOX, verify=str(roots), proxy_verify=str(relay_roots), timeout=budget,
+        ) as session:
             session.trust_env = False
             if positive:
                 receipts = {}
@@ -795,6 +824,9 @@ def client_call(state, origin_pem, relay_pem, runtime_slot, *, positive=False):
                     receipts["concurrent-b"] = b.result(timeout=15)
                 with session.get(uri + "/small", **options) as response:
                     receipts["after_cancel"] = response_receipt(response, SMALL, runtime_slot)
+            elif mode == "post-stall":
+                with session.post(uri + "/stall", data=UPLOAD, **options) as response:
+                    receipts = {"post": response_receipt(response, SMALL, runtime_slot)}
             else:
                 path = "/redirect-http" if mode == "redirect-http" else "/small"
                 with session.get(uri + path, **options) as response:
@@ -871,7 +903,7 @@ def check_end_to_end(state, runtime_slot, body_calls):
 
 
 def check_scenario(state, result, error):
-    from requests.exceptions import ProxyError, RequestException, SSLError, Timeout
+    from requests.exceptions import InvalidSchema, ProxyError, ReadTimeout, SSLError, Timeout
 
     mode = state.mode
     status = {"auth-required": 407, "deny": 403, "bad-gateway": 502}.get(mode)
@@ -916,16 +948,29 @@ def check_scenario(state, result, error):
         check(state.capsules_sent > 1 and state.capsules_sent == state.reverse_sent.count, state.receipt()["datagrams"])
         check([row["path"] for row in state.origin_headers] == ["/small"], state.origin_headers)
     elif mode == "redirect-http":
-        check(isinstance(error, RequestException), result)
+        check(isinstance(error, ProxyError), result)
         check_tunnel(state)
         check([row["path"] for row in state.origin_headers] == ["/redirect-http"], state.origin_headers)
+    elif mode in ("missing-extra", "client-certificate"):
+        expected = ProxyError if mode == "missing-extra" else InvalidSchema
+        check(isinstance(error, expected), result)
+        if mode == "missing-extra":
+            check("ruyihttp[masque]" in result["message"], result)
+        check(not state.relay_connections and not state.ingress.count and not state.origin_headers, state.receipt())
+    elif mode == "post-stall":
+        check(isinstance(error, ReadTimeout), result)
+        check_tunnel(state)
+        request, = state.origin_headers
+        check(request["path"] == "/stall" and request["method"] == "POST", request)
+        check(state.origin_bodies == [{"stream": request["stream"], "bytes": len(UPLOAD), "sha256": sha256(UPLOAD)}],
+              "timed-out POST was replayed or incomplete", state.origin_bodies)
     else:
         raise AssertionError(f"unknown wire scenario: {mode}")
 
 
 MODES = ("ok", "auth-required", "deny", "bad-gateway", "wrong-relay-ca", "wrong-relay-name", "wrong-origin-ca",
          "wrong-origin-name", "no-connect", "no-datagram", "small-quic-datagram", "blackhole", "contexts",
-         "bad-context", "capsule-reverse", "redirect-http")
+         "bad-context", "capsule-reverse", "redirect-http", "missing-extra", "client-certificate", "post-stall")
 
 
 async def qualify(receipt, origin_pem, relay_pem, modes):
@@ -974,7 +1019,8 @@ def main():
         "schema": "ruyihttp-masque-wire/v1", "verdict": "failed", "cases": [], "python": platform.python_version(),
         "os": platform.platform(), "asyncio_policy": type(asyncio.get_event_loop_policy()).__name__,
         "protocol": {"outer": "aioquic H3, RFC 9298 CONNECT-UDP + RFC 9297 QUIC DATAGRAM",
-                     "origin": "native NSS/Neqo H3", "aioquic_version": aioquic_version, "mode": "datagram-only"},
+                     "origin": "native NSS/Neqo H3", "aioquic_version": aioquic_version,
+                     "mode": "QUIC DATAGRAM required; reverse DATAGRAM capsules accepted"},
     }
     try:
         check(aioquic_version == "1.3.0", "fixture requires aioquic==1.3.0", aioquic_version)
@@ -983,7 +1029,12 @@ def main():
             if args.fixture_self_test:
                 receipt["fixture_calibration"] = asyncio.run(fixture_self_test(origin_pem, relay_pem))
             else:
-                receipt["product_version"] = importlib.metadata.version("ruyihttp")
+                product = importlib.metadata.distribution("ruyihttp")
+                receipt["product_version"] = product.version
+                direct = json.loads(product.read_text("direct_url.json") or "{}")
+                wheel_hash = direct.get("archive_info", {}).get("hashes", {}).get("sha256")
+                if wheel_hash:
+                    receipt["wheel_sha256"] = wheel_hash
                 asyncio.run(qualify(receipt, origin_pem, relay_pem, args.case or MODES))
         receipt["verdict"] = "passed"
     except BaseException as error:
