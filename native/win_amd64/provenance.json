@@ -1,64 +1,73 @@
 {
   "platform": "win_amd64",
-  "source": "Original public ruyihttp 0.9.0 PyPI wheel (unchanged DLL set)",
-  "wheel": "ruyihttp-0.9.0-py3-none-win_amd64.whl",
-  "wheel_url": "https://files.pythonhosted.org/packages/1d/a0/282d771e7311f8c3e166f5ccd67533a37033ecddd7c6ad31ac8dbc31f597/ruyihttp-0.9.0-py3-none-win_amd64.whl",
-  "wheel_sha256": "95b67581b2538194b9fc9b41b7f7077f1cb2767dbc5c776d404e78cd11d42f48",
-  "runtime_expected": {
-    "firefox": "159.0",
-    "nss": "3.131",
-    "nspr": "4.40",
-    "neqo": "0.32.0"
+  "source": "LoseNine's official ruyihttp 0.11.0 PyPI wheel; unmodified DLL import",
+  "source_kind": "pypi-wheel-import",
+  "pypi_metadata_url": "https://pypi.org/pypi/ruyihttp/0.11.0/json",
+  "pypi_upload_time_utc": "2026-11-25T01:46:00.223121Z",
+  "wheel": "ruyihttp-0.11.0-py3-none-win_amd64.whl",
+  "wheel_url": "https://files.pythonhosted.org/packages/f5/76/5e918b50ec3021414d525993add261f54dafa107bc64128bdc3cf29d79b1/ruyihttp-0.11.0-py3-none-win_amd64.whl",
+  "wheel_sha256": "79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332",
+  "wheel_size": 4020032,
+  "wheel_record_sha256": "07cc82f7c2cec08b1bae1a834774ec92127054ccb797f4a015aea452193904ca",
+  "pypi_core_metadata_sha256": "4710e57c9d60a235a5eac5e217252e4409f46a97fda7c17e3355413972a2652c",
+  "wheel_runtime_manifest_sha256": "300c07d7b8cd0075ad7184aa1f2c15522b15bef06f691033ed01790f4a614d8a",
+  "upstream_source_repository": "https://github.com/charlesval/ruyiHttp",
+  "source_rebuild_performed": false,
+  "firefox_reference_declared_by_upstream": {
+    "tag": "FIREFOX_161_0_RELEASE",
+    "sourcestamp": "001da97dd5c0",
+    "build_id": "20261125000922"
   },
+  "wheel_platform_tag": "win_amd64",
+  "runtime_expected": {
+    "firefox": "161.0",
+    "nss": "3.133",
+    "nspr": "4.40",
+    "neqo": "0.34.0"
+  },
+  "core_abi_version": 1,
   "h3_version_export": {
     "type": "ascii",
-    "value": "neqo-0.32.0/nss-3.131"
+    "value": "neqo-0.34.0/nss-3.133"
   },
-  "h3_tls": {
-    "backend": "NSS/Neqo",
-    "alpn": "h3",
-    "version": 772,
-    "cipher_suite": 4866,
-    "resumed": false
-  },
+  "h3_tls_policy": "windows-legacy",
   "h3_body_abi": null,
   "files": {
     "freebl3.dll": {
       "size": 1128448,
-      "sha256": "9bc57db64c16fd51efc769e43c69c072c5fbdb05b979c54c640510fc802f215c"
+      "sha256": "1e85ef195eb594307cd14a6ef4b3925a65cea145dbe5ff4c7d3c6aa9566001f7",
+      "wheel_member": "ruyihttp/freebl3.dll",
+      "record_hash": "sha256=HoXvGV61lDB80Upu9LOSWmXOoUXb5f9MfTxqqVZgAfc"
     },
     "mozglue.dll": {
-      "size": 655360,
-      "sha256": "5674da87e99554812cda2e952711e539df47fe938b7ce96a6c15b41f218ee4f8"
+      "size": 660992,
+      "sha256": "951e5c58d4124ef7b1aa6f561bb2a9b603a0621c5729cd906d633aa8396b4628",
+      "wheel_member": "ruyihttp/mozglue.dll",
+      "record_hash": "sha256=lR5cWNQSTvexqm9WG7KptgOgYhxXKc2QbWM6qDlrRig"
     },
     "necko_core.dll": {
       "size": 123392,
-      "sha256": "441dde546c1e5d0e4e19ccb4e3d79f3d957ff7c104a5831b4a8e4d8887710a12"
+      "sha256": "91a730b6a94b796567d1a0673e9d9cfbaee00f7c6a87dfbf5ad149732eebd7c7",
+      "wheel_member": "ruyihttp/necko_core.dll",
+      "record_hash": "sha256=kacwtqlLeWVn0aBnPp2c-67gD3xqh9-_WtFJcy7r18c"
     },
     "necko_quic.dll": {
-      "size": 2177024,
-      "sha256": "bba3edc283a339f3b391e6590b942a6d250b8c7e9520484380d7f41c3b88dd62"
+      "size": 2222080,
+      "sha256": "e46605309069e4acf4222e145c81d21a94bb185d2dadac4dbf557740aa36adad",
+      "wheel_member": "ruyihttp/necko_quic.dll",
+      "record_hash": "sha256=5GYFMJBp5Kz0Ii4UXIHSGpS7GF0traxNv1V3QKo2ra0"
     },
     "nss3.dll": {
-      "size": 2959360,
-      "sha256": "b6b44e3cbd731e1c1cd95e53b5266dae7f346267668124e5cd687b8355bee683"
+      "size": 2963456,
+      "sha256": "4572738240953cd79cb738bd07181b7df752b11d865124b7037ddb5424fccbf1",
+      "wheel_member": "ruyihttp/nss3.dll",
+      "record_hash": "sha256=RXJzgkCVPNectzi9BxgbffdSsR2GUSS3A33bVCT8y_E"
     },
     "softokn3.dll": {
-      "size": 327680,
-      "sha256": "303c91b2f2ec4042c269a2196fbfaee2683db5e710a300112b7053285fa57a46"
+      "size": 328192,
+      "sha256": "ca89dc62645d8ac56d37ea2323fbef6fc24f852b42486f32db2ff0526bdec105",
+      "wheel_member": "ruyihttp/softokn3.dll",
+      "record_hash": "sha256=yoncYmRdisVtN-ojI_vvb8JPhStCSG8y2y_wUmvewQU"
     }
-  },
-  "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657964359",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657964359/job/139359689023",
-    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657964359/artifacts/15042788788",
-    "wheel_sha256": "706f35f4b456bf879e2ff11195fa04fc05997042eccebbe78df56a740744774a",
-    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
-    "cpython_runtime_endpoints": ["3.10.11", "3.14.10"],
-    "tested_http": ["http/1.1", "h2", "h3"],
-    "native_h3_cases": 6,
-    "h3_json_echo_bytes": 1048579,
-    "h3_body_abi": null,
-    "upgrade": "Published 0.9.0 -> candidate 0.9.1 in place; six original DLL hashes, one distribution, and loopback HTTP before and after on both endpoints."
   }
 }

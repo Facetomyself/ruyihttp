@@ -85,7 +85,7 @@ jobs:
         if: inputs.mode == 'requalify'
         run: |
           [[ "$SOURCE_RUN" =~ ^[1-9][0-9]*$ && "$SOURCE_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
-          [[ "${{ matrix.slot }}" != win_amd64 ]]  # Windows is verified from its original tracked DLLs.
+          [[ "${{ matrix.slot }}" != win_amd64 ]]  # Windows verifies tracked wheel imports.
       - uses: actions/download-artifact@v4
         if: inputs.mode == 'requalify'
         with:
@@ -214,6 +214,9 @@ jobs:
           done
           cp ruyihttp/runtime-manifest.json "$RUNNER_TEMP/native-evidence/runtime-manifest.json"
           python -B tools/build_native.py --check
+          if [[ '${{ matrix.slot }}' == win_amd64 ]]; then
+            python -B tools/sync_windows_native.py --check-slot | tee "$RUNNER_TEMP/native-evidence/windows-import.json"
+          fi
           python -m pip install 'setuptools>=77' 'wheel>=0.45'
           python -m pip wheel --no-deps --no-build-isolation -w "$RUNNER_TEMP/wheelhouse" .
           python -B tools/build_native.py --inspect-wheel "$RUNNER_TEMP"/wheelhouse/*.whl --platform "${{ matrix.slot }}" > "$RUNNER_TEMP/native-evidence/wheel.json"

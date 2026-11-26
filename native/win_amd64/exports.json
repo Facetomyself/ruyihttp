@@ -1,7 +1,7 @@
 [
   {
     "file": "freebl3.dll",
-    "sha256": "9bc57db64c16fd51efc769e43c69c072c5fbdb05b979c54c640510fc802f215c",
+    "sha256": "1e85ef195eb594307cd14a6ef4b3925a65cea145dbe5ff4c7d3c6aa9566001f7",
     "bytes": 1128448,
     "machine": "0x8664",
     "image_base": "0x180000000",
@@ -21,8 +21,8 @@
   },
   {
     "file": "mozglue.dll",
-    "sha256": "5674da87e99554812cda2e952711e539df47fe938b7ce96a6c15b41f218ee4f8",
-    "bytes": 655360,
+    "sha256": "951e5c58d4124ef7b1aa6f561bb2a9b603a0621c5729cd906d633aa8396b4628",
+    "bytes": 660992,
     "machine": "0x8664",
     "image_base": "0x180000000",
     "imports": [
@@ -517,7 +517,7 @@
   },
   {
     "file": "necko_core.dll",
-    "sha256": "441dde546c1e5d0e4e19ccb4e3d79f3d957ff7c104a5831b4a8e4d8887710a12",
+    "sha256": "91a730b6a94b796567d1a0673e9d9cfbaee00f7c6a87dfbf5ad149732eebd7c7",
     "bytes": 123392,
     "machine": "0x8664",
     "image_base": "0x180000000",
@@ -589,8 +589,8 @@
   },
   {
     "file": "necko_quic.dll",
-    "sha256": "bba3edc283a339f3b391e6590b942a6d250b8c7e9520484380d7f41c3b88dd62",
-    "bytes": 2177024,
+    "sha256": "e46605309069e4acf4222e145c81d21a94bb185d2dadac4dbf557740aa36adad",
+    "bytes": 2222080,
     "machine": "0x8664",
     "image_base": "0x180000000",
     "imports": [
@@ -617,8 +617,8 @@
   },
   {
     "file": "nss3.dll",
-    "sha256": "b6b44e3cbd731e1c1cd95e53b5266dae7f346267668124e5cd687b8355bee683",
-    "bytes": 2959360,
+    "sha256": "4572738240953cd79cb738bd07181b7df752b11d865124b7037ddb5424fccbf1",
+    "bytes": 2963456,
     "machine": "0x8664",
     "image_base": "0x180000000",
     "imports": [
@@ -736,7 +736,7 @@
       "CERT_GenTime2FormattedAscii_Util",
       "CERT_GetCertChainFromCert",
       "CERT_GetCertEmailAddress",
-      "CERT_GetCertIsPerm",
+      "CERT_GetCertIsTemp",
       "CERT_GetCertKeyType",
       "CERT_GetCertTimes",
       "CERT_GetCertTrust",
@@ -745,6 +745,7 @@
       "CERT_GetCommonName",
       "CERT_GetConstrainedCertificateNames",
       "CERT_GetCountryName",
+      "CERT_GetDERCertTrust",
       "CERT_GetDefaultCertDB",
       "CERT_GetFirstEmailAddress",
       "CERT_GetGeneralNameTypeFromString",
@@ -1904,6 +1905,7 @@
       "sqlite3_mutex_leave",
       "sqlite3_mutex_try",
       "sqlite3_next_stmt",
+      "sqlite3_normalized_sql",
       "sqlite3_open",
       "sqlite3_open16",
       "sqlite3_open_v2",
@@ -1981,8 +1983,8 @@
   },
   {
     "file": "softokn3.dll",
-    "sha256": "303c91b2f2ec4042c269a2196fbfaee2683db5e710a300112b7053285fa57a46",
-    "bytes": 327680,
+    "sha256": "ca89dc62645d8ac56d37ea2323fbef6fc24f852b42486f32db2ff0526bdec105",
+    "bytes": 328192,
     "machine": "0x8664",
     "image_base": "0x180000000",
     "imports": [

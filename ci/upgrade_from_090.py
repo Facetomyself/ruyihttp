@@ -13,7 +13,7 @@ import venv
 from zipfile import ZipFile
 
 CI = Path(__file__).resolve().parent
-PROVENANCE = CI.parent / "native/win_amd64/provenance.json"
+PROVENANCE = CI / "baselines/windows-0.9.0.json"
 
 
 def main():

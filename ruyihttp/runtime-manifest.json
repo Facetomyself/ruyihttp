@@ -10,24 +10,26 @@
   "platforms": {
     "win_amd64": {
       "status": "ready",
-      "firefox": "159.0",
-      "nss": "3.131",
+      "firefox": "161.0",
+      "nss": "3.133",
       "nspr": "4.40",
-      "neqo": "0.32.0",
+      "neqo": "0.34.0",
       "h3_tls": "windows-legacy",
       "wheel_platform_tag": "win_amd64",
       "files": {
-        "freebl3.dll": "9bc57db64c16fd51efc769e43c69c072c5fbdb05b979c54c640510fc802f215c",
-        "mozglue.dll": "5674da87e99554812cda2e952711e539df47fe938b7ce96a6c15b41f218ee4f8",
-        "necko_core.dll": "441dde546c1e5d0e4e19ccb4e3d79f3d957ff7c104a5831b4a8e4d8887710a12",
-        "necko_quic.dll": "bba3edc283a339f3b391e6590b942a6d250b8c7e9520484380d7f41c3b88dd62",
-        "nss3.dll": "b6b44e3cbd731e1c1cd95e53b5266dae7f346267668124e5cd687b8355bee683",
-        "softokn3.dll": "303c91b2f2ec4042c269a2196fbfaee2683db5e710a300112b7053285fa57a46"
+        "freebl3.dll": "1e85ef195eb594307cd14a6ef4b3925a65cea145dbe5ff4c7d3c6aa9566001f7",
+        "mozglue.dll": "951e5c58d4124ef7b1aa6f561bb2a9b603a0621c5729cd906d633aa8396b4628",
+        "necko_core.dll": "91a730b6a94b796567d1a0673e9d9cfbaee00f7c6a87dfbf5ad149732eebd7c7",
+        "necko_quic.dll": "e46605309069e4acf4222e145c81d21a94bb185d2dadac4dbf557740aa36adad",
+        "nss3.dll": "4572738240953cd79cb738bd07181b7df752b11d865124b7037ddb5424fccbf1",
+        "softokn3.dll": "ca89dc62645d8ac56d37ea2323fbef6fc24f852b42486f32db2ff0526bdec105"
       },
       "h3_version_export": {
         "type": "ascii",
-        "value": "neqo-0.32.0/nss-3.131"
-      }
+        "value": "neqo-0.34.0/nss-3.133"
+      },
+      "core_abi_version": 1,
+      "h3_body_abi": null
     },
     "darwin_arm64": {
       "status": "ready",

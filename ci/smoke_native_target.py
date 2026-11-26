@@ -215,6 +215,13 @@ def main():
     nss = library.necko_tls_nss_version().decode()
     nspr = library.necko_tls_nspr_version().decode()
     assert (nss, nspr) == (manifest['nss'], manifest['nspr']), (nss, nspr)
+    if 'core_abi_version' in manifest:
+        core_abi = library.necko_core_abi_version
+        core_abi.argtypes = []
+        core_abi.restype = ctypes.c_uint32
+        actual = core_abi()
+        assert actual == manifest['core_abi_version'], actual
+        print(f'Necko core ABI version: {actual}', flush=True)
     quic = ctypes.CDLL(str(root / (prefix + 'necko_quic' + suffix)))
     assert quic.necko_quic_call and quic.necko_quic_set_decoder
     export = manifest['h3_version_export']
@@ -228,6 +235,10 @@ def main():
           'QUIC version export', export['type'], repr(version), flush=True)
     assert version == export['value'], (version, export['value'])
     body_version = getattr(quic, 'necko_quic_body_abi_version', None)
+    if target == 'win_amd64' and manifest.get('h3_body_abi') is None:
+        assert all(not hasattr(quic, symbol) for symbol in (
+            'necko_quic_body_abi_version', 'necko_quic_body_read_v1', 'necko_quic_body_write_v1',
+        )), 'Windows JSON-only bridge has partial or unexpected binary body ABI exports'
     actual_abi = None
     if body_version is not None:
         body_version.argtypes = []
