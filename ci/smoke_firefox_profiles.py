@@ -10,7 +10,6 @@ Use `--collect` for an upstream/old wheel without fork runtime metadata.
 
 import argparse
 import asyncio
-import hashlib
 import json
 import platform
 import socket
@@ -42,12 +41,20 @@ from h2.events import RequestReceived, StreamEnded
 import ruyihttp
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from firefox_quic_initial import QuicInitialObservation
 from firefox_wire import (
     BOOT, MODES, PATH, QUIC_PARAMETERS, REFERENCE_DIR, RELEASES, SCHEMA_VERSION,
-    SLOTS, WireError, diff, load_reference, require, stable_wire,
+    SLOTS, WireError, grease_settings, load_reference, require, stable_wire,
 )
 
 IP = "127.0.0.1"
+
+
+class CaptureFailure(WireError):
+    def __init__(self, root_cause, partial, responses):
+        super().__init__(f"{type(root_cause).__name__}: {root_cause}")
+        self.partial = partial
+        self.responses = responses
 
 
 class Vector:
@@ -85,9 +92,9 @@ def client_hello(message):
     require(not handshake, "unexpected trailing handshake bytes")
     legacy_version = body.uint(2)
     body.take(32)  # random
-    body.vector(1)  # session ID
+    session_id_length = len(body.vector(1).data)
     ciphers = body.vector(2).integers(2)
-    body.vector(1)  # compression methods
+    compression_methods = body.vector(1).integers(1)
     extensions = {}
     items = body.vector(2)
     require(not body, "unexpected trailing ClientHello bytes")
@@ -117,9 +124,15 @@ def client_hello(message):
     names = payload(16, 2)
     while names:
         alpn.append(bytes(names.vector(1).data).decode("ascii"))
+    server_names = []
+    names = payload(0, 2)
+    while names:
+        server_names.append([names.uint(1), bytes(names.vector(2).data).decode("ascii")])
     return {
         "legacy_version": legacy_version,
+        "session_id_length": session_id_length,
         "ciphers": ciphers,
+        "compression_methods": compression_methods,
         "extensions": list(extensions),
         "groups": groups,
         "signatures": signatures,
@@ -127,6 +140,9 @@ def client_hello(message):
         "supported_versions": versions,
         "key_share_groups": share_groups,
         "offered_alpn": alpn,
+        "ec_point_formats": payload(11, 1).integers(1),
+        "psk_key_exchange_modes": payload(45, 1).integers(1),
+        "server_names": server_names,
     }
 
 
@@ -207,6 +223,7 @@ def h1_origin(tcp, context):
             require(line == b"\r\n", "h1: missing end of headers")
             tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nh1")
             return {"protocol": tls.selected_alpn_protocol(), "request_line": first_line[:-2].decode("ascii"),
+                    "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
                     "headers": decode_headers(headers)}
 
 
@@ -239,7 +256,7 @@ class FirstH2Settings:
         self.buffer.clear()
 
 
-def h2_origin(tcp, context, *, boot_port=None, release=None):
+def h2_origin(tcp, context, *, complete, boot_port=None, retired=None):
     client, _ = tcp.accept()
     # In the bootstrap case, retire both the listener and the H2 connection so
     # a silent TCP fallback can never look like successful H3.
@@ -267,12 +284,22 @@ def h2_origin(tcp, context, *, boot_port=None, release=None):
                             response.append((b"alt-svc", f'h3=":{boot_port}"; ma=60'.encode()))
                         protocol.send_headers(stream, response)
                         protocol.send_data(stream, body, end_stream=True)
-                        protocol.close_connection(error_code=0, last_stream_id=stream)
                         tls.sendall(protocol.data_to_send())
-                        if release is not None:
-                            require(release.wait(20), "h2: client did not release the bootstrap")
-                        return {"protocol": tls.selected_alpn_protocol(), "settings": settings.settings,
-                                "headers": headers[stream]}
+                        # Deliver and let the public client consume END_STREAM
+                        # before GOAWAY/EOF. Older clients race peer shutdown
+                        # against the application read of a complete response.
+                        require(complete.wait(20), "h2: client did not consume the response")
+                        result = {"protocol": tls.selected_alpn_protocol(), "settings": settings.settings,
+                                  "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
+                                  "headers": headers[stream]}
+                        if retired is not None:
+                            protocol.close_connection(error_code=0, last_stream_id=stream)
+                            try:
+                                tls.sendall(protocol.data_to_send())
+                            finally:
+                                tls.close()
+                                retired.set()
+                        return result
                 tls.sendall(protocol.data_to_send())
     raise WireError("h2: observed no complete request")
 
@@ -281,7 +308,23 @@ class H3Origin(QuicConnectionProtocol):
     def __init__(self, *args, observed, **kwargs):
         super().__init__(*args, **kwargs)
         self.http = H3Connection(self._quic)
+        self.initial = QuicInitialObservation(self._quic)
         self.observed = observed
+        initialize = self._quic._initialize
+
+        def tap_initialize(*args):
+            initialize(*args)
+            handler = self._quic.tls._server_handle_hello
+
+            def tap_hello(input_buf, *output_bufs):
+                require("hello" not in self.observed, "h3: unexpected second ClientHello")
+                payload = input_buf.data_slice(input_buf.tell(), input_buf.capacity)
+                self.observed["hello"] = client_hello(payload)
+                return handler(input_buf, *output_bufs)
+
+            self._quic.tls._server_handle_hello = tap_hello
+
+        self._quic._initialize = tap_initialize
 
     def quic_event_received(self, event):
         if isinstance(event, HandshakeCompleted):
@@ -292,6 +335,7 @@ class H3Origin(QuicConnectionProtocol):
             if isinstance(message, HeadersReceived):
                 require("headers" not in self.observed, "h3: unexpected additional request")
                 self.observed["headers"] = decode_headers(message.headers)
+                self.observed["initial"] = self.initial.result()
                 # aioquic's H3 parser rejects duplicates, then preserves control
                 # stream order in its dictionary. Save reserved IDs in raw data.
                 self.http.send_headers(message.stream_id, [(b":status", b"200"), (b"content-length", b"2")])
@@ -299,6 +343,7 @@ class H3Origin(QuicConnectionProtocol):
                 self.transmit()
         if self.http.received_settings is not None:
             self.observed["settings"] = [(int(code), value) for code, value in self.http.received_settings.items()]
+            self.observed["grease_settings"] = grease_settings(self.observed["settings"])
 
 
 def response_receipt(profile, response, protocol, body, entry):
@@ -321,8 +366,7 @@ def response_receipt(profile, response, protocol, body, entry):
     return {"status": response.status_code, "http_version": response.raw.version, "tls": info}
 
 
-def fetch(profile, roots, ports, entry):
-    result = {}
+def fetch(profile, roots, ports, entry, result, h2_complete, boot_complete, boot_retired):
     options = {"firefox": profile, "verify": str(roots), "timeout": 10}
     origin = f"https://localhost:{ports['h3']}"
     boot = origin + BOOT
@@ -331,7 +375,10 @@ def fetch(profile, roots, ports, entry):
         for protocol in ("h1", "h2"):
             url = f"https://localhost:{ports[protocol]}{PATH}"
             result[protocol] = response_receipt(profile, navigation.get(url), protocol, protocol.encode(), entry)
-        response_receipt(profile, navigation.get(boot), "h2", b"boot", entry)
+        h2_complete.set()
+        result["bootstrap"] = response_receipt(profile, navigation.get(boot), "h2", b"boot", entry)
+        boot_complete.set()
+        require(boot_retired.wait(5), "h3: TCP bootstrap was not retired")
         # Reuse the ordinary HTTPS adapter, which owns the authenticated
         # Alt-Svc state. The second Session supplies the real fetch defaults,
         # reference and cookie policy rather than hand-constructing headers.
@@ -353,24 +400,49 @@ async def capture(profile, entry, cert):
         quic.load_cert_chain(leaf, key)
         server = await serve(IP, ports["h3"], configuration=quic,
                              create_protocol=lambda *a, **k: H3Origin(*a, observed=observations, **k))
-        release = Event()
+        h2_complete, boot_complete, boot_retired = Event(), Event(), Event()
         h1 = executor.submit(h1_origin, tcp1, context_for(leaf, key, "http/1.1", hellos1))
-        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2))
-        boot = executor.submit(h2_origin, tcp3, context_for(leaf, key, "h2", hellos3), boot_port=ports["h3"], release=release)
+        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2), complete=h2_complete)
+        boot = executor.submit(h2_origin, tcp3, context_for(leaf, key, "h2", hellos3),
+                               complete=boot_complete, boot_port=ports["h3"], retired=boot_retired)
+        responses = {}
         try:
-            responses = await asyncio.to_thread(fetch, profile, roots, ports, entry)
+            await asyncio.to_thread(fetch, profile, roots, ports, entry, responses, h2_complete, boot_complete, boot_retired)
+        except Exception as exc:
+            failure = exc
+        else:
+            failure = None
         finally:
-            release.set()
+            h2_complete.set()
+            boot_complete.set()
             server.close()
+        if failure is not None:
+            partial = {}
+            for proto, pending, hellos in (("h1", h1, hellos1), ("h2", h2, hellos2), ("bootstrap", boot, hellos3)):
+                if not hellos:
+                    continue
+                try:
+                    case = pending.result(3)
+                    actual_proto = "h3" if proto == "bootstrap" else proto
+                    case.update(hello=hellos[0], client_hello_count=len(hellos), port=ports[actual_proto], mode="navigation")
+                    partial[proto] = case
+                except Exception as origin_exc:
+                    partial[proto] = {"client_hello_count": len(hellos), "origin_error": str(origin_exc)}
+            if observations:
+                partial["h3"] = {**observations, "port": ports["h3"], "mode": MODES["h3"]}
+            raise CaptureFailure(failure, partial, responses) from failure
         traces = quic_log.to_dict()["traces"]
         parameters = [event["data"] for trace in traces for event in trace["events"]
                       if event["name"] == "transport:parameters_set" and event["data"]["owner"] == "remote"]
         require(len(hellos1) == len(hellos2) == len(hellos3) == len(parameters) == 1,
                 f"expected one handshake per origin: {list(map(len, (hellos1, hellos2, hellos3, parameters)))}")
         observations["transport_parameters"] = {key: value for key, value in parameters[0].items() if key in QUIC_PARAMETERS}
-        boot.result(10)
+        observed_bootstrap = boot.result(10)
+        observed_bootstrap.update(port=ports["h3"], mode=MODES["h2"], hello=hellos3[0], client_hello_count=len(hellos3))
+        observations["bootstrap"] = [observed_bootstrap]
         wire = {"h1": h1.result(10), "h2": h2.result(10), "h3": observations}
-        wire["h1"]["hello"], wire["h2"]["hello"] = hellos1[0], hellos2[0]
+        wire["h1"].update(hello=hellos1[0], client_hello_count=len(hellos1))
+        wire["h2"].update(hello=hellos2[0], client_hello_count=len(hellos2))
         for protocol, case in wire.items():
             case.update(port=ports[protocol], mode=MODES[protocol])
         return wire, responses
@@ -424,11 +496,15 @@ def main():
                 try:
                     wire, responses = asyncio.run(capture(firefox, entry, cert))
                     record.update(wire=wire, responses=responses)
-                    observed = stable_wire(wire)
-                    if expected is not None:
-                        record["differences"] = diff(expected[firefox], observed)
+                    if expected is None:
+                        stable_wire(wire)  # Validate even capture-only data.
+                    else:
+                        record["differences"] = expected[firefox].compare(wire)
                         if record["differences"]:
                             failed.append(firefox)
+                except CaptureFailure as exc:
+                    record.update(capture_error=str(exc), partial_wire=exc.partial, responses=exc.responses)
+                    failed.append(firefox)
                 except Exception as exc:
                     record["capture_error"] = f"{type(exc).__name__}: {exc}"
                     failed.append(firefox)

@@ -10,6 +10,7 @@ import argparse
 from hashlib import sha256 as digest
 import json
 import re
+import sys
 from pathlib import Path
 
 from build_native import (NATIVE, PLATFORM_FILES, inspect_stable_wheel,
@@ -25,6 +26,44 @@ def read(path):
 def require(condition, detail):
     if not condition:
         raise ValueError(detail)
+
+
+def verify_wire_receipts(report, slot, package_version, entry):
+    """Recompute the exact-slot official comparison, rather than trust a success string."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'ci'))
+    try:
+        from firefox_wire import (MODES, REFERENCE_DIR, RELEASES, SCHEMA_VERSION, SLOTS,
+                                  decode_json, diff, load_reference, stable_wire)
+    except ImportError as error:
+        raise ValueError('Strict same-slot Firefox wire gate is required for admission') from error
+    expected = load_reference(REFERENCE_DIR, slot)
+    platform, arch, _ = SLOTS[slot]
+    version_numbers = {'h1': 11, 'h2': 20, 'h3': 30}
+    records = [decode_json(line) for line in report.splitlines() if line.startswith('{')]
+    require(tuple(record['firefox'] for record in records) == RELEASES,
+            'Expected one installed-wheel receipt for each of 159, 160, 161')
+    for record in records:
+        release = record['firefox']
+        require((record['schema_version'], record['source'], record['slot'], record['platform'], record['arch'],
+                 record['package_version'], record['native_source'], record['nss'], record['neqo']) ==
+                (SCHEMA_VERSION, 'installed-wheel', slot, platform, arch,
+                 package_version, entry['firefox'], entry['nss'], entry['neqo']),
+                f'Wrong installed-wheel receipt identity: Firefox {release}')
+        require(record['differences'] == {} and 'capture_error' not in record and
+                not diff(expected[release], stable_wire(record['wire'])),
+                f'Official Firefox wire comparison did not pass: Firefox {release}')
+        responses = record['responses']
+        require(responses.keys() == MODES.keys(), f'Incomplete Firefox {release} response witnesses')
+        for protocol, mode in MODES.items():
+            response = responses[protocol]
+            tls = response['tls']
+            allowed_alpn = ('', 'http/1.1') if protocol == 'h1' else (protocol,)
+            require(record['wire'][protocol]['mode'] == mode and
+                    (response['status'], response['http_version']) == (200, version_numbers[protocol]) and
+                    (tls['backend'], tls['nss'], tls['profile'], tls['version']) ==
+                    ('NSS', entry['nss'], f'firefox-{release}', 0x0304) and tls['alpn'] in allowed_alpn,
+                    f'Wrong Firefox {release} {protocol} installed-wheel context or TLS witness')
+    return sha256(REFERENCE_DIR / f'{slot}.json')
 
 
 def promote(args):
@@ -98,11 +137,13 @@ def promote(args):
     else:
         require(provenance['macho_minimum_macos'] == entry['macho_minimum_macos'] and
                 provenance['minimum_macos'] == entry['minimum_macos'], 'Missing Mach-O deployment evidence')
+    reference_hashes = set()
     for endpoint in ('3.10', '3.14'):
         markers = {'http1': ['local smoke OK'],
                    'native-transactions': ['H3 binary body ABI: 1', 'h2 200 20', 'h3 200 30',
                                            f'NSS {entry["nss"]} NSPR {entry["nspr"]}'],
-                   'firefox-profile-wire': ['explicit 159/160/161 passed H1, H2 and UDP-only H3'],
+                   'firefox-profile-wire': [
+                       f'{slot}: explicit 159/160/161 passed H1, H2 and UDP-only H3 against same-slot official Firefox'],
                    'posix-quic-policy': ['PASS: native POSIX QUIC policy',
                                          'v1-only peer without CONNECT: negotiated v1',
                                          'Missing h3_connect preference: id8 absent',
@@ -113,12 +154,16 @@ def promote(args):
             report = (evidence / endpoint / f'{name}.txt').read_text(encoding='utf-8')
             require(report.endswith('Exit status: 0\n') and all(needle in report for needle in needles),
                     f'Native qualification witness missing at CPython {endpoint}: {name}')
+            if name == 'firefox-profile-wire':
+                reference_hashes.add(verify_wire_receipts(report, slot, candidate['version'], entry))
             if name == 'full-h3':
                 require('skipped' not in report and '127.0.0.1' in report and '[::1]' in report,
                         f'IPv4/IPv6 H3 proof missing at CPython {endpoint}')
             if name == 'test_h3_body_abi':
                 require(re.search(r'test_native_body_argument_bounds_and_thread_owner[^\n]*\.\.\. ok', report),
                         f'H3 ABI owner-thread proof missing at CPython {endpoint}')
+    require(len(reference_hashes) == 1, 'Official reference changed during verification')
+    reference_sha256, = reference_hashes
     manifest = load_manifest()
     if args.check_only:
         print(f'Accepted proof for {slot} from {job["html_url"]}: {wheel.name}, SHA-256 {wheel_digest}')
@@ -136,6 +181,7 @@ def promote(args):
         'cpython_runtime_endpoints': ['3.10', '3.14'], 'tested_http': ['http/1.1', 'h2', 'h3'], 'h3_body_abi': 1,
         'in_place_upgrade_from': '0.9.0', 'tested_firefox_profiles': ['159', '160', '161'],
         'h3_protocol_policy': H3_PROTOCOL_POLICY,
+        'same_slot_firefox_reference_sha256': reference_sha256,
         'tested_quic_policy_profiles': ['144', '145', '154', '155', '159', '160', '161'],
     }
     for name, data in actual_files.items():
