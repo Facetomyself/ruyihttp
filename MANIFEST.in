@@ -10,7 +10,10 @@ recursive-include native *.md SHA256SUMS
 recursive-include native/patches *.patch
 recursive-include docs *.md
 include docs/upstream-0.11.0-data.json ci/firefox_wire_reference.json
-include ci/firefox_wire.py ci/firefox_quic_initial.py ci/smoke_firefox_profiles.py
+include docs/firefox-reference-receipts.json docs/firefox-h2-preface-receipts.json
+include ci/firefox_*.py ci/firefox_reference_isolate.sh ci/firefox_reference_isolate_windows.ps1 ci/firefox_reference_requirements.txt
+include ci/smoke_firefox_profiles.py ci/verify_reference_digests.py ci/verify_h2_first_flight.py
 recursive-include ci/firefox_wire_references *.json *.md
+recursive-include ci/firefox_h2_preface_references *.json
 recursive-include tools *.py *.md
 global-exclude *.py[cod]

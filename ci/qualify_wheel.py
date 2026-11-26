@@ -66,6 +66,7 @@ def main():
     python("native-transactions", "-I", ROOT / "ci/smoke_native_target.py", slot)
     if manifest['platforms'][slot].get('h3_protocol_policy') == 1:
         python('posix-quic-policy', '-I', ROOT / 'ci/smoke_posix_quic_policy.py', slot)
+    python('official-reference-identity', '-I', ROOT / 'ci/verify_reference_digests.py', slot, required=True)
     python("firefox-wire-comparator", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_firefox_wire_gate.py", "-v")
     python("firefox-profile-wire", "-I", ROOT / "ci/smoke_firefox_profiles.py", slot,
            "--output", evidence / "firefox-profile-wire.jsonl")
