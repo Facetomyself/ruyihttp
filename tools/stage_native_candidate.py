@@ -107,7 +107,11 @@ def main():
     parser.add_argument("--firefox", required=True, help="Firefox Git commit")
     parser.add_argument("--source-patch", type=Path, action='append', required=True,
                         help="applied donor patch under this repository (repeat in apply order)")
+    parser.add_argument('--linux-baseline-evidence', type=Path,
+                        help='receipt directory from the digest-pinned native Bullseye build')
     args = parser.parse_args()
+    if args.linux_baseline_evidence and not args.platform.startswith('linux_'):
+        parser.error('Bullseye build evidence is Linux-only')
     if (platform.system(), platform.machine()) != TARGETS[args.platform]:
         parser.error("staging requires execution on the selected native build host")
     if any(not re.fullmatch(r"[0-9a-f]{40}", rev) for rev in (args.donor, args.firefox)):
@@ -132,6 +136,9 @@ def main():
         with path.open("rb") as stream:
             check_architecture(args.platform, path.name, stream.read(20))
     deployment = {}
+    build_metadata = {}
+    for key in ('linux_baseline_candidate', 'linux_baseline'):
+        entry.pop(key, None)
     if args.platform.startswith('linux_'):
         from check_linux_candidate import check
         arch = TARGETS[args.platform][1]
@@ -143,6 +150,11 @@ def main():
         # claimed host minimum. Auditwheel then validates the exact wheel.
         tag = f'manylinux_2_39_{arch}'
         deployment['highest_glibc_dynamic_requirement'] = result['highest_glibc_dynamic_requirement']
+        if args.linux_baseline_evidence:
+            from linux_baseline import verify_built_candidate
+            measured, build, elf = verify_built_candidate(args.platform, source, args.linux_baseline_evidence)
+            deployment['linux_baseline_candidate'] = measured
+            build_metadata = {'linux_baseline_build': build, 'linux_elf_preflight': elf}
     else:
         tag, minimum, floors = macos_deployment(libs, args.platform)
         deployment = {'minimum_macos': minimum, 'macho_minimum_macos': floors}
@@ -157,7 +169,7 @@ def main():
                   "neqo_source_commit": NEQO_COMMIT, "nss_rs_source_commit": NSS_RUST_COMMIT,
                   "wheel_platform_tag": tag, "runtime_expected": VERSIONS, "files": inventory,
                   "source_patches": patches, "h3_protocol_policy": H3_PROTOCOL_POLICY,
-                  "h3_body_abi_expected": 1, **deployment}
+                  "h3_body_abi_expected": 1, **deployment, **build_metadata}
     validate_candidate(args.platform, entry, provenance)
     (dest / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     hashes = {name: item["sha256"] for name, item in inventory.items()}
