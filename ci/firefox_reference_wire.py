@@ -161,8 +161,9 @@ class WireH3(H3Connection):
 
 
 class Origin:
-    def __init__(self, case, leaf, key, bootstrap_protocol='h1'):
+    def __init__(self, case, leaf, key, bootstrap_protocol='h1', *, h2_preface=False):
         self.case = case
+        self.h2_preface = h2_preface
         self.bootstrap_protocol = bootstrap_protocol
         self.tcp_protocol = bootstrap_protocol if case == 'h3' else case
         self.leaf, self.key = leaf, key
@@ -285,12 +286,21 @@ class Origin:
         http.initiate_connection()
         writer.write(http.data_to_send())
         await writer.drain()
-        http.receive_data(await reader.readexactly(24))
+        client_preface = await reader.readexactly(24)
+        flight = None
+        if self.h2_preface:
+            from firefox_h2_preface import FirstH2Flight
+
+            flight = FirstH2Flight()
+            flight.feed(client_preface)
+        http.receive_data(client_preface)
         settings = None
         requests = {}
         while True:
             head = await reader.readexactly(9)
             payload = await reader.readexactly(int.from_bytes(head[:3], 'big'))
+            if flight is not None:
+                flight.feed(head + payload)
             if head[3] == 4 and not head[4] & 1 and settings is None:
                 settings = [[int.from_bytes(payload[i:i+2], 'big'), int.from_bytes(payload[i+2:i+6], 'big')]
                             for i in range(0, len(payload), 6)]
@@ -319,6 +329,11 @@ class Origin:
                 response = [(b':status', b'200'), (b'content-type', b'text/html'), (b'cache-control', b'no-store'),
                             (b'content-length', str(len(body)).encode('ascii'))]
                 record = dict(base, settings=settings, headers=headers)
+                if flight is not None:
+                    first = flight.result()
+                    if first['first_headers']['stream'] != stream:
+                        raise ValueError('first H2 HEADERS is not the target navigation stream')
+                    record['h2_preface'] = first
                 if self.case == 'h3':
                     response += [(b'alt-svc', f'h3=":{self.port}"; ma=60'.encode('ascii'))]
                     if len(self.bootstrap) < 5:

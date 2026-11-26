@@ -14,13 +14,14 @@ case "$slot" in
         sudo unshare --net -- bash -euc '
             ip link set lo up
             envvars=("PATH=$PATH" "GITHUB_SHA=$1" "GITHUB_RUN_ID=$2" "GITHUB_RUN_ATTEMPT=$3"
-                     "ImageOS=$4" "ImageVersion=$5" "FIREFOX_REFERENCE_BOOTSTRAP=$6")
-            shift 6
+                     "ImageOS=$4" "ImageVersion=$5" "FIREFOX_REFERENCE_BOOTSTRAP=$6"
+                     "FIREFOX_REFERENCE_H2_PREFACE=$7")
+            shift 7
             user=$1; shift
             exec runuser -u "$user" -- env "${envvars[@]}" "$@"
         ' _ "${GITHUB_SHA:-}" "${GITHUB_RUN_ID:-}" "${GITHUB_RUN_ATTEMPT:-}" \
             "${ImageOS:-}" "${ImageVersion:-}" "${FIREFOX_REFERENCE_BOOTSTRAP:-h1}" \
-            "$(id -un)" "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
+            "${FIREFOX_REFERENCE_H2_PREFACE:-0}" "$(id -un)" "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
         ;;
     darwin_x86_64|darwin_arm64)
         # The outer Seatbelt sandbox conflicts with Firefox's own content

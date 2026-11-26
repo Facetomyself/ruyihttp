@@ -9,6 +9,9 @@ on:
       release:
         type: string
         default: all
+      mode:
+        type: string
+        default: wire
   workflow_dispatch:
     inputs:
       targets:
@@ -19,6 +22,10 @@ on:
         type: choice
         options: [all, '159', '160', '161']
         default: all
+      mode:
+        type: choice
+        options: [wire, h2-preface]
+        default: wire
 
 permissions:
   contents: read
@@ -37,6 +44,7 @@ jobs:
         shell: bash
     env:
       SLOT: ${{ matrix.slot }}
+      FIREFOX_REFERENCE_H2_PREFACE: ${{ inputs.mode == 'h2-preface' && '1' || '0' }}
       PYTHONUTF8: '1'
       PIP_NO_CACHE_DIR: '1'
       HOMEBREW_NO_AUTO_UPDATE: '1'
@@ -80,7 +88,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: ${{ !cancelled() }}
         with:
-          name: official-firefox-wire-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: official-firefox-${{ inputs.mode == 'h2-preface' && 'h2-preface' || 'wire' }}-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/firefox-references/*.json
           if-no-files-found: error
           retention-days: 14
