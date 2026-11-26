@@ -16,6 +16,12 @@ python -I /absolute/path/to/ruyihttp/ci/smoke_firefox_profiles.py <slot> --outpu
 - H3 比较从已验证的 `https://localhost:<port>/boot` 发起的默认同源 Fetch。只映射实际回环端口，保留 Fetch Metadata、完整 `Referer` 路径、`Alt-Used`、伪头和普通请求头顺序。H1 引导响应发布 Alt-Svc，随后关闭 TCP 路径；HTTP/3 必须使用 UDP，且服务器独立观测 ClientHello、首次 Initial 版本、协商版本、选定传输参数与有序 SETTINGS。
 - 捕获输出保留 TLS 扩展顺序：只有同 slot、版本和请求方式的官方样本实际出现排列变化时，才比较固定扩展及 GREASE 数量，并保持可证实的固定位置。实测确有稳定扩展的排列变化时，wheel 也必须在最多五次独立连接内出现至少两种合规排列，每次均需通过固定字段核对。固定字段的具体范围和加密随机量、协议环境边界见[参考格式](../ci/firefox_wire_references/README.md)。这些测试是结构化字段的线路对照，不是全网络指纹或报文散列。
 
+## 来源规则与修复范围
+
+- **UA 与本机 ABI 分开。** [Firefox 122](https://github.com/mozilla-firefox/firefox/blob/f16f94e4ec9404ae1cec1377a32c4812bbdbf0d3/netwerk/protocol/http/nsHttpHandler.cpp) 的桌面 Linux 分支使用 `uname`。[Firefox 123 稳定版的默认偏好](https://github.com/mozilla-firefox/firefox/blob/83a2fe4a63390103d1ea7cacb15be96451e923f5/modules/libpref/init/StaticPrefList.yaml#L11540-L11555)对 64 位 ARM 开启 `freezeCpu`。因此 100–122 的 Linux ARM64 配置保留 `aarch64`，123–161 发送 `x86_64`；ARM64 原生库选择从未变成 x86。159/160/161 三版另有签名浏览器的实测记录，早期分界依据的是发布源码，不是对每一版重跑浏览器。
+- **协议选项不是修改观测值。** [Gecko 源码与 POSIX 补丁](../native/patches/GECKO_H3_POLICY.md)分别处理 Extended CONNECT、QUIC 版本偏好、实体流控窗口及原生 TLS。Firefox 161 冷连接实测 first Initial 为 v1、与支持 v2 的对端完成协商后使用 v2；只有 v1 的对端仍可正常协商。它并非无条件发送 v2。H3 对照保留源/目的 CID 长度和实际包号宽度，不保存 CID、包号和密钥的具体值。
+- **H2 首帧也有单独证据。** [5 平台、3 版本、每版 2 个全新导航](firefox-h2-preface.md)捕获 SETTINGS、连接级 WINDOW_UPDATE、独立 PRIORITY 序列以及首次请求的 stream ID 和内联优先级。后续因大文件或慢读者产生的策略仍按[本仓流控说明](h2-flow-control.md)，不把首帧对齐推广到任意负载和时序。
+
 ## 对照与诊断
 
 [`v0.9.2` 的历史 Linux ARM64 参考](../ci/firefox_wire_reference.json)曾省略 UA 的具体值，并把官方 H3 Fetch 与库的 H3 导航放在报告中并列；这个文件只能用于理解旧证据，不能用于新验收。新版保留原始捕获证据，也可对旧 wheel 或没有 fork manifest 的 PyPI 包运行独立采集：

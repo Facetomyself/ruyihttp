@@ -36,8 +36,14 @@ case "$slot" in
         }
         trap cleanup EXIT
         trap 'exit 130' INT HUP TERM
-        if ! sudo "$pf" -sr 2>/dev/null | awk '/^anchor "com.apple\/\*"/ { found=1 } END { exit !found }'; then
-            # An ephemeral Mac image can boot with an empty active ruleset.
+        active_rules=$(sudo "$pf" -sr 2>/dev/null)
+        if ! printf '%s\n' "$active_rules" | awk '/^anchor "com.apple\/\*"/ { found=1 } END { exit !found }'; then
+            # Only a disposable Actions VM with an empty active ruleset may load
+            # its default anchors. Never replace an operator's existing policy.
+            if [[ ${GITHUB_ACTIONS:-} != true || -n "$active_rules" ]]; then
+                printf '%s\n' 'A dedicated preconfigured com.apple/* anchor is required.' >&2
+                exit 1
+            fi
             sudo "$pf" -f /etc/pf.conf
         fi
         sudo "$pf" -sr 2>/dev/null | awk '/^anchor "com.apple\/\*"/ { found=1 } END { exit !found }'
