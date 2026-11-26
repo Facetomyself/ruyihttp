@@ -66,6 +66,13 @@ class QualificationTests(unittest.TestCase):
             with self.subTest(symbol=symbol), self.assertRaisesRegex(RuntimeError, symbol):
                 FLOOR.check_needed_versions(need + f"   Name: {symbol}\n", "fixture")
 
+    def test_pep610_sha256_is_validated_for_both_stock_and_current_pip(self):
+        digest = "a" * 64
+        self.assertEqual(FLOOR.archive_sha256({"hash": f"sha256={digest}"}), digest)
+        self.assertEqual(FLOOR.archive_sha256({"hashes": {"sha256": digest}}), digest)
+        with self.assertRaisesRegex(RuntimeError, "consistent SHA-256"):
+            FLOOR.archive_sha256({"hash": f"sha256={digest}", "hashes": {"sha256": "b" * 64}})
+
     def test_pip_report_rejects_wrong_candidate_bytes(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

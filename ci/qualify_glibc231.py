@@ -103,6 +103,17 @@ def pip_install(evidence, name, python, *requirements):
     return filename
 
 
+def archive_sha256(archive):
+    # PEP 610's original `hash` form is still emitted for local wheels by
+    # Bullseye's stock ensurepip (pip 23.0.1). New pip uses `hashes`.
+    modern = archive.get("hashes", {}).get("sha256")
+    legacy = archive.get("hash", "").removeprefix("sha256=") if archive.get("hash", "").startswith("sha256=") else None
+    digest = modern or legacy
+    require(digest and re.fullmatch(r"[a-f0-9]{64}", digest) and (not modern or not legacy or modern == legacy),
+            "archive receipt lacks a consistent SHA-256")
+    return digest
+
+
 def dependencies(path, wheel=None):
     result = {}
     for record in json.loads(path.read_text(encoding="utf-8"))["install"]:
@@ -110,8 +121,8 @@ def dependencies(path, wheel=None):
         download = record["download_info"]
         name = metadata["name"].lower()
         filename = Path(unquote(urlsplit(download["url"]).path)).name
-        digest = download["archive_info"]["hashes"]["sha256"]
-        require(filename.endswith(".whl") and re.fullmatch(r"[a-f0-9]{64}", digest), f"non-wheel dependency: {name}")
+        digest = archive_sha256(download["archive_info"])
+        require(filename.endswith(".whl"), f"non-wheel dependency: {name}")
         if name == "ruyihttp":
             require(wheel is not None and filename == wheel.name and digest == sha(wheel), "pip selected wrong wheel bytes")
         result[name] = {"version": metadata["version"], "wheel": filename, "sha256": digest}
@@ -255,7 +266,7 @@ def elf_receipt(arch, slot, evidence, wheel, mode):
             f"package is not in this venv's site-packages: {source}")
     dist = importlib.metadata.distribution("ruyihttp")
     direct_url = json.loads(dist.read_text("direct_url.json"))
-    require(direct_url["archive_info"]["hashes"]["sha256"] == sha(wheel), "installed distribution points to wrong bytes")
+    require(archive_sha256(direct_url["archive_info"]) == sha(wheel), "installed distribution points to wrong bytes")
     manifest = json.loads((source / "runtime-manifest.json").read_text(encoding="utf-8"))["platforms"][slot]
     native_tag = native_tag_record(manifest, arch, mode)
     libraries = dict(manifest["files"])
