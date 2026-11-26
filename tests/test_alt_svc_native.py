@@ -33,7 +33,7 @@ class NativeAltSvcTests(unittest.TestCase):
     _origin = fixture.NativeHTTP3Tests._origin
 
     @contextlib.contextmanager
-    def _tcp_origin(self, alpn, port):
+    def _tcp_origin(self, alpn, port, *, close_after=None):
         cert = self._write(
             "leaf.pem", self.leaf.public_bytes(serialization.Encoding.PEM)
         )
@@ -76,10 +76,14 @@ class NativeAltSvcTests(unittest.TestCase):
                             if header.lower().startswith(b"content-length:"):
                                 length = int(header.split(b":", 1)[1])
                         requests.append((cid, method, path, source.read(length)))
+                        close = path == close_after
+                        connection_header = "Connection: close\r\n" if close else ""
                         sock.sendall(
                             f"HTTP/1.1 200 OK\r\nx-conn: {cid}\r\nAlt-Svc: {hint}\r\n"
-                            "Content-Length: 2\r\n\r\nok".encode()
+                            f"{connection_header}Content-Length: 2\r\n\r\nok".encode()
                         )
+                        if close:
+                            return
 
             def h2(self, sock, cid):
                 from h2.config import H2Configuration
@@ -232,38 +236,41 @@ class NativeAltSvcTests(unittest.TestCase):
                     workers.append(threading.current_thread())
                 run_h3(connection)
 
-            with (
-                self._tcp_origin("http/1.1", port) as (url, connections, requests),
-                self._session() as session,
-            ):
-                with patch.object(fixture.Connection, "_run", track_udp_owner):
-                    for path, budget in (("/bootstrap", 2), ("/blocked", 0.8)):
-                        with session.get(url + path, timeout=(budget, 2)) as response:
-                            self.assertEqual(
-                                (response.raw.version, response.content), (11, b"ok")
-                            )
-                # The warm TCP winner returns before its cancelled H3 loser
-                # exits. Native QUIC close can still send an Initial packet;
-                # leave the blackhole bound until its UDP owner has exited.
-                self.assertEqual(len(workers), 1)
-                worker, = workers
-                worker.join(timeout=3)
-                self.assertFalse(worker.is_alive(), "blocked H3 UDP owner did not exit")
-                sink.setblocking(False)
-                self.assertGreater(self._udp_count(sink), 0)
-                sink.close()
-                serve = fixture.serve
+            with self._session() as session:
+                with self._tcp_origin("http/1.1", port, close_after=b"/cooling") as tcp:
+                    url, connections, requests = tcp
+                    with patch.object(fixture.Connection, "_run", track_udp_owner):
+                        for path, budget in (("/bootstrap", 2), ("/blocked", 0.8)):
+                            with session.get(url + path, timeout=(budget, 2)) as response:
+                                self.assertEqual(
+                                    (response.raw.version, response.content), (11, b"ok")
+                                )
+                    # The warm TCP winner returns before its cancelled H3 loser
+                    # exits. Native QUIC close can still send an Initial packet;
+                    # leave the blackhole bound until its UDP owner has exited.
+                    self.assertEqual(len(workers), 1)
+                    worker, = workers
+                    worker.join(timeout=3)
+                    self.assertFalse(worker.is_alive(), "blocked H3 UDP owner did not exit")
+                    sink.setblocking(False)
+                    self.assertGreater(self._udp_count(sink), 0)
+                    sink.close()
+                    serve = fixture.serve
 
-                async def listen(host, _port, **kwargs):
-                    return await serve(host, port, **kwargs)
+                    async def listen(host, _port, **kwargs):
+                        return await serve(host, port, **kwargs)
 
-                with patch.object(fixture, "serve", listen):
-                    origin = self._origin()
-                self.assertEqual(origin.address[1], port)
-                with session.get(url + "/cooling", timeout=2) as response:
-                    self.assertEqual(
-                        (response.raw.version, response.content), (11, b"ok")
-                    )
+                    with patch.object(fixture, "serve", listen):
+                        origin = self._origin()
+                    self.assertEqual(origin.address[1], port)
+                    with session.get(url + "/cooling", timeout=2) as response:
+                        self.assertEqual(
+                            (response.raw.version, response.content), (11, b"ok")
+                        )
+                        self.assertEqual(response.headers["Connection"], "close")
+                # The same Session and cache remain active, but the last H1
+                # response closed its warm connection and the TCP listener has
+                # stopped. Recovery measures H3 eligibility, not race timing.
                 self.assertEqual(origin.connections, 0)
                 clock.now += _transport._ALT_SVC_COOLDOWN
                 with session.get(url + "/recovered", timeout=2) as response:
@@ -275,6 +282,7 @@ class NativeAltSvcTests(unittest.TestCase):
                     [path for _, _, path, _ in requests],
                     [b"/bootstrap", b"/blocked", b"/cooling"],
                 )
+                self.assertEqual(origin.negotiated, [(0, "h3")])
                 self.assertEqual(
                     [headers[b":path"] for _, _, headers, _ in origin.requests],
                     [b"/recovered"],
