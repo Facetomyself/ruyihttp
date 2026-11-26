@@ -208,9 +208,14 @@ def prepare(slot, release, work):
     expect(app.read(ini), 'missing official application.ini')
     version, build = app['App']['Version'], app['App']['BuildID']
     expect(version == f'{release}.0' and len(build) == 14 and build.isdecimal(), f'unexpected Firefox build: {version}/{build}')
-    record.update(version=version, build_id=build, executable_sha256=sha256(binary), executable_slices=slices,
+    images = {binary.name: sha256(binary)}
+    if sys.platform == 'linux' and (image := binary.with_name('firefox-bin')).is_file():
+        executable_arch(image, slot)
+        images[image.name] = sha256(image)
+    record.update(version=version, build_id=build, executable_sha256=images[binary.name], executable_slices=slices,
                   runtime_host=identity, source_stamp=app['App'].get('SourceStamp'), archive_locale='en-US',
-                  executable_relative=binary.relative_to(work).as_posix(), acquired_unix=int(time.time()))
+                  executable_relative=binary.relative_to(work).as_posix(), packaged_executables=images,
+                  acquired_unix=int(time.time()))
     (work / 'release.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(record), flush=True)
     archive.unlink()  # This is the just-verified archive under the new, dedicated work directory.
