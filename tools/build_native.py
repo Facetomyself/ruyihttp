@@ -22,6 +22,7 @@ import sys
 import zipfile
 from email.parser import Parser
 from pathlib import Path, PurePosixPath
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
 NATIVE = ROOT / "native"
@@ -336,6 +337,13 @@ def main() -> int:
                 if report['files'] != provenance['files']:
                     raise ValueError('Linux native members differ from wheel provenance')
                 report['tag'] = verify_linux_baseline_wheel(args.inspect_wheel, args.platform, entry, provenance)
+                from linux_baseline import validate_elf
+
+                with TemporaryDirectory(prefix='ruyi-linux-wheel-inspect-') as scratch:
+                    directory = Path(scratch)
+                    for name, contents in members.items():
+                        (directory / name).write_bytes(contents)
+                    validate_elf(args.platform, directory, provenance['linux_elf_preflight'])
                 if sha256(args.inspect_wheel) != digest:
                     raise ValueError('wheel bytes changed during inspection')
             print(json.dumps(report,indent=2))
