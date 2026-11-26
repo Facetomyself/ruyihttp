@@ -39,7 +39,7 @@ from ._transport import HeaderMap
 from .api import delete, get, head, options, patch, post, put, request
 from .sessions import Session, session
 
-__version__ = "0.9.3"
+__version__ = "0.9.4"
 NeckoError = RequestException
 
 for _module in (
