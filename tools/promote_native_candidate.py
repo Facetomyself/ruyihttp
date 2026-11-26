@@ -14,7 +14,7 @@ from pathlib import Path
 
 from build_native import (NATIVE, PLATFORM_FILES, inspect_stable_wheel,
                           load_manifest, sha256, wheel_members, write_manifest)
-from posix_firefox161 import validate_candidate
+from posix_firefox161 import GECKO_H3_SOURCES, H3_PROTOCOL_POLICY, validate_candidate
 from stage_native_candidate import TARGETS
 
 
@@ -83,6 +83,7 @@ def promote(args):
             source['firefox_release_tag'] == provenance['firefox_source_tag'] and
             source['neqo_commit'] == provenance['neqo_source_commit'] and
             source['nss_rs_commit'] == provenance['nss_rs_source_commit'], 'Unmatched source receipt')
+    require(source.get('gecko_h3_sources') == GECKO_H3_SOURCES, 'Unmatched Gecko HTTP/3 preference evidence')
     lock = read(evidence / 'standalone-lock.json')
     require(lock['sha256'] == sha256(evidence / 'standalone-Cargo.lock') and
             lock['packages'] == source['mozilla_cargo_lock']['packages'],
@@ -102,6 +103,10 @@ def promote(args):
                    'native-transactions': ['H3 binary body ABI: 1', 'h2 200 20', 'h3 200 30',
                                            f'NSS {entry["nss"]} NSPR {entry["nspr"]}'],
                    'firefox-profile-wire': ['explicit 159/160/161 passed H1, H2 and UDP-only H3'],
+                   'posix-quic-policy': ['PASS: native POSIX QUIC policy',
+                                         'v1-only peer without CONNECT: negotiated v1',
+                                         'Missing h3_connect preference: id8 absent',
+                                         'Shuffled profile keys: explicit receive windows'],
                    'full-h3': ['Ran 6 tests'], 'test_h3_body_abi': ['h3 body binary-v1: bytes=1048579'],
                    'upgrade-0.9.0': ['PASS: in-place 0.9.0 -> ', 'one distribution, native hashes, HTTP before and after']}
         for name, needles in markers.items():
@@ -130,6 +135,8 @@ def promote(args):
         'source_build_commit': source_sha,
         'cpython_runtime_endpoints': ['3.10', '3.14'], 'tested_http': ['http/1.1', 'h2', 'h3'], 'h3_body_abi': 1,
         'in_place_upgrade_from': '0.9.0', 'tested_firefox_profiles': ['159', '160', '161'],
+        'h3_protocol_policy': H3_PROTOCOL_POLICY,
+        'tested_quic_policy_profiles': ['144', '145', '154', '155', '159', '160', '161'],
     }
     for name, data in actual_files.items():
         (target / name).write_bytes(data)

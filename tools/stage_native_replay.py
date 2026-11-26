@@ -32,8 +32,8 @@ def main():
     source_suffix = f'.dev{source_run}+gha.{source_attempt}'
     assert candidate['version'].endswith(source_suffix)
     original = load_manifest()
-    # Packaging can move from 0.9.1 to 0.9.2 without changing any replayed library.
-    assert candidate['version'].removesuffix(source_suffix) in {'0.9.1', '0.9.2'}
+    # Accept only the policy-generation build; current patch bytes are verified below.
+    assert candidate['version'].removesuffix(source_suffix) == '0.9.3'
     entry = candidate['platforms'][slot]
     assert entry['status'] == 'ready' and entry['h3_body_abi'] == 1
     assert entry['files'] == {name: information['sha256'] for name, information in actual.items()}

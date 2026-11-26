@@ -64,6 +64,8 @@ def main():
     python("upstream-trust-data", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_upstream_trust_data.py", "-v")
     python("http1", "-I", ROOT / "ci/smoke_local.py")
     python("native-transactions", "-I", ROOT / "ci/smoke_native_target.py", slot)
+    if manifest['platforms'][slot].get('h3_protocol_policy') == 1:
+        python('posix-quic-policy', '-I', ROOT / 'ci/smoke_posix_quic_policy.py', slot)
     python("firefox-profile-wire", "-I", ROOT / "ci/smoke_firefox_profiles.py", slot)
     python("full-h3", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_http3_native.py", "-v")
     for module in ('test_h3_body_abi.py', 'test_alt_svc_native.py'):

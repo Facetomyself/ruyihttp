@@ -1,0 +1,55 @@
+diff --git a/native/necko_posix/quic/client.rs b/native/necko_posix/quic/client.rs
+index a56d35c..6449272 100644
+--- a/native/necko_posix/quic/client.rs
++++ b/native/necko_posix/quic/client.rs
+@@ -7,6 +7,11 @@ use neqo_transport::{Connection, ConnectionParameters, Output, RandomConnectionI
+ use serde_json::{Value, json};
+ use crate::{Result, crypto, err, number, text};
+ 
++fn receive_window(profile: &Value, key: &str) -> Result<Option<u64>> {
++    profile.get(key).map(|value| value.as_u64().filter(|n| *n < 1 << 62)
++        .ok_or_else(|| format!("Invalid {key} preference"))).transpose()
++}
++
+ pub struct Session {
+     pub client: Http3Client,
+     pub socket: Option<UdpSocket>,
+@@ -24,22 +29,32 @@ impl Session {
+         let remote: SocketAddr = text(v, "remote")?.parse().map_err(err)?;
+         let p = &v["profile"];
+         let wt = v["webtransport"].as_bool().unwrap_or(false);
++        let connect = p.get("h3_connect").map(|value| {
++            value.as_bool().ok_or("Invalid h3_connect preference")
++        }).transpose()?.unwrap_or(false);
++        let max_data = receive_window(p, "max_data")?.unwrap_or(24 * 1024 * 1024);
++        let max_bidi_local = receive_window(p, "max_stream_data_bidi_local")?.unwrap_or(12 * 1024 * 1024);
+         let max_streams = p["max_streams"].as_u64().unwrap_or(100).min(100);
+-        let mut params = ConnectionParameters::default()
++        let params = ConnectionParameters::default()
+             .max_streams(StreamType::BiDi, max_streams).max_streams(StreamType::UniDi, max_streams)
+-            .max_data(24 * 1024 * 1024).max_stream_data(StreamDataLimit::BiDiLocal, 12 * 1024 * 1024)
++            .max_data(max_data).max_stream_data(StreamDataLimit::BiDiLocal, max_bidi_local)
+             .idle_timeout(Duration::from_secs(30)).grease(p["grease_quic_bit"].as_bool().unwrap_or(false))
+             .disable_migration(p["disable_migration"].as_bool().unwrap_or(false))
+             .sni_slicing(p["sni_slicing"].as_bool().unwrap_or(true))
+             .datagram_size(p["datagram_size"].as_u64().unwrap_or(65535).min(65535))
+             .reliable_stream_reset(p["reliable_stream_reset"].as_bool().unwrap_or(false));
+-        if !p["version2"].as_bool().unwrap_or(false) {
+-            params = params.versions(Version::Version1, vec![Version::Version1]);
+-        }
++        // Keep the Initial at v1. Neqo negotiates only versions permitted by both peers.
++        let versions = if p["version2"].as_bool().unwrap_or(false) {
++            Version::all()
++        } else {
++            vec![Version::Version1]
++        };
++        let params = params.versions(Version::Version1, versions);
+         let http3 = Http3Parameters::default().connection_parameters(params.clone())
+             .max_table_size_encoder(65536).max_table_size_decoder(65536).max_blocked_streams(20)
+             .http3_datagram(wt || p["h3_datagram"].as_bool().unwrap_or(false))
+-            .webtransport(wt).connect(wt);
++            // WebTransport still implies Extended CONNECT when explicitly requested.
++            .connect(connect).webtransport(wt);
+         let mut connection = Connection::new_client(text(v,"host")?, &["h3"],
+             Rc::new(RefCell::new(RandomConnectionIdGenerator::new(3))), local, remote, params, Instant::now()).map_err(err)?;
+         let style = p["tp_style"].as_u64().unwrap_or(0);

@@ -116,8 +116,20 @@ def require_profile_platform(kind, platform=None):
 
 
 def quic_profile(version, platform=None):
-    require_profile_platform("QUIC profiles", platform)
-    return PROFILES[str(version)]["quic"]
+    platform = require_profile_platform("QUIC profiles", platform)
+    profile = PROFILES[str(version)]["quic"]
+    if platform == "win_amd64":
+        # The upstream Windows bridge retains its original profile schema.
+        return profile
+    return dict(
+        profile,
+        # Gecko StaticPrefList.yaml, shared by stable macOS and Linux since 100.
+        max_data=25165824,
+        max_stream_data_bidi_local=12582912,
+        # neqo_glue's HTTP/3 client enables this independently from WebTransport
+        # starting in stable 145. Existing `version2` tracks stable 155+.
+        h3_connect=int(version) >= 145,
+    )
 
 
 def _accept(version):
