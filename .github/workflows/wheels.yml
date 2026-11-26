@@ -88,6 +88,23 @@ jobs:
       - name: Installed native runtime on CPython 3.14
         if: ${{ !cancelled() && steps.python314.outcome == 'success' }}
         run: python -I ci/qualify_wheel.py ${{ matrix.platform }} 3.14 wheelhouse native-evidence
+      - name: Select isolated Windows comparison interpreter
+        if: ${{ success() && runner.os == 'Windows' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Compare the actual candidate, stock upstream, and preceding release to Firefox on the same Windows runner
+        if: ${{ success() && runner.os == 'Windows' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p native-evidence/windows-three-way/official
+          python -m pip install -r ci/firefox_reference_requirements.txt
+          python ci/firefox_reference_capture.py prepare win_amd64 161 "$RUNNER_TEMP/parity-firefox-161"
+          bash ci/firefox_reference_isolate.sh win_amd64 161 "$RUNNER_TEMP/parity-firefox-161" "$PWD/native-evidence/windows-three-way/official" --samples 2
+          wheel=(wheelhouse/*.whl)
+          python -I ci/compare_windows_wire.py "${wheel[0]}" native-evidence/windows-three-way --official native-evidence/windows-three-way/official/win_amd64-161.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
