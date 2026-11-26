@@ -45,6 +45,8 @@ class MasqueWireTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(receipt["origin"]["rejected_udp"]), 1)
         self.assertEqual(len(receipt["origin"]["tcp_contacts"]), 1)
         self.assertEqual(receipt["origin"]["peer_sockets"], [receipt["sockets"]["relay_egress"]])
+        self.assertEqual(len(receipt["off_route_canary"]["udp"]), 1)
+        self.assertEqual(len(receipt["off_route_canary"]["tcp"]), 1)
 
     @unittest.skipUnless(os.environ.get("RUYIHTTP_TEST_NATIVE_H3") == "1", "requires installed native runtime")
     async def test_installed_native_masque_wire(self):

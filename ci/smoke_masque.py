@@ -54,7 +54,9 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 LOOP = "127.0.0.1"
+LOOP6 = "::1"
 ORIGIN = "h3-origin.invalid"
+CUSTOM_TEMPLATE = "/relay/udp?host={target_host}&port={target_port}"
 WRONG_ORIGIN = "wrong-origin.invalid"
 AUTH_USER = "fixture"
 AUTH_PASSWORD = f"relay-only:{secrets.token_hex(8)}@local"
@@ -110,7 +112,7 @@ def issue(directory, prefix, san):
         cert = (
             builder(name(label), root_name, leaf_key)
             .add_extension(x509.BasicConstraints(ca=False, path_length=None), True)
-            .add_extension(x509.SubjectAlternativeName([subject_alt_name]), False)
+            .add_extension(x509.SubjectAlternativeName(subject_alt_name), False)
             .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(root_key.public_key()), False)
             .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), False)
             .add_extension(x509.KeyUsage(True, False, False, False, False, False, False, False, False), True)
@@ -128,14 +130,14 @@ def issue(directory, prefix, san):
     ))
     return {
         "root": root_path, "key": key_path,
-        "good": leaf("right", san), "wrong": leaf("wrong", x509.DNSName(WRONG_ORIGIN)),
+        "good": leaf("right", san), "wrong": leaf("wrong", [x509.DNSName(WRONG_ORIGIN)]),
     }
 
 
 def certs(directory):
     return (
-        issue(directory, "origin", x509.DNSName(ORIGIN)),
-        issue(directory, "relay", x509.IPAddress(ipaddress.ip_address(LOOP))),
+        issue(directory, "origin", [x509.DNSName(ORIGIN), x509.IPAddress(ipaddress.ip_address(LOOP6))]),
+        issue(directory, "relay", [x509.IPAddress(ipaddress.ip_address(LOOP))]),
     )
 
 
@@ -262,6 +264,10 @@ class OriginProtocol(QuicConnectionProtocol):
             status, body = b"302", b""
             location = f"http://{LOOP}:{self.state.origin_address[1]}/tcp-forbidden".encode("ascii")
             headers.append((b"location", location))
+        elif path == b"/redirect-off-route" and self.state.spy_address:
+            status, body = b"302", b""
+            location = f"https://{LOOP}:{self.state.spy_address[1]}/off-route".encode("ascii")
+            headers.append((b"location", location))
         elif path in (b"/concurrent-a", b"/concurrent-b"):
             check(path not in self.concurrent, "duplicate concurrent path", path)
             self.concurrent[path] = stream
@@ -374,7 +380,7 @@ class RelayProtocol(QuicConnectionProtocol):
         expected = {
             b":method": b"CONNECT", b":protocol": b"connect-udp", b":scheme": b"https",
             b":authority": f"{LOOP}:{state.relay_address[1]}".encode("ascii"),
-            b":path": target_path(state.origin_address[1]),
+            b":path": state.connect_path,
         }
         additional = []
         if any(headers.get(key) != value for key, value in expected.items()):
@@ -454,9 +460,20 @@ class RelayProtocol(QuicConnectionProtocol):
         self.transmit()
 
 
+class ShadowUDP(asyncio.DatagramProtocol):
+    def __init__(self, state):
+        self.state = state
+
+    def datagram_received(self, data, addr):
+        self.state.spy_udp.append((addr, len(data)))
+
+
 class Wire:
     def __init__(self, mode):
         self.mode = mode
+        self.origin_ip = LOOP6 if mode == "ipv6-origin" else LOOP
+        self.spy_address = None
+        self.spy_tcp, self.spy_udp = [], []
         self.overlap_proven = self.tunnel_used = False
         self.capsules_sent = self.late_origin_datagrams = 0
         self.active = self.egress_address = self.initial = None
@@ -474,9 +491,25 @@ class Wire:
         self.forward_input, self.forward_sent, self.ingress = Traffic(), Traffic(), Traffic()
         self.reverse, self.reverse_sent = Traffic(), Traffic()
 
+    @property
+    def connect_path(self):
+        port = self.origin_address[1]
+        if self.mode == "custom-path":
+            return f"/relay/udp?host={ORIGIN}&port={port}".encode("ascii")
+        if self.mode == "ipv6-origin":
+            # Fixture expectation is literal, independent of product URL encoding.
+            return f"/.well-known/masque/udp/%3A%3A1/{port}/".encode("ascii")
+        return target_path(port)
+
+    @property
+    def origin_authority(self):
+        host = f"[{LOOP6}]" if self.mode == "ipv6-origin" else ORIGIN
+        return f"{host}:{self.origin_address[1]}"
+
     def receipt(self):
         return {
             "mode": self.mode,
+            "off_route_canary": {"address": self.spy_address, "udp": self.spy_udp, "tcp": self.spy_tcp},
             "sockets": {"relay": self.relay_address, "relay_egress": self.egress_address, "origin_udp": self.origin_address},
             "outer": {"connections": self.relay_connections, "client_peers": sorted(self.outer_peers), "tls": self.outer_tls,
                       "settings": self.relay_settings, "client_settings": self.client_settings, "connects": self.connects,
@@ -514,32 +547,40 @@ async def fixture(origin_pem, relay_pem, mode="ok"):
     old_handler = loop.get_exception_handler()
     loop.set_exception_handler(lambda _loop, ctx: state.errors.append(repr(ctx.get("exception", ctx["message"]))))
 
-    async def tcp_canary(_reader, writer):
-        state.tcp_contacts.append(writer.get_extra_info("peername"))
+    async def tcp_canary(contacts, _reader, writer):
+        contacts.append(writer.get_extra_info("peername"))
         writer.close()
         await writer.wait_closed()
+
+    async def bind_pair(ip, factory, contacts):
+        for _ in range(5):
+            udp, protocol = await loop.create_datagram_endpoint(factory, local_addr=(ip, 0))
+            address = udp.get_extra_info("sockname")
+            try:
+                trap = await asyncio.start_server(partial(tcp_canary, contacts), *address[:2])
+            except OSError:
+                udp.close()
+            else:
+                return udp, protocol, trap, address
+        raise RuntimeError("failed to reserve matching UDP/TCP loopback port")
 
     try:
         with contextlib.ExitStack() as cleanup:
             origin_conf = configuration(origin_pem, wrong=mode == "wrong-origin-name")
-            for _ in range(5):
-                _, origin = await loop.create_datagram_endpoint(
-                    lambda: GuardedOrigin(configuration=origin_conf, state=state,
-                                          create_protocol=partial(OriginProtocol, state=state)),
-                    local_addr=(LOOP, 0),
-                )
-                state.origin_address = origin._transport.get_extra_info("sockname")
-                try:
-                    trap = await asyncio.start_server(tcp_canary, *state.origin_address)
-                    break
-                except OSError:
-                    origin.close()
-            else:
-                raise RuntimeError("failed to reserve matching UDP/TCP loopback port")
+            _, origin, trap, state.origin_address = await bind_pair(
+                state.origin_ip,
+                lambda: GuardedOrigin(configuration=origin_conf, state=state,
+                                      create_protocol=partial(OriginProtocol, state=state)),
+                state.tcp_contacts,
+            )
             cleanup.callback(origin.close)
             cleanup.callback(trap.close)
+            if mode == "redirect-off-route":
+                spy, _, spy_trap, state.spy_address = await bind_pair(LOOP, lambda: ShadowUDP(state), state.spy_tcp)
+                cleanup.callback(spy.close)
+                cleanup.callback(spy_trap.close)
             egress, _ = await loop.create_datagram_endpoint(
-                lambda: Egress(state), local_addr=(LOOP, 0), remote_addr=state.origin_address,
+                lambda: Egress(state), local_addr=(state.origin_ip, 0), remote_addr=state.origin_address[:2],
             )
             cleanup.callback(egress.close)
             state.egress = egress
@@ -616,21 +657,30 @@ class ReferenceInner(QuicConnectionProtocol):
 async def fixture_self_test(origin_pem, relay_pem):
     from aioquic.quic.connection import QuicConnection
 
-    async with fixture(origin_pem, relay_pem) as state:
+    async with fixture(origin_pem, relay_pem, "redirect-off-route") as state:
+        loop = asyncio.get_running_loop()
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as stray:
-            # A real UDP packet from another loopback socket must reach the gate
-            # and be discarded before any QUIC parser/protocol handles it.
+            # A valid QUIC Initial from another local socket must reach the
+            # gate and be discarded before it creates any QUIC state.
             stray.bind((LOOP, 0))
             wrong_source = stray.getsockname()
-            stray.sendto(b"wrong-peer-proof", state.origin_address)
-            await wait_for(lambda: bool(state.rejected_udp))
-            check(state.rejected_udp == [wrong_source] and not state.initial,
+            probe = QuicConnection(configuration=QuicConfiguration(is_client=True, alpn_protocols=["h3"]))
+            probe.connect(state.origin_address, now=loop.time())
+            initial, endpoint = probe.datagrams_to_send(now=loop.time())[0]
+            check(endpoint == state.origin_address and len(initial) >= 1200, endpoint, len(initial))
+            stray.sendto(initial, endpoint)
+            check(await wait_for(lambda: bool(state.rejected_udp)), "wrong peer canary stayed silent")
+            check(state.rejected_udp == [wrong_source] and not state.initial and state.origin_connections == 0,
                   "origin accepted wrong-source UDP", state.receipt())
-        _, writer = await asyncio.open_connection(*state.origin_address)
-        await wait_for(lambda: bool(state.tcp_contacts))
-        check(writer.get_extra_info("sockname") == state.tcp_contacts[0], state.tcp_contacts)
-        writer.close()
-        await writer.wait_closed()
+            stray.sendto(initial, state.spy_address)
+            check(await wait_for(lambda: bool(state.spy_udp)), "off-route UDP spy stayed silent")
+            check(state.spy_udp == [(wrong_source, len(initial))], state.spy_udp)
+        for endpoint, contacts in ((state.origin_address, state.tcp_contacts), (state.spy_address, state.spy_tcp)):
+            _, writer = await asyncio.open_connection(*endpoint)
+            check(await wait_for(lambda: bool(contacts)), "TCP spy stayed silent", endpoint)
+            check(writer.get_extra_info("sockname") == contacts[0], contacts)
+            writer.close()
+            await writer.wait_closed()
 
         outer_config = QuicConfiguration(is_client=True, alpn_protocols=["h3"], server_name=LOOP,
                                          verify_mode=ssl.CERT_REQUIRED, cafile=str(relay_pem["root"]),
@@ -686,7 +736,8 @@ def watch_client(state):
 
     def guarded_dns(host, *args, **kwargs):
         name = host.decode("ascii", "replace") if isinstance(host, bytes) else host
-        if isinstance(name, str) and name.lower().rstrip(".") in (ORIGIN, WRONG_ORIGIN):
+        blocked = (ORIGIN, WRONG_ORIGIN, LOOP6) if state.mode == "ipv6-origin" else (ORIGIN, WRONG_ORIGIN)
+        if isinstance(name, str) and name.lower().rstrip(".") in blocked:
             dns_attempts.append(name)
             raise socket.gaierror(socket.EAI_NONAME, "wire gate intercepted local origin resolution")
         return original_dns(host, *args, **kwargs)
@@ -804,15 +855,18 @@ def client_call(state, origin_pem, relay_pem, runtime_slot, *, positive=False):
     relay_roots = origin_pem["root"] if mode == "wrong-relay-ca" else relay_pem["root"]
     user_info = "" if mode == "auth-required" else URL_AUTH
     proxy = f"masque://{user_info}{LOOP}:{state.relay_address[1]}"
-    uri = f"https://{ORIGIN}:{state.origin_address[1]}"
+    uri = "https://" + state.origin_authority
     budget = (1.5, 3) if mode in ("blackhole", "bad-context") else (8, 1.5) if mode == "post-stall" else (8, 12)
-    options = {"proxies": {"https": proxy}, "allow_redirects": mode == "redirect-http"}
+    options = {"proxies": {"https": proxy}, "allow_redirects": mode in ("redirect-http", "redirect-off-route")}
+    session_options = {"masque_path_template": CUSTOM_TEMPLATE} if mode == "custom-path" else {}
+    if mode in ("custom-path", "ipv6-origin"):
+        options["headers"] = {"Authorization": "Bearer origin-fixture"}
     if mode == "client-certificate":
         options["cert"] = (str(origin_pem["good"][0]), str(origin_pem["key"]))
     start = time.monotonic()
     try:
         with mask_optional_dependency(mode), ruyihttp.Session(
-            firefox=FIREFOX, verify=str(roots), proxy_verify=str(relay_roots), timeout=budget,
+            firefox=FIREFOX, verify=str(roots), proxy_verify=str(relay_roots), timeout=budget, **session_options,
         ) as session:
             session.trust_env = False
             if positive:
@@ -851,7 +905,7 @@ def client_call(state, origin_pem, relay_pem, runtime_slot, *, positive=False):
                 with session.post(uri + "/stall", data=UPLOAD, **options) as response:
                     receipts = {"post": response_receipt(response, SMALL, runtime_slot)}
             else:
-                path = "/redirect-http" if mode == "redirect-http" else "/small"
+                path = "/" + mode if mode in ("redirect-http", "redirect-off-route") else "/small"
                 with session.get(uri + path, **options) as response:
                     receipts = {"small": response_receipt(response, SMALL, runtime_slot)}
         return {"responses": receipts, "elapsed_seconds": round(time.monotonic() - start, 4)}
@@ -864,6 +918,7 @@ def check_route(state):
     check(not state.errors, "async fixture exception", state.errors)
     check(not state.rejected_udp, "unexpected direct origin UDP", state.rejected_udp)
     check(not state.tcp_contacts, "unexpected origin TCP", state.tcp_contacts)
+    check(not state.spy_udp and not state.spy_tcp, "unexpected off-route traffic", state.spy_udp, state.spy_tcp)
     check(not state.invalid_client_datagrams and not state.unassociated_client_datagrams and not state.relay_capsule_bytes,
           "unexpected outer DATAGRAM framing/Capsule traffic", state.receipt()["datagrams"])
 
@@ -879,7 +934,7 @@ def check_tunnel(state):
     event, = state.connects
     check(event["status"] == 200 and event["auth_matches"] and event["auth_header_count"] == 1 and not event["request_fin"]
           and event["capsule_protocol"] == "?1" and not event["origin_authorization_present"], event)
-    check(event["path"] == target_path(state.origin_address[1]).decode() and event["authority"] == f"{LOOP}:{state.relay_address[1]}", event)
+    check(event["path"] == state.connect_path.decode() and event["authority"] == f"{LOOP}:{state.relay_address[1]}", event)
     check(event["stream"] % 4 == 0 and state.client_quarter_ids == {event["stream"] // 4}, event, state.client_quarter_ids)
     check(state.tunnel_ends and state.active is None, "session close did not retire CONNECT stream", state.receipt()["outer"])
 
@@ -970,10 +1025,29 @@ def check_scenario(state, result, error):
         check_tunnel(state)
         check(state.capsules_sent > 1 and state.capsules_sent == state.reverse_sent.count, state.receipt()["datagrams"])
         check([row["path"] for row in state.origin_headers] == ["/small"], state.origin_headers)
+    elif mode in ("custom-path", "ipv6-origin"):
+        check(error is None and result["responses"]["small"]["http_version"] == 30, result)
+        check_tunnel(state)
+        request, = state.origin_headers
+        check(request["path"] == "/small" and request["authority"] == state.origin_authority
+              and request["origin_authorization"] == "Bearer origin-fixture" and not request["proxy_credentials_present"], request)
+        check(state.origin_peers == {state.egress_address} and state.origin_tls[0]["alpn"] == "h3", state.receipt()["origin"])
+        check(state.forward_sent.count > 1 and state.reverse_sent.count > 1, state.receipt()["datagrams"])
+        if mode == "ipv6-origin":
+            check(state.origin_address[0] == state.egress_address[0] == LOOP6 and state.relay_address[0] == LOOP,
+                  state.receipt()["sockets"])
     elif mode == "redirect-http":
         check(isinstance(error, ProxyError), result)
         check_tunnel(state)
         check([row["path"] for row in state.origin_headers] == ["/redirect-http"], state.origin_headers)
+    elif mode == "redirect-off-route":
+        check(isinstance(error, ProxyError) and "403" in result["message"], result)
+        check([row["status"] for row in state.connects] == [200, 403], state.connects)
+        check(state.connects[0]["path"] == state.connect_path.decode() and state.connects[0]["auth_matches"], state.connects)
+        check(state.connects[1]["path"] == f"/.well-known/masque/udp/{LOOP}/{state.spy_address[1]}/", state.connects[1])
+        check([row["path"] for row in state.origin_headers] == ["/redirect-off-route"], state.origin_headers)
+        check(state.origin_peers == {state.egress_address} and state.forward_sent.count > 1 and state.reverse_sent.count > 1,
+              state.receipt())
     elif mode in ("missing-extra", "client-certificate"):
         expected = ProxyError if mode == "missing-extra" else InvalidSchema
         check(isinstance(error, expected), result)
@@ -993,7 +1067,8 @@ def check_scenario(state, result, error):
 
 MODES = ("ok", "auth-required", "deny", "bad-gateway", "wrong-relay-ca", "wrong-relay-name", "wrong-origin-ca",
          "wrong-origin-name", "no-connect", "no-datagram", "small-quic-datagram", "blackhole", "contexts",
-         "bad-context", "capsule-reverse", "redirect-http", "missing-extra", "client-certificate", "post-stall")
+         "bad-context", "capsule-reverse", "custom-path", "ipv6-origin", "redirect-http", "redirect-off-route",
+         "missing-extra", "client-certificate", "post-stall")
 
 
 async def qualify(receipt, origin_pem, relay_pem, modes):
