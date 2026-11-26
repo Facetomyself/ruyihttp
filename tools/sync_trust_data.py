@@ -7,6 +7,7 @@ code, extract a wheel to the package, or change profiles/native runtime entries.
 import argparse
 import base64
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -92,7 +93,7 @@ def main():
     )
     args = ap.parse_args()
     pin = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-    pinned(args.wheel, pin["upstream_wheel"]["sha256"])
+    wheel_bytes = pinned(args.wheel, pin["upstream_wheel"]["sha256"])
     anchors, constraints = server_anchors(
         pinned(args.certdata, pin["mozilla"]["certdata_sha256"])
     )
@@ -102,7 +103,7 @@ def main():
         "firefox-root-constraints.json",
         "firefox-suffixes.dat",
     )
-    with ZipFile(args.wheel) as z:
+    with ZipFile(io.BytesIO(wheel_bytes)) as z:
         files = {n: z.read("ruyihttp/" + n).replace(b"\r\n", b"\n") for n in names}
     if (
         pem_fingerprints(files[names[0]]) != anchors
@@ -117,15 +118,21 @@ def main():
     package = ROOT / "ruyihttp"
     mf = package / "runtime-manifest.json"
     manifest = json.loads(mf.read_text(encoding="utf-8"))
+    manifest_changed = False
     for name in names:
-        if args.apply:
-            (package / name).write_bytes(files[name])
-            manifest["data"][name] = hashes[name]
-        elif (package / name).read_bytes() != files[name] or manifest["data"][
-            name
-        ] != hashes[name]:
+        path = package / name
+        same_bytes = path.is_file() and path.read_bytes() == files[name]
+        same_pin = manifest["data"].get(name) == hashes[name]
+        if same_bytes and same_pin:
+            continue
+        if not args.apply:
             raise SystemExit(f"outdated: {name}")
-    if args.apply:
+        if not same_bytes:
+            path.write_bytes(files[name])
+        if not same_pin:
+            manifest["data"][name] = hashes[name]
+            manifest_changed = True
+    if manifest_changed:
         mf.write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
