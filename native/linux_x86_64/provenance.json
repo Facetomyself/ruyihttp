@@ -20,8 +20,8 @@
       "sha256": "60f02888accfd33d5e8d43018769afe8798248f4eccddf344c05406e6609738c"
     },
     "libnecko_quic.so": {
-      "size": 2688120,
-      "sha256": "4c7ca034b8bbe6e99530dbcf04ff434cbfd23e86800ddd240e1db45674429483"
+      "size": 2687512,
+      "sha256": "1bb4518c74d90ac37fe67d4038a2612621b954cb52a18f5b392757049e1e4a27"
     },
     "libnss3.so": {
       "size": 875305,
@@ -37,15 +37,15 @@
     },
     "libnspr4.so": {
       "size": 299201,
-      "sha256": "1d14ff45e0dc384dc176bf693755aa4b058be661955d7bfce1e587735aa6a7f9"
+      "sha256": "2cb4e0fe2e3dfc03e982727f25ddc3d03de22311c1423299ff3819d4c32b5a58"
     },
     "libplc4.so": {
       "size": 30377,
-      "sha256": "158e66fa0dbfaa23a4ac170f0dc819511aaa035f4f7df787e3fb219ef3a9923d"
+      "sha256": "3ca9db035b51cce8e18b39e98d528a989786e36af6ba9ad3668ac94796a74540"
     },
     "libplds4.so": {
       "size": 26041,
-      "sha256": "46df539a51da9c483581e10d90d5d4e1a013900cfce4ffec4949104da0813978"
+      "sha256": "0930212708d4d7273de21b6d84aa00d45eecf0c6722c025e035dde293981a62c"
     },
     "libsoftokn3.so": {
       "size": 429801,
@@ -80,19 +80,25 @@
     {
       "path": "native/patches/firefox161-linux.patch",
       "sha256": "c03ddc9bb5de5ed65c9750e3f7169cceabef99dc4ae74b99a47e5309735a630a"
+    },
+    {
+      "path": "native/patches/firefox-posix-quic-policy-linux.patch",
+      "sha256": "f45841e2e1fae78e4c76f851dc2a2df643c0674d8d917a98a7e209ee7cda2ae2"
     }
   ],
+  "h3_protocol_policy": 1,
   "h3_body_abi_expected": 1,
   "highest_glibc_dynamic_requirement": "2.38",
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739571628",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739571628/job/139640964778",
-    "ruyihttp_commit": "322ccd296d7ca39f2685d17a26bc6172540d00ad",
-    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739571628/artifacts/15080781251",
-    "wheel_sha256": "ab744a31be467eb9d9c6759557012498bf591b8b11e5f96604709e3e2d817ea0",
-    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739571628",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419/job/139737727993",
+    "ruyihttp_commit": "a0c5a16bf7ea15247b5eda9e5e0d0260a66297ef",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419/artifacts/15093507302",
+    "wheel_sha256": "a2b9ce3899837a76dcdc457be44305c2f343e6fec434de869a4a0a9f8207b6c4",
+    "evidence_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419/artifacts/15093616230",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45763606818",
     "source_build_attempt": 1,
-    "source_build_commit": "322ccd296d7ca39f2685d17a26bc6172540d00ad",
+    "source_build_commit": "c0595468d08df7b41791d45929d383988da820cc",
     "cpython_runtime_endpoints": [
       "3.10",
       "3.14"
@@ -105,6 +111,21 @@
     "h3_body_abi": 1,
     "in_place_upgrade_from": "0.9.0",
     "tested_firefox_profiles": [
+      "159",
+      "160",
+      "161"
+    ],
+    "h3_protocol_policy": 1,
+    "same_slot_firefox_reference_sha256": "ec4e9e34a82e22f2eae7075fc1715843176d196a43c5b3da600af141c62b775a",
+    "same_slot_firefox_wire_receipt_sha256": {
+      "3.10": "c79109a8329cdf014da4f96d78fbbe85da4e63b7c568a9bc8e280691464f3cdc",
+      "3.14": "f686c0a54ca9fd6c6c192e030e073d09e13b4d37de65e7a0ed5e52d4e020e475"
+    },
+    "tested_quic_policy_profiles": [
+      "144",
+      "145",
+      "154",
+      "155",
       "159",
       "160",
       "161"
