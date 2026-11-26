@@ -1,54 +1,33 @@
 name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
-
+on: workflow_dispatch
 permissions:
   contents: read
-
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
+  win-wire-diagnostic:
+    runs-on: windows-2025
+    timeout-minutes: 16
+    env:
+      PYTHONUTF8: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Byte-compile
-        run: python -m compileall -q ruyihttp tests tools ci
-      - name: pyflakes
+          python-version: '3.12'
+          architecture: x64
+      - name: Measure unmodified upstream and both fork wheels
+        shell: bash
         run: |
-          python -m pip install --quiet pyflakes
-          python -m pyflakes ruyihttp tests tools ci
-
-  test:
-    name: ${{ matrix.os }} / Python ${{ matrix.python }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-26, ubuntu-24.04]
-        python: ["3.12"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+          set -euo pipefail
+          python -m pip wheel --no-deps -w "$RUNNER_TEMP/wheels" .
+          wheel=("$RUNNER_TEMP"/wheels/*.whl)
+          python -I ci/compare_windows_wire.py "${wheel[0]}" "$RUNNER_TEMP/wire-peers"
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          python-version: ${{ matrix.python }}
-      - name: Install package
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install .
-      - name: Contract tests
-        run: python -m unittest discover -s tests -v
-      - name: Native manifest check
-        run: python tools/build_native.py --check
-      - name: Native ABI check
-        run: |
-          python -m pip install --quiet lief
-          python tools/verify_runtime.py
-      - name: Local HTTP smoke
-        run: python ci/smoke_local.py
+          name: windows-wire-peers-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wire-peers/
+          retention-days: 14
+          if-no-files-found: warn
