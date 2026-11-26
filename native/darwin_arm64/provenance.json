@@ -2,13 +2,17 @@
   "platform": "darwin_arm64",
   "source": "Native source build verified by an installed-wheel runner",
   "ff_ruyijs_commit": "f557fcd437aae5f18f313eb330bd3ef50f5fc7df",
-  "firefox_source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+  "ff_ruyijs_firefox_gitlink": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+  "firefox_source_commit": "9c70d5d48c866afc2e581d6b7ff6de98a1371d99",
+  "firefox_source_tag": "FIREFOX_161_0_RELEASE",
+  "neqo_source_commit": "e302b43503f44e09f4257573dd320621516d1560",
+  "nss_rs_source_commit": "bb8ed19e82679e613a636f530d15ddc823f1b040",
   "wheel_platform_tag": "macosx_26_0_arm64",
   "runtime_expected": {
-    "firefox": "159.0",
-    "nss": "3.132",
+    "firefox": "161.0",
+    "nss": "3.133",
     "nspr": "4.40",
-    "neqo": "0.33.0"
+    "neqo": "0.34.0"
   },
   "files": {
     "libnecko_core.dylib": {
@@ -16,24 +20,24 @@
       "sha256": "8ba32df8f12d390f0ef83ff11f6186a818803882b4cab0463401c95ad2b28da2"
     },
     "libnecko_quic.dylib": {
-      "size": 2991328,
-      "sha256": "a0ffc73f58fe16b917a219b35a94b5eefe96fcc7d781ffc297f98494bec11b0e"
+      "size": 2793712,
+      "sha256": "8d36fc37c3b79b73caf57274bdeedc5b947f195693be26a2a8f980c2a88feeb2"
     },
     "libnss3.dylib": {
-      "size": 3329136,
-      "sha256": "2da41d01e0800070e25aeda5e12e8e6c56603a23b479cb1bf7f74669433ea8cd"
+      "size": 3329296,
+      "sha256": "17d24937bbf2509dfaa2f6d2296678f605e6f86c3a8ac3cc25b6f4ada7febe95"
     },
     "libsoftokn3.dylib": {
-      "size": 415392,
-      "sha256": "f136aebcc49b4379b9b37176a6718bc030baf520847657cdd7303b2f880297c5"
+      "size": 415616,
+      "sha256": "eaf276da9a0cf3be5f2d7f62b3d116c04579b84a31db979a48708a8c675291fa"
     },
     "libfreebl3.dylib": {
-      "size": 1010752,
-      "sha256": "92d8ab2a4ab391a9ae387bbe2664f55f7a5a6a63cb0968cb712363b04f49037b"
+      "size": 1029136,
+      "sha256": "04d29929d3b12640b1ec84cd8f0fe814b9a57f6040471ae2898203405afad2bb"
     },
     "libmozglue.dylib": {
       "size": 669680,
-      "sha256": "fe6f614c8905314437ee32dfb452a09b18c37e7ab96939d34d5b29beeb9b1ef2"
+      "sha256": "2e6d4287175b0d623c088a05dc76c5f973d0763a5c62e439e57f014045d2805d"
     }
   },
   "source_patches": [
@@ -48,6 +52,10 @@
     {
       "path": "native/patches/macos-h3-global-handles.patch",
       "sha256": "a48d77b35df26abc8418a4dafa2895593167d30d3ec473e709742c1064ec61c4"
+    },
+    {
+      "path": "native/patches/firefox161-macos.patch",
+      "sha256": "f7d3e3f56a0a7822e27e2d56f543f80366ba025f837e6ebfc227a6408bf9d657"
     }
   ],
   "h3_body_abi_expected": 1,
@@ -61,14 +69,14 @@
     "libmozglue.dylib": "26.0.0"
   },
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185/job/139359610859",
-    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
-    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185/artifacts/15046800753",
-    "wheel_sha256": "8cf6d696e603c8a1b232b57c79f0990a9605bf90c133471257bff9d994ce9dbe",
-    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657942185",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45740624232",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45740624232/job/139644438167",
+    "ruyihttp_commit": "b649707042080129eae9f64e4cc8e1fdbb95eafa",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45740624232/artifacts/15081353645",
+    "wheel_sha256": "59593e2cfccf85c2ae4a4c31bc7dd8a2a3cfdaac66ea8b7f2f8d49f3f6531c5a",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45740624232",
     "source_build_attempt": 1,
-    "source_build_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
+    "source_build_commit": "b649707042080129eae9f64e4cc8e1fdbb95eafa",
     "cpython_runtime_endpoints": [
       "3.10",
       "3.14"
@@ -78,6 +86,12 @@
       "h2",
       "h3"
     ],
-    "h3_body_abi": 1
+    "h3_body_abi": 1,
+    "in_place_upgrade_from": "0.9.0",
+    "tested_firefox_profiles": [
+      "159",
+      "160",
+      "161"
+    ]
   }
 }
