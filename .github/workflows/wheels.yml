@@ -65,6 +65,8 @@ jobs:
           test "$(git -C "$old/source" rev-parse HEAD)" = "$BASELINE"
           python -m pip wheel --no-deps -w "$old/wheels" "$old/source"
           echo "RUYIHTTP_PREVIOUS_BUILD=$old" >> "$GITHUB_ENV"
+      - name: Prepare the pinned previous fork for an in-place 0.9.1 upgrade
+        run: python -I ci/prepare_fork_upgrade.py
       - name: Installed native runtime on CPython 3.10
         run: python -I ci/qualify_wheel.py ${{ matrix.platform }} 3.10 wheelhouse native-evidence
       - uses: actions/setup-python@v5

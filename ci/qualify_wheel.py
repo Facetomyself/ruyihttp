@@ -61,6 +61,7 @@ def main():
     python("install", "-m", "pip", "install", f"{wheel}[socks]", "aioquic==1.3.0", required=True)
     python("pip-check", "-m", "pip", "check")
     python("installed-identity", "-I", ROOT / "ci/verify_installed.py", slot, wheel)
+    python("upstream-trust-data", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_upstream_trust_data.py", "-v")
     python("http1", "-I", ROOT / "ci/smoke_local.py")
     python("native-transactions", "-I", ROOT / "ci/smoke_native_target.py", slot)
     python("firefox-profile-wire", "-I", ROOT / "ci/smoke_firefox_profiles.py", slot)
@@ -78,6 +79,8 @@ def main():
     run("request-boundaries", [str(bash), str(ROOT / "ci/verify_request_boundaries.sh")])
     if slot == "win_amd64" or env.get("RUYIHTTP_PREVIOUS_BUILD"):
         python("upgrade-0.9.0", "-I", ROOT / "ci/upgrade_from_090.py", wheel, slot)
+    if env.get('RUYIHTTP_FORK_091_BUILD'):
+        python('upgrade-fork-0.9.1', '-I', ROOT / 'ci/upgrade_from_090.py', wheel, slot, '--from-fork-091')
     if failed:
         raise SystemExit("Failed runtime gates: " + ", ".join(failed))
 

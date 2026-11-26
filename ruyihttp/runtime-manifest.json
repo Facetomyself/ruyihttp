@@ -7,6 +7,22 @@
     "firefox-roots.pem": "737517c3f03de76442482d7d4fd5d81de60da1be75823d878adb08da3c0ef4fe",
     "firefox-suffixes.dat": "809adae1a2cb1621b70165c11e0d14412d3f104f40a4ebed9a99e23c54f78d71"
   },
+  "data_reference": {
+    "historical_profile_file": "firefox-profile.json",
+    "historical_profile_file_scope": "original Firefox 159 Windows baseline; not the active root bundle, PSL or per-platform native version",
+    "trust_and_psl": {
+      "upstream": "ruyihttp 0.11.0",
+      "mozilla_release": "FIREFOX_161_0_RELEASE",
+      "mozilla_commit": "9c70d5d48c866afc2e581d6b7ff6de98a1371d99",
+      "upstream_wheel_sha256": "79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332",
+      "server_anchors": 118
+    },
+    "upstream_windows_161_reference": {
+      "build_id": "20261125000922",
+      "source_stamp_as_reported": "001da97dd5c0",
+      "profile_record_sha256": "457fa3dd0ff9300103ecfcc478783313c257642c9912a6eb6f7c283ae49063bc"
+    }
+  },
   "platforms": {
     "win_amd64": {
       "status": "ready",
