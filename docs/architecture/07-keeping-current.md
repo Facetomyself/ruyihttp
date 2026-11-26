@@ -15,14 +15,14 @@
 ```sh
 python3 tools/check_architecture_docs.py
 python3 tools/check_architecture_docs.py --strict-drift
-python3 -m unittest discover -s tests -p test_architecture_docs.py -v
+python3 -m unittest discover -s tests -p 'test_architecture*.py' -v
 ```
 
 | 改动 | 优先核对 | 针对性检查（已配好项目依赖时） |
 | --- | --- | --- |
 | Session、租约、重定向、重试或 Alt-Svc | [请求路由](01-request-routing.md)及总览 | `python -m unittest discover -s tests -p test_retry_safety.py -v`；`python -m unittest discover -s tests -p test_alt_svc.py -v` |
 | H2 流控、H3 owner、正文或关闭 | [协议引擎](02-protocol-engines.md)中对应图 | `python -m unittest discover -s tests -p test_http2_flow.py -v`；`python -m unittest discover -s tests -p test_h3_body_abi.py -v` |
-| MASQUE 隧道、代理校验或目标约束 | [MASQUE](03-masque.md)和[信任与配置](04-trust-profiles.md) | `python -m unittest discover -s tests -p 'test_masque*.py' -v` |
+| MASQUE 隧道、代理校验或目标约束 | [MASQUE](03-masque.md)和[信任与配置](04-trust-profiles.md) | `python -m pytest -q --import-mode=importlib tests/test_masque_codec.py tests/test_masque_transport.py tests/test_masque_routing.py`；另用已安装 wheel 的解释器执行 `python -I /path/to/checkout/ci/smoke_masque.py --json-output masque-wire.json` |
 | 信任材料、浏览器配置或原生交付 | [信任与配置](04-trust-profiles.md)、[原生交付](05-native-delivery.md) | `python -m unittest discover -s tests -p test_trust_and_buffers.py -v`；`python tools/build_native.py --check`；`python tools/verify_runtime.py` |
 
 [文档专用 CI](../../.github/workflows/architecture-docs.yml) 在日常构建中校验内容和摘要，报告源码漂移；手动运行时可启用 `strict_drift`。浅克隆先补齐源码提交和发行标签。CI 使用 Python 标准库和 Git，浏览器由重制图件的人运行；文档校验与协议测试、目标平台 wheel 验收各自负责不同的证据。
@@ -54,7 +54,7 @@ while read -r id type; do
   mkdir "$evidence"
   archify_run finalize "$type" "$figures/$id.json" "$evidence/$id.html" \
     --repo-root "$repo" --quality showcase --out-dir "$evidence" --json
-  node "$ARCHIFY_HOME/bin/export-svg.mjs" "$evidence/$id.html" "$evidence/$id.svg" light
+  node "$ARCHIFY_HOME/bin/export-svg.mjs" "$evidence/$id.html" "$evidence/$id.svg" auto
   cp "$evidence/$id.html" "$figures/$id.html"
   cp "$evidence/$id.svg" "$figures/$id.svg"
 done <<'DIAGRAMS'
@@ -72,7 +72,7 @@ DIAGRAMS
 
 ## 更新分析与公开证据
 
-只在分析基线或方法变更时重建 [运行时分析](analysis/runtime.html) 和 [全仓分析](analysis/repository.html)。生成器在独立的干净源码工作树运行 Archify 的 Python 分析，产出两份 HTML 与 [覆盖范围和测量记录](analysis/metrics.json)。运行时报告仅覆盖 `ruyihttp/`；全仓报告是更广的 Python 静态视角。它们记录了分析范围内的维护线索，不能替代对运行行为、原生 ABI 或性能的验证。
+只在分析基线或方法变更时重建 [运行时分析](analysis/runtime.html) 和 [全仓分析](analysis/repository.html)。生成器在独立的干净源码工作树运行 Archify 的 Python 分析，产出两份 HTML 与 [覆盖范围和测量记录](analysis/metrics.json)。报告要公开入库，取证工作树的 `origin` 应为本项目的无凭据 HTTPS 地址。源码 tarball 可用于离线阅读；固定提交和漂移校验需要带 Git 历史、标签的检出。运行时报告仅覆盖 `ruyihttp/`；全仓报告是更广的 Python 静态视角。它们记录了分析范围内的维护线索，不能替代对运行行为、原生 ABI 或性能的验证。
 
 ```bash
 # 在上面同一个 Bash 会话中执行；用校验记录中的完整 sourceRevision。
@@ -88,7 +88,7 @@ python3 tools/refresh_architecture_analysis.py --source "$scratch/source" \
 ```bash
 python3 tools/check_architecture_docs.py --refresh-diagrams "$scratch"
 python3 tools/check_architecture_docs.py --strict-drift
-python3 -m unittest discover -s tests -p test_architecture_docs.py -v
+python3 -m unittest discover -s tests -p 'test_architecture*.py' -v
 git diff --check
 git status --short
 ```
