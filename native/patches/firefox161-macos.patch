@@ -104,6 +104,20 @@ diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
      }
  }
  
+@@ -548,5 +548,5 @@
+                 "maxDatagramSize": size,
+                 "protocol": protocol,
+-                "datagramsExpiredOutgoing": stats.datagrams_expired_outgoing,
++                "datagramsExpiredOutgoing": stats.outgoing_datagrams.expired,
+             }))
+         }
+@@ -659,5 +659,5 @@
+                 .webtransport_close_session(id, code, reason, now)
+                 .map_err(|error| error.to_string())?;
+-            Ok(json!({"datagramsExpiredOutgoing": stats.datagrams_expired_outgoing}))
++            Ok(json!({"datagramsExpiredOutgoing": stats.outgoing_datagrams.expired}))
+         }
+         "stream_stats" => {
 @@ -962,14 +961,14 @@
          NSS_OK.with(|slot| *slot.borrow_mut() = false);
          return 1;

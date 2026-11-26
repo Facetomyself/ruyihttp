@@ -84,21 +84,28 @@ def promote(args):
             source['neqo_commit'] == provenance['neqo_source_commit'] and
             source['nss_rs_commit'] == provenance['nss_rs_source_commit'], 'Unmatched source receipt')
     lock = read(evidence / 'standalone-lock.json')
-    require(re.fullmatch(r'[0-9a-f]{64}', lock['sha256']) and
-            lock['packages'] == source['mozilla_cargo_lock']['packages'], 'Standalone vendor lock does not match Firefox sources')
+    require(lock['sha256'] == sha256(evidence / 'standalone-Cargo.lock') and
+            lock['packages'] == source['mozilla_cargo_lock']['packages'],
+            'Standalone vendor lock does not match Firefox sources')
     if slot.startswith('linux_'):
+        arch = TARGETS[slot][1]
+        audit = (evidence / 'auditwheel.txt').read_text(encoding='utf-8')
+        floor = re.search(r'following platform tag:\s+"manylinux_2_(\d+)_' + arch + r'"', audit)
         require(provenance['highest_glibc_dynamic_requirement'] == entry['highest_glibc_dynamic_requirement'] and
-                'following platform tag:' in (evidence / 'auditwheel.txt').read_text(encoding='utf-8'),
+                floor and int(floor[1]) <= 39 and entry['wheel_platform_tag'] == f'manylinux_2_39_{arch}',
                 'Missing Linux candidate policy evidence')
     else:
         require(provenance['macho_minimum_macos'] == entry['macho_minimum_macos'] and
                 provenance['minimum_macos'] == entry['minimum_macos'], 'Missing Mach-O deployment evidence')
     for endpoint in ('3.10', '3.14'):
-        for name, needle in {'http1': '', 'native-transactions': 'H3 binary body ABI: 1', 'full-h3': 'Ran 6 tests',
-                             'test_h3_body_abi': 'h3 body binary-v1: bytes=1048579',
-                             'upgrade-0.9.0': 'PASS: in-place 0.9.0 -> '}.items():
+        markers = {'http1': ['local smoke OK'],
+                   'native-transactions': ['H3 binary body ABI: 1', 'h2 200 20', 'h3 200 30',
+                                           f'NSS {entry["nss"]} NSPR {entry["nspr"]}'],
+                   'full-h3': ['Ran 6 tests'], 'test_h3_body_abi': ['h3 body binary-v1: bytes=1048579'],
+                   'upgrade-0.9.0': ['PASS: in-place 0.9.0 -> ', 'one distribution, native hashes, HTTP before and after']}
+        for name, needles in markers.items():
             report = (evidence / endpoint / f'{name}.txt').read_text(encoding='utf-8')
-            require(report.endswith('Exit status: 0\n') and needle in report,
+            require(report.endswith('Exit status: 0\n') and all(needle in report for needle in needles),
                     f'Native qualification witness missing at CPython {endpoint}: {name}')
             if name == 'full-h3':
                 require('skipped' not in report and '127.0.0.1' in report and '[::1]' in report,
@@ -107,6 +114,9 @@ def promote(args):
                 require(re.search(r'test_native_body_argument_bounds_and_thread_owner[^\n]*\.\.\. ok', report),
                         f'H3 ABI owner-thread proof missing at CPython {endpoint}')
     manifest = load_manifest()
+    if args.check_only:
+        print(f'Accepted proof for {slot} from {job["html_url"]}: {wheel.name}, SHA-256 {wheel_digest}')
+        return
     target = NATIVE / slot
     require(target.resolve(strict=True) == target and target.is_dir(), 'Unexpected promotion destination')
     for name in PLATFORM_FILES[slot]:
@@ -132,6 +142,7 @@ def promote(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('platform', choices=TARGETS)
+    parser.add_argument('--check-only', action='store_true', help='validate the proof without changing the native slot')
     for name in ('wheel', 'evidence', 'run', 'jobs', 'artifacts'):
         parser.add_argument(name, type=Path)
     try:
