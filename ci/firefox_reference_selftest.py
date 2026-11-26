@@ -114,11 +114,14 @@ class CaptureObserverTest(unittest.IsolatedAsyncioTestCase):
     async def test_h2_order(self):
         with TemporaryDirectory() as directory:
             leaf, key, root = certificate(Path(directory))
-            async with Origin('h2', leaf, key) as fixture:
+            async with Origin('h2', leaf, key, h2_preface=True) as fixture:
                 await h2_get(fixture.port, PATH, root)
                 observed = await asyncio.wait_for(fixture.result, 3)
                 validate('h2', observed, '161')
                 self.assertEqual(observed['settings'][:3], [[1, 4096], [2, 1], [4, 65535]])
+                flight = observed['h2_preface']
+                self.assertEqual(flight['frames'][0], {'type': 'SETTINGS', 'stream': 0, 'values': observed['settings']})
+                self.assertEqual(flight['first_headers']['stream'], 1)
 
     async def test_h3_udp_only_and_raw_settings(self):
         with TemporaryDirectory() as directory:
