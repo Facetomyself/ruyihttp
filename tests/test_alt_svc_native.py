@@ -224,15 +224,31 @@ class NativeAltSvcTests(unittest.TestCase):
         ):
             sink.bind((fixture._IP, 0))
             port = sink.getsockname()[1]
+            workers = []
+            run_h3 = fixture.Connection._run
+
+            def track_udp_owner(connection):
+                if connection.endpoint == (fixture._IP, port):
+                    workers.append(threading.current_thread())
+                run_h3(connection)
+
             with (
                 self._tcp_origin("http/1.1", port) as (url, connections, requests),
                 self._session() as session,
             ):
-                for path, budget in (("/bootstrap", 2), ("/blocked", 0.8)):
-                    with session.get(url + path, timeout=(budget, 2)) as response:
-                        self.assertEqual(
-                            (response.raw.version, response.content), (11, b"ok")
-                        )
+                with patch.object(fixture.Connection, "_run", track_udp_owner):
+                    for path, budget in (("/bootstrap", 2), ("/blocked", 0.8)):
+                        with session.get(url + path, timeout=(budget, 2)) as response:
+                            self.assertEqual(
+                                (response.raw.version, response.content), (11, b"ok")
+                            )
+                # The warm TCP winner returns before its cancelled H3 loser
+                # exits. Native QUIC close can still send an Initial packet;
+                # leave the blackhole bound until its UDP owner has exited.
+                self.assertEqual(len(workers), 1)
+                worker, = workers
+                worker.join(timeout=3)
+                self.assertFalse(worker.is_alive(), "blocked H3 UDP owner did not exit")
                 sink.setblocking(False)
                 self.assertGreater(self._udp_count(sink), 0)
                 sink.close()
