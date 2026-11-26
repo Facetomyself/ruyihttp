@@ -69,6 +69,8 @@ def main():
     python("firefox-wire-comparator", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_firefox_wire_gate.py", "-v")
     python("firefox-profile-wire", "-I", ROOT / "ci/smoke_firefox_profiles.py", slot,
            "--output", evidence / "firefox-profile-wire.jsonl")
+    python('h2-official-preface', '-I', ROOT / 'ci/verify_h2_first_flight.py', slot,
+           evidence / 'firefox-profile-wire.jsonl', evidence / 'h2-first-flight.json')
     python("full-h3", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_http3_native.py", "-v")
     for module in ('test_h3_body_abi.py', 'test_alt_svc_native.py'):
         if (ROOT / 'tests' / module).is_file():
