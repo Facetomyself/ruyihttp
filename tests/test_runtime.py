@@ -316,7 +316,24 @@ class RuntimeContractTests(unittest.TestCase):
                     control = _nss.native_profile("159", platform=profile_platform)
                     self.assertEqual(candidate.cipher_count, control.cipher_count)
                     self.assertEqual(candidate.group_count, control.group_count)
-                    self.assertEqual(_firefox.quic_profile(version, profile_platform), baseline["quic"])
+                    expected_quic = dict(baseline["quic"])
+                    if profile_platform != "win_amd64":
+                        expected_quic.update(h3_connect=True, max_data=24 * 1024**2,
+                                             max_stream_data_bidi_local=12 * 1024**2)
+                    self.assertEqual(_firefox.quic_profile(version, profile_platform), expected_quic)
+
+    def test_posix_quic_preferences_do_not_change_upstream_windows_schema(self):
+        for major in (100, 144, 145, 154, 155, 161):
+            with self.subTest(major=major):
+                before = dict(_firefox.PROFILES[str(major)]["quic"])
+                for platform_name in ("darwin", "linux"):
+                    spec = _firefox.quic_profile(str(major), platform_name)
+                    self.assertEqual(spec["h3_connect"], major >= 145)
+                    self.assertEqual(spec["version2"], major >= 155)
+                    self.assertEqual((spec["max_data"], spec["max_stream_data_bidi_local"]),
+                                     (25165824, 12582912))
+                self.assertEqual(_firefox.quic_profile(str(major), "win_amd64"), before)
+                self.assertFalse({"h3_connect", "max_data", "max_stream_data_bidi_local"} & before.keys())
 
     def test_host_platform_matches_this_host(self):
         if os.name == "nt":
