@@ -23,7 +23,11 @@ jobs:
           set -euo pipefail
           python -m pip wheel --no-deps -w "$RUNNER_TEMP/wheels" .
           wheel=("$RUNNER_TEMP"/wheels/*.whl)
-          python -I ci/compare_windows_wire.py "${wheel[0]}" "$RUNNER_TEMP/wire-peers"
+          mkdir -p "$RUNNER_TEMP/wire-peers/official"
+          python -m pip install -r ci/firefox_reference_requirements.txt
+          python ci/firefox_reference_capture.py prepare win_amd64 161 "$RUNNER_TEMP/official-161"
+          bash ci/firefox_reference_isolate.sh win_amd64 161 "$RUNNER_TEMP/official-161" "$RUNNER_TEMP/wire-peers/official" --samples 2
+          python -I ci/compare_windows_wire.py "${wheel[0]}" "$RUNNER_TEMP/wire-peers" --official "$RUNNER_TEMP/wire-peers/official/win_amd64-161.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
