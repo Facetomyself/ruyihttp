@@ -1,0 +1,473 @@
+{
+  "schema_version": 1,
+  "slot": "darwin_x86_64",
+  "platform": "darwin",
+  "arch": "x86_64",
+  "source": "official-firefox",
+  "captures": {
+    "159": {
+      "sha256": "0772404ae6e068d7cc03cecf4bb06a855f10287a77b624ffa41c6d092a64ea13",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/159.0/mac/en-US/Firefox%20159.0.dmg",
+      "manifest_sha256": "9c402489e6307e4cc1933ca1ebc01f6937f5ce1a9fb4354c2d212ab37eed26e5",
+      "manifest_url": "https://archive.mozilla.org/pub/firefox/releases/159.0/SHA256SUMS",
+      "signer": "827E658608679618CD349F93678E455D76767AA3",
+      "signing_primary": "14F26682D0916CDD81E37B6D61B7B526D98F0353",
+      "source_tag": "FIREFOX_159_0_RELEASE",
+      "source_commit": "9a2dc53c369c7ae5172018b35988e1d2ffeff402",
+      "source_archive": "https://archive.mozilla.org/pub/firefox/releases/159.0/source/firefox-159.0.source.tar.xz",
+      "source_archive_sha256": "3d98df785894057fce60603e845828e758a5411ad79aaaaff2b8230597f500d9",
+      "version": "159.0",
+      "build_id": "20261022150525",
+      "executable_sha256": "ee82fbe42a525ff20d9d70c80fe6c54d0bc95de5500e75a18bc6aa128f0cf5af",
+      "executable_slices": [
+        "x86_64",
+        "arm64"
+      ],
+      "runtime_host": {
+        "machine": "x86_64",
+        "os_release": "24.6.0",
+        "os_version": "Darwin Kernel Version 24.6.0: Tue Jul 21 20:50:07 PDT 2026; root:xnu-11417.140.69.711.44~1/RELEASE_X86_64",
+        "cpu": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+        "rosetta": 0,
+        "macos": "15.7.9"
+      },
+      "source_stamp": "5add844c26613d7e4d84c799d6e23cf987b1240d",
+      "archive_locale": "en-US",
+      "executable_relative": "Firefox.app/Contents/MacOS/firefox",
+      "packaged_executables": {
+        "firefox": "ee82fbe42a525ff20d9d70c80fe6c54d0bc95de5500e75a18bc6aa128f0cf5af"
+      },
+      "acquired_unix": 1795675160,
+      "samples": [
+        {
+          "frames": [
+            {
+              "type": "SETTINGS",
+              "stream": 0,
+              "values": [
+                [
+                  1,
+                  65536
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  4,
+                  131072
+                ],
+                [
+                  5,
+                  16384
+                ]
+              ]
+            },
+            {
+              "type": "WINDOW_UPDATE",
+              "stream": 0,
+              "increment": 12517377
+            }
+          ],
+          "settings_ack_positions": [
+            2
+          ],
+          "first_headers": {
+            "stream": 3,
+            "end_headers": true,
+            "end_stream": true,
+            "padded": false,
+            "priority": {
+              "depends_on": 0,
+              "exclusive": false,
+              "weight": 42
+            }
+          }
+        },
+        {
+          "frames": [
+            {
+              "type": "SETTINGS",
+              "stream": 0,
+              "values": [
+                [
+                  1,
+                  65536
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  4,
+                  131072
+                ],
+                [
+                  5,
+                  16384
+                ]
+              ]
+            },
+            {
+              "type": "WINDOW_UPDATE",
+              "stream": 0,
+              "increment": 12517377
+            }
+          ],
+          "settings_ack_positions": [
+            2
+          ],
+          "first_headers": {
+            "stream": 3,
+            "end_headers": true,
+            "end_stream": true,
+            "padded": false,
+            "priority": {
+              "depends_on": 0,
+              "exclusive": false,
+              "weight": 42
+            }
+          }
+        }
+      ],
+      "sample_provenance": [
+        {
+          "port": 49196,
+          "process": {
+            "native": "x86_64",
+            "launch_arch": "/usr/bin/arch -x86_64",
+            "cpu_type": 16777223,
+            "cpu_subtype": 3
+          },
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
+          "protocol": "h2",
+          "mode": "navigation"
+        },
+        {
+          "port": 49200,
+          "process": {
+            "native": "x86_64",
+            "launch_arch": "/usr/bin/arch -x86_64",
+            "cpu_type": 16777223,
+            "cpu_subtype": 3
+          },
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
+          "protocol": "h2",
+          "mode": "navigation"
+        }
+      ]
+    },
+    "160": {
+      "sha256": "b270ccc60eb899bd0277bd078d7bd8690f5c4fc3e44b4fa9ee78ed2a3e89f0ca",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/160.0/mac/en-US/Firefox%20160.0.dmg",
+      "manifest_sha256": "cc24dd72af3c4aa3ad300cf9ce0641d8437a746b35db6c0de7549a8fe4077fbf",
+      "manifest_url": "https://archive.mozilla.org/pub/firefox/releases/160.0/SHA256SUMS",
+      "signer": "827E658608679618CD349F93678E455D76767AA3",
+      "signing_primary": "14F26682D0916CDD81E37B6D61B7B526D98F0353",
+      "source_tag": "FIREFOX_160_0_RELEASE",
+      "source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+      "source_archive": "https://archive.mozilla.org/pub/firefox/releases/160.0/source/firefox-160.0.source.tar.xz",
+      "source_archive_sha256": "2b23d2bf6716ea16b45c10aa5c275c78a1d7ff50ad53150809ab27424c58fd81",
+      "version": "160.0",
+      "build_id": "20261104181552",
+      "executable_sha256": "3b1bd82a3f2dc287349e3b6fa28b2429799bc0e0133acd270cd67ee8da1adf4a",
+      "executable_slices": [
+        "x86_64",
+        "arm64"
+      ],
+      "runtime_host": {
+        "machine": "x86_64",
+        "os_release": "24.6.0",
+        "os_version": "Darwin Kernel Version 24.6.0: Tue Jul 21 20:50:07 PDT 2026; root:xnu-11417.140.69.711.44~1/RELEASE_X86_64",
+        "cpu": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+        "rosetta": 0,
+        "macos": "15.7.9"
+      },
+      "source_stamp": "d84e7a6936554efe26097d9d9b24a0e11330e630",
+      "archive_locale": "en-US",
+      "executable_relative": "Firefox.app/Contents/MacOS/firefox",
+      "packaged_executables": {
+        "firefox": "3b1bd82a3f2dc287349e3b6fa28b2429799bc0e0133acd270cd67ee8da1adf4a"
+      },
+      "acquired_unix": 1795675200,
+      "samples": [
+        {
+          "frames": [
+            {
+              "type": "SETTINGS",
+              "stream": 0,
+              "values": [
+                [
+                  1,
+                  65536
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  4,
+                  131072
+                ],
+                [
+                  5,
+                  16384
+                ]
+              ]
+            },
+            {
+              "type": "WINDOW_UPDATE",
+              "stream": 0,
+              "increment": 12517377
+            }
+          ],
+          "settings_ack_positions": [
+            2
+          ],
+          "first_headers": {
+            "stream": 3,
+            "end_headers": true,
+            "end_stream": true,
+            "padded": false,
+            "priority": {
+              "depends_on": 0,
+              "exclusive": false,
+              "weight": 42
+            }
+          }
+        },
+        {
+          "frames": [
+            {
+              "type": "SETTINGS",
+              "stream": 0,
+              "values": [
+                [
+                  1,
+                  65536
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  4,
+                  131072
+                ],
+                [
+                  5,
+                  16384
+                ]
+              ]
+            },
+            {
+              "type": "WINDOW_UPDATE",
+              "stream": 0,
+              "increment": 12517377
+            }
+          ],
+          "settings_ack_positions": [
+            2
+          ],
+          "first_headers": {
+            "stream": 3,
+            "end_headers": true,
+            "end_stream": true,
+            "padded": false,
+            "priority": {
+              "depends_on": 0,
+              "exclusive": false,
+              "weight": 42
+            }
+          }
+        }
+      ],
+      "sample_provenance": [
+        {
+          "port": 49208,
+          "process": {
+            "native": "x86_64",
+            "launch_arch": "/usr/bin/arch -x86_64",
+            "cpu_type": 16777223,
+            "cpu_subtype": 3
+          },
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:160.0) Gecko/20100101 Firefox/160.0",
+          "protocol": "h2",
+          "mode": "navigation"
+        },
+        {
+          "port": 49212,
+          "process": {
+            "native": "x86_64",
+            "launch_arch": "/usr/bin/arch -x86_64",
+            "cpu_type": 16777223,
+            "cpu_subtype": 3
+          },
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:160.0) Gecko/20100101 Firefox/160.0",
+          "protocol": "h2",
+          "mode": "navigation"
+        }
+      ]
+    },
+    "161": {
+      "sha256": "18f398ada9ba9faa5458dc01c2a68fc7df35517283be2e7a421a0867c5f47f83",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/161.0/mac/en-US/Firefox%20161.0.dmg",
+      "manifest_sha256": "803a78b7c8f18d179d40e2b9dec1eeaafc3bb12059c7da61c7aa6b91bdc9f1fd",
+      "manifest_url": "https://archive.mozilla.org/pub/firefox/releases/161.0/SHA256SUMS",
+      "signer": "827E658608679618CD349F93678E455D76767AA3",
+      "signing_primary": "14F26682D0916CDD81E37B6D61B7B526D98F0353",
+      "source_tag": "FIREFOX_161_0_RELEASE",
+      "source_commit": "9c70d5d48c866afc2e581d6b7ff6de98a1371d99",
+      "source_archive": "https://archive.mozilla.org/pub/firefox/releases/161.0/source/firefox-161.0.source.tar.xz",
+      "source_archive_sha256": "c649de11e4dc6266bc905ce4b33eb8672a1947c2e210ec53dce285cb86296a5a",
+      "version": "161.0",
+      "build_id": "20261118180411",
+      "executable_sha256": "25c76eab2a47c589ef8baaf83539a3f958004490be0d424ffe5bad2617b24109",
+      "executable_slices": [
+        "x86_64",
+        "arm64"
+      ],
+      "runtime_host": {
+        "machine": "x86_64",
+        "os_release": "24.6.0",
+        "os_version": "Darwin Kernel Version 24.6.0: Tue Jul 21 20:50:07 PDT 2026; root:xnu-11417.140.69.711.44~1/RELEASE_X86_64",
+        "cpu": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+        "rosetta": 0,
+        "macos": "15.7.9"
+      },
+      "source_stamp": "b00bde68873aedb80bea5c3ff8eba8344b50d3b4",
+      "archive_locale": "en-US",
+      "executable_relative": "Firefox.app/Contents/MacOS/firefox",
+      "packaged_executables": {
+        "firefox": "25c76eab2a47c589ef8baaf83539a3f958004490be0d424ffe5bad2617b24109"
+      },
+      "acquired_unix": 1795675235,
+      "samples": [
+        {
+          "frames": [
+            {
+              "type": "SETTINGS",
+              "stream": 0,
+              "values": [
+                [
+                  1,
+                  65536
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  4,
+                  131072
+                ],
+                [
+                  5,
+                  16384
+                ]
+              ]
+            },
+            {
+              "type": "WINDOW_UPDATE",
+              "stream": 0,
+              "increment": 12517377
+            }
+          ],
+          "settings_ack_positions": [
+            2
+          ],
+          "first_headers": {
+            "stream": 3,
+            "end_headers": true,
+            "end_stream": true,
+            "padded": false,
+            "priority": {
+              "depends_on": 0,
+              "exclusive": false,
+              "weight": 42
+            }
+          }
+        },
+        {
+          "frames": [
+            {
+              "type": "SETTINGS",
+              "stream": 0,
+              "values": [
+                [
+                  1,
+                  65536
+                ],
+                [
+                  2,
+                  0
+                ],
+                [
+                  4,
+                  131072
+                ],
+                [
+                  5,
+                  16384
+                ]
+              ]
+            },
+            {
+              "type": "WINDOW_UPDATE",
+              "stream": 0,
+              "increment": 12517377
+            }
+          ],
+          "settings_ack_positions": [
+            2
+          ],
+          "first_headers": {
+            "stream": 3,
+            "end_headers": true,
+            "end_stream": true,
+            "padded": false,
+            "priority": {
+              "depends_on": 0,
+              "exclusive": false,
+              "weight": 42
+            }
+          }
+        }
+      ],
+      "sample_provenance": [
+        {
+          "port": 49218,
+          "process": {
+            "native": "x86_64",
+            "launch_arch": "/usr/bin/arch -x86_64",
+            "cpu_type": 16777223,
+            "cpu_subtype": 3
+          },
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:161.0) Gecko/20100101 Firefox/161.0",
+          "protocol": "h2",
+          "mode": "navigation"
+        },
+        {
+          "port": 49222,
+          "process": {
+            "native": "x86_64",
+            "launch_arch": "/usr/bin/arch -x86_64",
+            "cpu_type": 16777223,
+            "cpu_subtype": 3
+          },
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:161.0) Gecko/20100101 Firefox/161.0",
+          "protocol": "h2",
+          "mode": "navigation"
+        }
+      ]
+    }
+  },
+  "scope": "h2-preface",
+  "ci": {
+    "sha": "53fe1a96d8a51a0eb17793be0d7679d8ea7e5326",
+    "run_id": "45769558169",
+    "run_attempt": "1",
+    "imageos": "macos15",
+    "imageversion": "20260824.0482.1"
+  }
+}

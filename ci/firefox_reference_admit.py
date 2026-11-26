@@ -15,11 +15,32 @@ from firefox_reference_releases import PINS, SLOTS, expect, sha256
 from firefox_reference_wire import grease_settings
 
 
-def admit(slot, run, artifact, jobs, archive, destination):
+def validate_h2_preface(acq, original, arch):
+    from firefox_h2_preface import stable_flight
+
+    expect(all(acq[key] == original[key] for key in ('build_id', 'manifest_sha256', 'sha256', 'executable_sha256')),
+           'H2 supplement executable differs from the admitted official browser')
+    expect(len(acq['sample_provenance']) == len(acq['samples']), 'H2 supplement provenance count differs')
+    settings = original['samples'][0]['h2']['settings']
+    ua = original['samples'][0]['h2']['user_agent']
+    ports = set()
+    for sample, provenance in zip(acq['samples'], acq['sample_provenance'], strict=True):
+        flight = stable_flight(sample)
+        expect(flight['frames'][0] == {'type': 'SETTINGS', 'stream': 0, 'values': settings},
+               'H2 supplemental SETTINGS differ from the admitted case')
+        expect(provenance['process']['native'] == arch and provenance['protocol'] == 'h2' and
+               provenance['mode'] == 'navigation' and provenance['user_agent'] == ua, 'wrong H2 native navigation context')
+        expect(provenance['port'] not in ports, 'H2 sample reused a protocol origin')
+        ports.add(provenance['port'])
+
+
+def admit(slot, run, artifact, jobs, archive, destination, *, h2_reference=None):
     ident = run['id']
     attempt = run['run_attempt']
     head = run['head_sha']
-    expect(artifact['name'] == f'official-firefox-wire-{slot}-{ident}-{attempt}', 'artifact name does not identify this slot/run')
+    mode = 'h2-preface' if h2_reference is not None else 'wire'
+    expect(artifact['name'] == f'official-firefox-{mode}-{slot}-{ident}-{attempt}',
+           'artifact name does not identify this mode/slot/run')
     expect(artifact['digest'] == f'sha256:{sha256(archive)}', 'GitHub artifact ZIP digest mismatch')
     matching = [job for job in jobs if job['name'].endswith(f'capture / {slot}')]
     expect(len(matching) == 1 and matching[0]['conclusion'] == 'success', 'slot job did not qualify')
@@ -32,6 +53,10 @@ def admit(slot, run, artifact, jobs, archive, destination):
     os_name, arch, _, index = SLOTS[slot]
     expected = {'schema_version': 1, 'slot': slot, 'platform': os_name, 'arch': arch, 'source': 'official-firefox'}
     expect(all(observed.get(key) == value for key, value in expected.items()), 'unexpected capture schema/native slot')
+    expect(observed.get('scope', 'wire') == mode, 'capture JSON has the wrong observation mode')
+    if h2_reference is not None:
+        expect(all(h2_reference.get(key) == value for key, value in expected.items()),
+               'baseline is not the admitted slot reference')
     ci = observed['ci']
     expect(ci['sha'] == head and int(ci['run_id']) == ident and int(ci['run_attempt']) == attempt, 'embedded run identity differs')
     captures = observed['captures']
@@ -40,6 +65,9 @@ def admit(slot, run, artifact, jobs, archive, destination):
         expect(acq['version'] == f'{release}.0' and acq['archive_locale'] == 'en-US' and
                acq['sha256'] == PINS[release][index] and acq['source_commit'] == PINS[release][1], 'release pin mismatch')
         expect(2 <= len(acq['samples']) <= 3, 'expected two or three fresh samples')
+        if h2_reference is not None:
+            validate_h2_preface(acq, h2_reference['captures'][release], arch)
+            continue
         ports = set()
         for sample in acq['samples']:
             expect(set(sample) == {'h1', 'h2', 'h3'}, 'capture has missing wire contexts')
@@ -77,6 +105,7 @@ def main():
     parser.add_argument('artifact_id', type=int)
     parser.add_argument('zip', type=Path)
     parser.add_argument('destination', type=Path)
+    parser.add_argument('--h2-preface-reference', type=Path, help='previously admitted wire fixture for this H2 supplement')
     args = parser.parse_args()
     run = json.loads(args.run_metadata.read_text(encoding='utf-8'))
     jobs = json.loads(args.jobs_metadata.read_text(encoding='utf-8'))
@@ -87,7 +116,8 @@ def main():
         artifacts = artifacts['artifacts']
     matches = [item for item in artifacts if item['id'] == args.artifact_id]
     expect(len(matches) == 1, 'missing artifact ID in run listing')
-    print(json.dumps(admit(args.slot, run, matches[0], jobs, args.zip, args.destination), indent=2))
+    h2_reference = json.loads(args.h2_preface_reference.read_text(encoding='utf-8')) if args.h2_preface_reference else None
+    print(json.dumps(admit(args.slot, run, matches[0], jobs, args.zip, args.destination, h2_reference=h2_reference), indent=2))
 
 
 if __name__ == '__main__':

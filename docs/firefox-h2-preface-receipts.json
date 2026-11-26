@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "scope": "h2-preface",
+  "baseline_run_id": 45766794582,
+  "receipts": {
+    "linux_x86_64": {
+      "slot": "linux_x86_64",
+      "run_id": 45769558169,
+      "run_attempt": 1,
+      "run_head_sha": "53fe1a96d8a51a0eb17793be0d7679d8ea7e5326",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169",
+      "job_id": 139738654324,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169/job/139738654324",
+      "artifact_id": 15092919029,
+      "artifact_digest": "sha256:53a522e3a616b27d2a937334f30fd9c5a574c0ed8c9d1175666316a348e5edfd",
+      "artifact_member_digest": "sha256:55fed7476f8760719b865aef26094ff116809516b825744413711ba50a27ff7b",
+      "fixture_digest": "sha256:55fed7476f8760719b865aef26094ff116809516b825744413711ba50a27ff7b"
+    },
+    "linux_aarch64": {
+      "slot": "linux_aarch64",
+      "run_id": 45769558169,
+      "run_attempt": 1,
+      "run_head_sha": "53fe1a96d8a51a0eb17793be0d7679d8ea7e5326",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169",
+      "job_id": 139738654373,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169/job/139738654373",
+      "artifact_id": 15093522331,
+      "artifact_digest": "sha256:28dc1269460d413a8500b64ebb80e4d6f5062452bff2703424c98041094d3407",
+      "artifact_member_digest": "sha256:89e8f151c4a4a8cc95ec6f04c06c9adb100be9da4067a7e349d999e911161a81",
+      "fixture_digest": "sha256:89e8f151c4a4a8cc95ec6f04c06c9adb100be9da4067a7e349d999e911161a81"
+    },
+    "darwin_arm64": {
+      "slot": "darwin_arm64",
+      "run_id": 45769558169,
+      "run_attempt": 1,
+      "run_head_sha": "53fe1a96d8a51a0eb17793be0d7679d8ea7e5326",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169",
+      "job_id": 139738654216,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169/job/139738654216",
+      "artifact_id": 15093103770,
+      "artifact_digest": "sha256:24a094ed3b3347782f39b9eadbfe846c711f8ac2f6854b94a2839c380179e241",
+      "artifact_member_digest": "sha256:6a8fc6aeebf6df6208d38cb7b53fe4caeb4d35f9cc7c12edf12bf4a7bf9c47dc",
+      "fixture_digest": "sha256:6a8fc6aeebf6df6208d38cb7b53fe4caeb4d35f9cc7c12edf12bf4a7bf9c47dc"
+    },
+    "darwin_x86_64": {
+      "slot": "darwin_x86_64",
+      "run_id": 45769558169,
+      "run_attempt": 1,
+      "run_head_sha": "53fe1a96d8a51a0eb17793be0d7679d8ea7e5326",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169",
+      "job_id": 139738654365,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169/job/139738654365",
+      "artifact_id": 15093721173,
+      "artifact_digest": "sha256:507c21e707f76460432716dbf584c9cac1477f818f075c284a202ae3386f67e4",
+      "artifact_member_digest": "sha256:3906c258580a0244fd7fb534839c31266bdfc19cab64191135bc0935cdc4334d",
+      "fixture_digest": "sha256:3906c258580a0244fd7fb534839c31266bdfc19cab64191135bc0935cdc4334d"
+    },
+    "win_amd64": {
+      "slot": "win_amd64",
+      "run_id": 45769558169,
+      "run_attempt": 1,
+      "run_head_sha": "53fe1a96d8a51a0eb17793be0d7679d8ea7e5326",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169",
+      "job_id": 139738654145,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769558169/job/139738654145",
+      "artifact_id": 15093437767,
+      "artifact_digest": "sha256:7021f0abcc84aaa6e59061698a1a4961e4b51efac5a76e2532adbc4b84eaa981",
+      "artifact_member_digest": "sha256:173ce042d6a639b8685f6e74d32b1d86465c4eba260f7bb79a3713b4ef9c6810",
+      "fixture_digest": "sha256:173ce042d6a639b8685f6e74d32b1d86465c4eba260f7bb79a3713b4ef9c6810"
+    }
+  }
+}
