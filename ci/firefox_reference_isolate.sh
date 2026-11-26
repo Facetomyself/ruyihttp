@@ -22,12 +22,9 @@ case "$slot" in
             "${ImageOS:-}" "${ImageVersion:-}" "$(id -un)" "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
         ;;
     darwin_x86_64|darwin_arm64)
-        # Keep permissions otherwise unchanged so that Firefox retains its own
-        # sandbox; the outer Seatbelt filter permits only IP loopback traffic.
-        seatbelt='(version 1) (allow default) (deny network*)
-            (allow network-bind (local ip "localhost:*"))
-            (allow network-inbound network-outbound (remote ip "localhost:*"))'
-        /usr/bin/sandbox-exec -p "$seatbelt" "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
+        # The runner applies Seatbelt to Firefox only. The observer process
+        # explicitly binds its TCP/UDP fixtures to IPv4 loopback.
+        "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
         ;;
     win_amd64)
         # A Windows-native shell establishes per-executable rules for this
