@@ -26,8 +26,13 @@ built from it must pick AGPL compliance or a commercial license from the
 
 ## Windows native runtime
 
-The Windows DLL set comes from the original `ruyihttp 0.9.0` wheel. Keep its
-Mozilla notices and the `ruyihttp/licenses/` directory.
+The Windows DLL set is an unchanged import from [LoseNine's `ruyihttp 0.11.0`
+PyPI wheel](https://pypi.org/project/ruyihttp/0.11.0/). The published wheel contains
+those binaries and attribution notices but no native source, and the source
+repository listed in its metadata did not return a public snapshot when checked.
+The [Windows provenance](../native/win_amd64/provenance.json) records the exact wheel
+and DLL hashes. The supplemental Mozilla and Rust notices are shipped with the
+wheel and indexed in [upstream-notices.json](../native/win_amd64/upstream-notices.json).
 
 ## Corresponding source
 

@@ -1,0 +1,2091 @@
+{
+  "description": "License inventory of the native QUIC build dependency export for ruyihttp 0.11.0 Includes build-time and optional dependencies; inclusion here does not assert that a crate is linked into the distributed DLL.",
+  "method": "Individual license and notice documents are copied verbatim from the exported package sources. Identical documents are stored once. Paths named upstream_file are relative to the identified upstream package.",
+  "scope_note": "These notices preserve license texts and attribution. They do not establish availability of corresponding native source, or satisfy that separate obligation.",
+  "packages": [
+    {
+      "name": "aho-corasick",
+      "version": "1.1.0",
+      "license": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/aho-corasick",
+      "license_files": [
+        {
+          "upstream_file": "COPYING",
+          "file": "rust-aho-corasick-1.1.0-COPYING.txt",
+          "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-aho-corasick-1.1.0-LICENSE-MIT.txt",
+          "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+        },
+        {
+          "upstream_file": "UNLICENSE",
+          "file": "rust-aho-corasick-1.1.0-UNLICENSE.txt",
+          "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c"
+        }
+      ],
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>"
+      ]
+    },
+    {
+      "name": "base64",
+      "version": "0.22.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/marshallpierce/rust-base64",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-base64-0.22.1-LICENSE-MIT.txt",
+          "sha256": "0dd882e53de11566d50f8e8e2d5a651bcf3fabee4987d70f306233cf39094ba7"
+        }
+      ],
+      "authors": [
+        "Marshall Pierce <marshall@mpierce.org>"
+      ]
+    },
+    {
+      "name": "bindgen",
+      "version": "0.72.999",
+      "license": "MPL-2.0",
+      "repository": null,
+      "license_files": [],
+      "source_license_headers": [
+        "This Source Code Form is subject to the terms of the Mozilla Public\nLicense, v. 2.0. If a copy of the MPL was not distributed with this\nfile, You can obtain one at http://mozilla.org/MPL/2.0/."
+      ],
+      "license_text_reference": "firefox-license.html#mpl",
+      "note": "This package export contains per-file MPL notices and no separate license document."
+    },
+    {
+      "name": "bindgen",
+      "version": "0.73.1",
+      "license": "BSD-3-Clause",
+      "repository": "https://github.com/rust-lang/rust-bindgen",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-bindgen-0.73.1-LICENSE.txt",
+          "sha256": "c23953d9deb0a3312dbeaf6c128a657f3591acee45067612fa68405eaa4525db"
+        }
+      ]
+    },
+    {
+      "name": "bitflags",
+      "version": "2.10.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/bitflags/bitflags",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-bitflags-2.10.0-LICENSE-MIT.txt",
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers"
+      ]
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.10.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/utils",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-block-buffer-0.10.3-LICENSE-APACHE.txt",
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-block-buffer-0.10.3-LICENSE-MIT.txt",
+          "sha256": "d5c22aa3118d240e877ad41c5d9fa232f9c77d757d4aac0c2f943afc0a95e0ef"
+        }
+      ],
+      "authors": [
+        "RustCrypto Developers"
+      ]
+    },
+    {
+      "name": "bytes",
+      "version": "1.11.1",
+      "license": "MIT",
+      "repository": "https://github.com/tokio-rs/bytes",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-bytes-1.11.1-LICENSE.txt",
+          "sha256": "45f522cacecb1023856e46df79ca625dfc550c94910078bd8aec6e02880b3d42"
+        }
+      ],
+      "authors": [
+        "Carl Lerche <me@carllerche.com>",
+        "Sean McArthur <sean@seanmonstar.com>"
+      ]
+    },
+    {
+      "name": "cexpr",
+      "version": "0.6.0",
+      "license": "Apache-2.0/MIT",
+      "repository": "https://github.com/jethrogb/rust-cexpr",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-cexpr-0.6.0-LICENSE-MIT.txt",
+          "sha256": "d9771b8c6cf4426d3846de54c1febe20907f1eeadf7adfb5ade89a83bd9ea77f"
+        }
+      ],
+      "authors": [
+        "Jethro Beekman <jethro@jbeekman.nl>"
+      ]
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.0",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/alexcrichton/cfg-if",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-cfg-if-1.0.0-LICENSE-MIT.txt",
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>"
+      ]
+    },
+    {
+      "name": "cfg_aliases",
+      "version": "0.2.2",
+      "license": "MIT",
+      "repository": "https://github.com/katharostech/cfg_aliases",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-cfg_aliases-0.2.2-LICENSE.txt",
+          "sha256": "31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812"
+        }
+      ],
+      "authors": [
+        "Zicklag <zicklag@katharostech.com>"
+      ]
+    },
+    {
+      "name": "clang-sys",
+      "version": "1.7.0",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/KyleMayes/clang-sys",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE.txt",
+          "file": "rust-clang-sys-1.7.0-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ],
+      "authors": [
+        "Kyle Mayes <kyle@mayeses.com>"
+      ]
+    },
+    {
+      "name": "cpufeatures",
+      "version": "0.2.8",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/utils",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-block-buffer-0.10.3-LICENSE-APACHE.txt",
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-cpufeatures-0.2.8-LICENSE-MIT.txt",
+          "sha256": "904801faf3f1850328af8e1aa1047b9190cc22ed40df5c87f2d93d17f847ef67"
+        }
+      ],
+      "authors": [
+        "RustCrypto Developers"
+      ]
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.1.6",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/traits",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-block-buffer-0.10.3-LICENSE-APACHE.txt",
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-crypto-common-0.1.6-LICENSE-MIT.txt",
+          "sha256": "3521672491a3479422d5fe1aca6645dd2984090f85da6e5205abfb18fb7a6897"
+        }
+      ],
+      "authors": [
+        "RustCrypto Developers"
+      ]
+    },
+    {
+      "name": "darling",
+      "version": "0.20.10",
+      "license": "MIT",
+      "repository": "https://github.com/TedDriggs/darling",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-darling-0.20.10-LICENSE.txt",
+          "sha256": "8ea93490d74a5a1b1af3ff71d786271b3f1e5f0bea79ac16e02ec533cef040d6"
+        }
+      ],
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ]
+    },
+    {
+      "name": "darling_core",
+      "version": "0.20.10",
+      "license": "MIT",
+      "repository": "https://github.com/TedDriggs/darling",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-darling-0.20.10-LICENSE.txt",
+          "sha256": "8ea93490d74a5a1b1af3ff71d786271b3f1e5f0bea79ac16e02ec533cef040d6"
+        }
+      ],
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ]
+    },
+    {
+      "name": "darling_macro",
+      "version": "0.20.10",
+      "license": "MIT",
+      "repository": "https://github.com/TedDriggs/darling",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-darling-0.20.10-LICENSE.txt",
+          "sha256": "8ea93490d74a5a1b1af3ff71d786271b3f1e5f0bea79ac16e02ec533cef040d6"
+        }
+      ],
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ]
+    },
+    {
+      "name": "derive_more",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": null,
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-derive_more-2.0.1-LICENSE.txt",
+          "sha256": "8a35369f3ca263b3c62fbb5032947e53b6bfebc6c8a4d1bb982de1c069f6fba5"
+        }
+      ]
+    },
+    {
+      "name": "derive_more-impl",
+      "version": "2.0.1",
+      "license": "MIT",
+      "repository": null,
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-derive_more-2.0.1-LICENSE.txt",
+          "sha256": "8a35369f3ca263b3c62fbb5032947e53b6bfebc6c8a4d1bb982de1c069f6fba5"
+        }
+      ]
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/traits",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-block-buffer-0.10.3-LICENSE-APACHE.txt",
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-digest-0.10.7-LICENSE-MIT.txt",
+          "sha256": "9e0dfd2dd4173a530e238cb6adb37aa78c34c6bc7444e0e10c1ab5d8881f63ba"
+        }
+      ],
+      "authors": [
+        "RustCrypto Developers"
+      ]
+    },
+    {
+      "name": "enum-map",
+      "version": "2.7.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://codeberg.org/xfix/enum-map",
+      "license_files": [
+        {
+          "upstream_file": "LICENSES/Apache-2.0.txt",
+          "file": "rust-enum-map-2.7.3-LICENSES-Apache-2.0.txt",
+          "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff"
+        },
+        {
+          "upstream_file": "LICENSES/CC0-1.0.txt",
+          "file": "rust-enum-map-2.7.3-LICENSES-CC0-1.0.txt",
+          "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+        },
+        {
+          "upstream_file": "LICENSES/MIT.txt",
+          "file": "rust-enum-map-2.7.3-LICENSES-MIT.txt",
+          "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0"
+        }
+      ],
+      "authors": [
+        "Kamila Borowska <kamila@borowska.pw>"
+      ],
+      "source_header_notices": [
+        "SPDX-FileCopyrightText: 2017 - 2021 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2017 - 2022 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2017 - 2023 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2018 - 2022 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2019 Riey <creeper844@gmail.com>",
+        "SPDX-FileCopyrightText: 2020 Amanieu d'Antras <amanieu@gmail.com>",
+        "SPDX-FileCopyrightText: 2021 Alex Sayers <alex@asayers.com>",
+        "SPDX-FileCopyrightText: 2021 Bruno Corrêa Zimmermann <brunoczim@gmail.com>",
+        "SPDX-FileCopyrightText: 2021 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2021 micycle",
+        "SPDX-FileCopyrightText: 2022 Cass Fridkin <cass@cloudflare.com>",
+        "SPDX-FileCopyrightText: 2022 Mateusz Kowalczyk <fuuzetsu@fuuzetsu.co.uk>",
+        "SPDX-FileCopyrightText: 2022 philipp <descpl@yahoo.de>",
+        "SPDX-FileCopyrightText: 2023 Nicolas Carranza <nicarran@yandex.com>",
+        "SPDX-License-Identifier: MIT OR Apache-2.0"
+      ]
+    },
+    {
+      "name": "enum-map-derive",
+      "version": "0.17.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://codeberg.org/xfix/enum-map",
+      "license_files": [
+        {
+          "upstream_file": "LICENSES/Apache-2.0.txt",
+          "file": "rust-enum-map-2.7.3-LICENSES-Apache-2.0.txt",
+          "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff"
+        },
+        {
+          "upstream_file": "LICENSES/CC0-1.0.txt",
+          "file": "rust-enum-map-2.7.3-LICENSES-CC0-1.0.txt",
+          "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+        },
+        {
+          "upstream_file": "LICENSES/MIT.txt",
+          "file": "rust-enum-map-2.7.3-LICENSES-MIT.txt",
+          "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0"
+        }
+      ],
+      "authors": [
+        "Kamila Borowska <kamila@borowska.pw>"
+      ],
+      "source_header_notices": [
+        "SPDX-FileCopyrightText: 2017 - 2022 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2018 hcpl <hcpl.prog@gmail.com>",
+        "SPDX-FileCopyrightText: 2019 mara <vmedea@protonmail.com>",
+        "SPDX-FileCopyrightText: 2021 - 2022 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2021 - 2023 Kamila Borowska <kamila@borowska.pw>",
+        "SPDX-FileCopyrightText: 2021 Bruno Corrêa Zimmermann <brunoczim@gmail.com>",
+        "SPDX-FileCopyrightText: 2021 Dietrich <dietrich@teilgedanken.de>",
+        "SPDX-License-Identifier: MIT OR Apache-2.0"
+      ]
+    },
+    {
+      "name": "enumset",
+      "version": "1.1.2",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/Lymia/enumset",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-enumset-1.1.2-LICENSE-MIT.txt",
+          "sha256": "7405fdff2ff8682a5384da664436b9b2aca47557572513f5b27686a5347f9b8e"
+        }
+      ],
+      "authors": [
+        "Alissa Rao <lymia@lymiahugs.com>"
+      ]
+    },
+    {
+      "name": "enumset_derive",
+      "version": "0.8.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/Lymia/enumset",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-enumset-1.1.2-LICENSE-MIT.txt",
+          "sha256": "7405fdff2ff8682a5384da664436b9b2aca47557572513f5b27686a5347f9b8e"
+        }
+      ],
+      "authors": [
+        "Alissa Rao <lymia@lymiahugs.com>"
+      ]
+    },
+    {
+      "name": "env_logger",
+      "version": "0.10.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-cli/env_logger/",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ]
+    },
+    {
+      "name": "equivalent",
+      "version": "1.0.1",
+      "license": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/cuviper/equivalent",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-equivalent-1.0.1-LICENSE-MIT.txt",
+          "sha256": "7365cc8878a1d7ce155a58c4ca09c3d7a6be413efa5334a80ea842912b669349"
+        }
+      ]
+    },
+    {
+      "name": "fnv",
+      "version": "1.0.7",
+      "license": "Apache-2.0 / MIT",
+      "repository": "https://github.com/servo/rust-fnv",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-fnv-1.0.7-LICENSE-MIT.txt",
+          "sha256": "65fdb6c76cd61612070c066eec9ecdb30ee74fb27859d0d9af58b9f499fd0c3e"
+        }
+      ],
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>"
+      ]
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.6",
+      "license": "MIT",
+      "repository": "https://github.com/fizyk20/generic-array.git",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-generic-array-0.14.6-LICENSE.txt",
+          "sha256": "c09aae9d3c77b531f56351a9947bc7446511d6b025b3255312d3e3442a9a7583"
+        }
+      ],
+      "authors": [
+        "Bartłomiej Kamiński <fizyk20@gmail.com>",
+        "Aaron Trent <novacrazy@gmail.com>"
+      ]
+    },
+    {
+      "name": "glob",
+      "version": "0.3.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/glob",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-bitflags-2.10.0-LICENSE-MIT.txt",
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers"
+      ]
+    },
+    {
+      "name": "hashbrown",
+      "version": "0.17.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/hashbrown",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-hashbrown-0.17.1-LICENSE-MIT.txt",
+          "sha256": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2"
+        }
+      ]
+    },
+    {
+      "name": "heck",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/withoutboats/heck",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-heck-0.5.0-LICENSE-MIT.txt",
+          "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0"
+        }
+      ]
+    },
+    {
+      "name": "hex",
+      "version": "0.4.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/KokaKiwi/rust-hex",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-hex-0.4.3-LICENSE-APACHE.txt",
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-hex-0.4.3-LICENSE-MIT.txt",
+          "sha256": "f7bdb3426d045cd50efd4953026e3eb5a83d0199f458a075602611b9344da5b9"
+        }
+      ],
+      "authors": [
+        "KokaKiwi <kokakiwi@kokakiwi.net>"
+      ]
+    },
+    {
+      "name": "http",
+      "version": "1.4.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/hyperium/http",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-http-1.4.0-LICENSE-APACHE.txt",
+          "sha256": "8bb1b50b0e5c9399ae33bd35fab2769010fa6c14e8860c729a52295d84896b7a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-http-1.4.0-LICENSE-MIT.txt",
+          "sha256": "dc91f8200e4b2a1f9261035d4c18c33c246911a6c0f7b543d75347e61b249cff"
+        }
+      ],
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Carl Lerche <me@carllerche.com>",
+        "Sean McArthur <sean@seanmonstar.com>"
+      ]
+    },
+    {
+      "name": "humantime",
+      "version": "2.4.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": null,
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-hex-0.4.3-LICENSE-APACHE.txt",
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-humantime-2.4.0-LICENSE-MIT.txt",
+          "sha256": "f6deca8261a8f4a3403dc74c725c46051157fd36c27cd4b100277eb1f303ad11"
+        }
+      ]
+    },
+    {
+      "name": "ident_case",
+      "version": "1.0.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/TedDriggs/ident_case",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-ident_case-1.0.1-LICENSE.txt",
+          "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1"
+        }
+      ],
+      "authors": [
+        "Ted Driggs <ted.driggs@outlook.com>"
+      ]
+    },
+    {
+      "name": "indexmap",
+      "version": "2.14.1",
+      "license": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/indexmap-rs/indexmap",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-indexmap-2.14.1-LICENSE-MIT.txt",
+          "sha256": "ecc269ef87fd38a1d98e30bfac9ba964a9dbd9315c3770fed98d4d7cb5882055"
+        }
+      ]
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.15",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/itoa",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "libc",
+      "version": "0.2.186",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/libc",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-libc-0.2.186-LICENSE-MIT.txt",
+          "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers"
+      ]
+    },
+    {
+      "name": "libloading",
+      "version": "0.8.6",
+      "license": "ISC",
+      "repository": "https://github.com/nagisa/rust_libloading/",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-libloading-0.8.6-LICENSE.txt",
+          "sha256": "b29f8b01452350c20dd1af16ef83b598fea3053578ccc1c7a0ef40e57be2620f"
+        }
+      ],
+      "authors": [
+        "Simonas Kazlauskas <libloading@kazlauskas.me>"
+      ]
+    },
+    {
+      "name": "log",
+      "version": "0.4.29",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/log",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-bitflags-2.10.0-LICENSE-MIT.txt",
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers"
+      ]
+    },
+    {
+      "name": "mach2",
+      "version": "0.4.999",
+      "license": "Mozilla Public License 2.0",
+      "repository": null,
+      "license_files": [],
+      "source_license_headers": [
+        "This Source Code Form is subject to the terms of the Mozilla Public\nLicense, v. 2.0. If a copy of the MPL was not distributed with this\nfile, You can obtain one at https://mozilla.org/MPL/2.0/."
+      ],
+      "note": "This package export contains per-file MPL notices and no separate license document.",
+      "license_text_reference": "firefox-license.html#mpl"
+    },
+    {
+      "name": "mach2",
+      "version": "0.6.0",
+      "license": "BSD-2-Clause OR MIT OR Apache-2.0",
+      "repository": null,
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-BSD",
+          "file": "rust-mach2-0.6.0-LICENSE-BSD.txt",
+          "sha256": "044983df14c97f2f9570766aaf977b3cdfc4a06cf1f36b776331c5ff89b4fb89"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-mach2-0.6.0-LICENSE-MIT.txt",
+          "sha256": "3f9f0f7e5a5911a8042e32c83ff5d061ce1ffd02e8a207ec2135a44ad73b4191"
+        }
+      ]
+    },
+    {
+      "name": "memchr",
+      "version": "2.7.4",
+      "license": "Unlicense OR MIT",
+      "repository": "https://github.com/BurntSushi/memchr",
+      "license_files": [
+        {
+          "upstream_file": "COPYING",
+          "file": "rust-aho-corasick-1.1.0-COPYING.txt",
+          "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-aho-corasick-1.1.0-LICENSE-MIT.txt",
+          "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f"
+        },
+        {
+          "upstream_file": "UNLICENSE",
+          "file": "rust-aho-corasick-1.1.0-UNLICENSE.txt",
+          "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c"
+        }
+      ],
+      "authors": [
+        "Andrew Gallant <jamslam@gmail.com>",
+        "bluss"
+      ]
+    },
+    {
+      "name": "minimal-lexical",
+      "version": "0.2.1",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/Alexhuszagh/minimal-lexical",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-minimal-lexical-0.2.1-LICENSE-APACHE.txt",
+          "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        },
+        {
+          "upstream_file": "LICENSE.md",
+          "file": "rust-minimal-lexical-0.2.1-LICENSE.md.txt",
+          "sha256": "dbe1fff0fb1314b6af94f161511406275cf01c5a32441fbf24528a57a051d599"
+        }
+      ],
+      "authors": [
+        "Alex Huszagh <ahuszagh@gmail.com>"
+      ]
+    },
+    {
+      "name": "mozbuild",
+      "version": "0.1.0",
+      "license": "MPL-2.0",
+      "repository": null,
+      "license_files": [],
+      "source_license_headers": [
+        "This Source Code Form is subject to the terms of the Mozilla Public\nLicense, v. 2.0. If a copy of the MPL was not distributed with this file,\nYou can obtain one at http://mozilla.org/MPL/2.0/."
+      ],
+      "license_text_reference": "firefox-license.html#mpl",
+      "note": "This package export contains per-file MPL notices and no separate license document."
+    },
+    {
+      "name": "mtu",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/mozilla/neqo/",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-mtu-0.4.1-LICENSE-MIT.txt",
+          "sha256": "4ad721b5b6a3d39ca3e2202f403d897c4a1d42896486dd58963a81f8e64ef61d"
+        }
+      ],
+      "authors": [
+        "The Neqo Authors <necko@mozilla.com>"
+      ]
+    },
+    {
+      "name": "neqo-common",
+      "version": "0.34.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/mozilla/neqo/",
+      "license_files": [],
+      "source_license_headers": [
+        "Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or\nhttp://www.apache.org/licenses/LICENSE-2.0> or the MIT license\n<LICENSE-MIT or http://opensource.org/licenses/MIT>, at your\noption. This file may not be copied, modified, or distributed\nexcept according to those terms."
+      ],
+      "license_text_reference": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+      "note": "This package export contains dual-license source headers and no separate license document. The complete Apache-2.0 text is included by reference.",
+      "authors": [
+        "The Neqo Authors <necko@mozilla.com>"
+      ]
+    },
+    {
+      "name": "neqo-http3",
+      "version": "0.34.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/mozilla/neqo/",
+      "license_files": [],
+      "source_license_headers": [
+        "Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or\nhttp://www.apache.org/licenses/LICENSE-2.0> or the MIT license\n<LICENSE-MIT or http://opensource.org/licenses/MIT>, at your\noption. This file may not be copied, modified, or distributed\nexcept according to those terms."
+      ],
+      "license_text_reference": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+      "note": "This package export contains dual-license source headers and no separate license document. The complete Apache-2.0 text is included by reference.",
+      "authors": [
+        "The Neqo Authors <necko@mozilla.com>"
+      ]
+    },
+    {
+      "name": "neqo-qpack",
+      "version": "0.34.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/mozilla/neqo/",
+      "license_files": [],
+      "source_license_headers": [
+        "Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or\nhttp://www.apache.org/licenses/LICENSE-2.0> or the MIT license\n<LICENSE-MIT or http://opensource.org/licenses/MIT>, at your\noption. This file may not be copied, modified, or distributed\nexcept according to those terms."
+      ],
+      "license_text_reference": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+      "note": "This package export contains dual-license source headers and no separate license document. The complete Apache-2.0 text is included by reference.",
+      "authors": [
+        "The Neqo Authors <necko@mozilla.com>"
+      ]
+    },
+    {
+      "name": "neqo-transport",
+      "version": "0.34.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/mozilla/neqo/",
+      "license_files": [],
+      "source_license_headers": [
+        "Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or\nhttp://www.apache.org/licenses/LICENSE-2.0> or the MIT license\n<LICENSE-MIT or http://opensource.org/licenses/MIT>, at your\noption. This file may not be copied, modified, or distributed\nexcept according to those terms."
+      ],
+      "license_text_reference": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+      "note": "This package export contains dual-license source headers and no separate license document. The complete Apache-2.0 text is included by reference.",
+      "authors": [
+        "The Neqo Authors <necko@mozilla.com>"
+      ]
+    },
+    {
+      "name": "neqo-udp",
+      "version": "0.34.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/mozilla/neqo/",
+      "license_files": [],
+      "source_license_headers": [
+        "Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or\nhttp://www.apache.org/licenses/LICENSE-2.0> or the MIT license\n<LICENSE-MIT or http://opensource.org/licenses/MIT>, at your\noption. This file may not be copied, modified, or distributed\nexcept according to those terms."
+      ],
+      "license_text_reference": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+      "note": "This package export contains dual-license source headers and no separate license document. The complete Apache-2.0 text is included by reference.",
+      "authors": [
+        "The Neqo Authors <necko@mozilla.com>"
+      ]
+    },
+    {
+      "name": "nom",
+      "version": "7.1.3",
+      "license": "MIT",
+      "repository": "https://github.com/Geal/nom",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-nom-7.1.3-LICENSE.txt",
+          "sha256": "4dbda04344456f09a7a588140455413a9ac59b6b26a1ef7cdf9c800c012d87f0"
+        }
+      ],
+      "authors": [
+        "contact@geoffroycouprie.com"
+      ]
+    },
+    {
+      "name": "nss-rs",
+      "version": "0.16.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/mozilla/nss-rs",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-mtu-0.4.1-LICENSE-MIT.txt",
+          "sha256": "4ad721b5b6a3d39ca3e2202f403d897c4a1d42896486dd58963a81f8e64ef61d"
+        }
+      ],
+      "authors": [
+        "Martin Thomson <mt@lowentropy.net>",
+        "Andy Leiserson <aleiserson@mozilla.com>",
+        "John M. Schanck <jschanck@mozilla.com>",
+        "Benjamin Beurdouche <beurdouche@mozilla.com>",
+        "Anna Weine <anna.weine@mozilla.com>"
+      ]
+    },
+    {
+      "name": "pkg-config",
+      "version": "0.3.34",
+      "license": "MIT OR Apache-2.0",
+      "repository": null,
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-cfg-if-1.0.0-LICENSE-MIT.txt",
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ]
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.101",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/proc-macro2",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>",
+        "Alex Crichton <alex@alexcrichton.com>"
+      ]
+    },
+    {
+      "name": "qlog",
+      "version": "0.18.1",
+      "license": "BSD-2-Clause",
+      "repository": "https://github.com/cloudflare/quiche",
+      "license_files": [
+        {
+          "upstream_file": "COPYING",
+          "file": "rust-qlog-0.18.1-COPYING.txt",
+          "sha256": "2ef4b5abfce387a83933bda738e72467a79d15c1c17679143ec55011dae66b84"
+        }
+      ],
+      "authors": [
+        "Lucas Pardue <lucas@lucaspardue.com>"
+      ]
+    },
+    {
+      "name": "quinn-udp",
+      "version": "0.6.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/quinn-rs/quinn",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-quinn-udp-0.6.3-LICENSE-APACHE.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-quinn-udp-0.6.3-LICENSE-MIT.txt",
+          "sha256": "4b2d0aca6789fa39e03d6738e869ea0988cceba210ca34ebb59c15c463e93a04"
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "version": "1.0.40",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/quote",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "ref-cast",
+      "version": "1.0.24",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/ref-cast",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "ref-cast-impl",
+      "version": "1.0.24",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/ref-cast",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "regex",
+      "version": "1.12.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/regex",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-bitflags-2.10.0-LICENSE-MIT.txt",
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers",
+        "Andrew Gallant <jamslam@gmail.com>"
+      ]
+    },
+    {
+      "name": "regex-automata",
+      "version": "0.4.14",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/regex",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-bitflags-2.10.0-LICENSE-MIT.txt",
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers",
+        "Andrew Gallant <jamslam@gmail.com>"
+      ]
+    },
+    {
+      "name": "regex-syntax",
+      "version": "0.8.5",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/regex/tree/master/regex-syntax",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-bitflags-2.10.0-LICENSE-MIT.txt",
+          "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb"
+        },
+        {
+          "upstream_file": "src/unicode_tables/LICENSE-UNICODE",
+          "file": "rust-regex-syntax-0.8.5-src-unicode_tables-LICENSE-UNICODE.txt",
+          "sha256": "74db5baf44a41b1000312c673544b3374e4198af5605c7f9080a402cec42cfa3"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers",
+        "Andrew Gallant <jamslam@gmail.com>"
+      ]
+    },
+    {
+      "name": "rustc-hash",
+      "version": "2.1.1",
+      "license": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/rust-lang/rustc-hash",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-rustc-hash-2.1.1-LICENSE-APACHE.txt",
+          "sha256": "95bd3988beee069fa2848f648dab43cc6e0b2add2ad6bcb17360caf749802bcc"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-rustc-hash-2.1.1-LICENSE-MIT.txt",
+          "sha256": "30fefc3a7d6a0041541858293bcbea2dde4caa4c0a5802f996a7f7e8c0085652"
+        }
+      ],
+      "authors": [
+        "The Rust Project Developers"
+      ]
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.19",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/rustversion",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "serde",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/serde",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/serde",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/serde",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.149",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/serde-rs/json",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "Erick Tryzelaar <erick.tryzelaar@gmail.com>",
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "serde_spanned",
+      "version": "1.1.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-hex-0.4.3-LICENSE-APACHE.txt",
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-serde_spanned-1.1.1-LICENSE-MIT.txt",
+          "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+        }
+      ]
+    },
+    {
+      "name": "serde_with",
+      "version": "3.12.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/jonasbb/serde_with/",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-serde_with-3.12.0-LICENSE-MIT.txt",
+          "sha256": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545"
+        }
+      ],
+      "authors": [
+        "Jonas Bushart",
+        "Marcin Kaźmierczak"
+      ]
+    },
+    {
+      "name": "serde_with_macros",
+      "version": "3.12.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/jonasbb/serde_with/",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-serde_with-3.12.0-LICENSE-MIT.txt",
+          "sha256": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545"
+        }
+      ],
+      "authors": [
+        "Jonas Bushart"
+      ]
+    },
+    {
+      "name": "sfv",
+      "version": "0.14.0",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/undef1nd/sfv",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-sfv-0.14.0-LICENSE-MIT.txt",
+          "sha256": "5318787a14e32720b1652f08a24408aaea67fdb5154ceda0f46a6069a0c5e5e3"
+        }
+      ],
+      "authors": [
+        "Tania Batieva <yalyna.ts@gmail.com>"
+      ]
+    },
+    {
+      "name": "sha1",
+      "version": "0.10.5",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/RustCrypto/hashes",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-block-buffer-0.10.3-LICENSE-APACHE.txt",
+          "sha256": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-sha1-0.10.5-LICENSE-MIT.txt",
+          "sha256": "b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1"
+        }
+      ],
+      "authors": [
+        "RustCrypto Developers"
+      ]
+    },
+    {
+      "name": "shlex",
+      "version": "2.0.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/comex/rust-shlex",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-shlex-2.0.1-LICENSE-APACHE.txt",
+          "sha256": "553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-shlex-2.0.1-LICENSE-MIT.txt",
+          "sha256": "4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1"
+        }
+      ],
+      "authors": [
+        "comex <comexk@gmail.com>",
+        "Fenhl <fenhl@fenhl.net>",
+        "Adrian Taylor <adetaylor@chromium.org>",
+        "Alex Touchet <alextouchet@outlook.com>",
+        "Daniel Parks <dp+git@oxidized.org>",
+        "Garrett Berg <googberg@gmail.com>"
+      ]
+    },
+    {
+      "name": "smallvec",
+      "version": "1.15.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/servo/rust-smallvec",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-smallvec-1.15.2-LICENSE-MIT.txt",
+          "sha256": "0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9"
+        }
+      ],
+      "authors": [
+        "The Servo Project Developers"
+      ]
+    },
+    {
+      "name": "socket2",
+      "version": "0.6.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/rust-lang/socket2",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-cfg-if-1.0.0-LICENSE-MIT.txt",
+          "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397"
+        }
+      ],
+      "authors": [
+        "Alex Crichton <alex@alexcrichton.com>",
+        "Thomas de Zeeuw <thomasdezeeuw@gmail.com>"
+      ]
+    },
+    {
+      "name": "static_assertions",
+      "version": "1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/nvzqz/static-assertions-rs",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-clang-sys-1.7.0-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-static_assertions-1.1.0-LICENSE-MIT.txt",
+          "sha256": "ea084a2373ebc1f0902c09266e7bf25a05ab3814c1805bb017ffa7308f90c061"
+        }
+      ],
+      "authors": [
+        "Nikolai Vazquez"
+      ]
+    },
+    {
+      "name": "strsim",
+      "version": "0.11.1",
+      "license": "MIT",
+      "repository": "https://github.com/rapidfuzz/strsim-rs",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-strsim-0.11.1-LICENSE.txt",
+          "sha256": "1e697ce8d21401fbf1bddd9b5c3fd4c4c79ae1e3bdf51f81761c85e11d5a89cd"
+        }
+      ],
+      "authors": [
+        "Danny Guo <danny@dannyguo.com>",
+        "maxbachmann <oss@maxbachmann.de>"
+      ]
+    },
+    {
+      "name": "strum",
+      "version": "0.27.1",
+      "license": "MIT",
+      "repository": "https://github.com/Peternator7/strum",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-strum-0.27.1-LICENSE.txt",
+          "sha256": "8bce3b45e49ecd1461f223b46de133d8f62cd39f745cfdaf81bee554b908bd42"
+        }
+      ],
+      "authors": [
+        "Peter Glotfelty <peter.glotfelty@microsoft.com>"
+      ]
+    },
+    {
+      "name": "strum_macros",
+      "version": "0.27.1",
+      "license": "MIT",
+      "repository": "https://github.com/Peternator7/strum",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-strum-0.27.1-LICENSE.txt",
+          "sha256": "8bce3b45e49ecd1461f223b46de133d8f62cd39f745cfdaf81bee554b908bd42"
+        }
+      ],
+      "authors": [
+        "Peter Glotfelty <peter.glotfelty@microsoft.com>"
+      ]
+    },
+    {
+      "name": "syn",
+      "version": "2.0.106",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/syn",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "thiserror",
+      "version": "2.0.12",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/thiserror",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "thiserror-impl",
+      "version": "2.0.12",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/dtolnay/thiserror",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "toml",
+      "version": "0.9.999",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "license_files": [],
+      "note": "This package export contains no separate license document."
+    },
+    {
+      "name": "toml",
+      "version": "1.1.5+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-hex-0.4.3-LICENSE-APACHE.txt",
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-serde_spanned-1.1.1-LICENSE-MIT.txt",
+          "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+        }
+      ]
+    },
+    {
+      "name": "toml_datetime",
+      "version": "1.1.1+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-hex-0.4.3-LICENSE-APACHE.txt",
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-serde_spanned-1.1.1-LICENSE-MIT.txt",
+          "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+        }
+      ]
+    },
+    {
+      "name": "toml_parser",
+      "version": "1.1.3+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/toml-rs/toml",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-hex-0.4.3-LICENSE-APACHE.txt",
+          "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-serde_spanned-1.1.1-LICENSE-MIT.txt",
+          "sha256": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6"
+        }
+      ]
+    },
+    {
+      "name": "typenum",
+      "version": "1.16.0",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/paholg/typenum",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE",
+          "file": "rust-typenum-1.16.0-LICENSE.txt",
+          "sha256": "db11fec9946737df39ca3898d9cd8c10ec6f6c3a884a6802b0ad0b81b4e8f23a"
+        },
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-typenum-1.16.0-LICENSE-APACHE.txt",
+          "sha256": "516b24e051bf5630880ebbd55c40a25ce9552ebaf8970a53e8976eb70e522406"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-typenum-1.16.0-LICENSE-MIT.txt",
+          "sha256": "a825bd853ab71619a4923d7b4311221427848070ff44d990da39b0b274c1683f"
+        }
+      ],
+      "authors": [
+        "Paho Lurie-Gregg <paho@paholg.com>",
+        "Andre Bogus <bogusandre@gmail.com>"
+      ]
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.12",
+      "license": "(MIT OR Apache-2.0) AND Unicode-DFS-2016",
+      "repository": "https://github.com/dtolnay/unicode-ident",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-itoa-1.0.15-LICENSE-APACHE.txt",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        },
+        {
+          "upstream_file": "LICENSE-UNICODE",
+          "file": "rust-unicode-ident-1.0.12-LICENSE-UNICODE.txt",
+          "sha256": "68f5b9f5ea36881a0942ba02f558e9e1faf76cc09cb165ad801744c61b738844"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.4",
+      "license": "MIT/Apache-2.0",
+      "repository": "https://github.com/SergioBenitez/version_check",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-base64-0.22.1-LICENSE-APACHE.txt",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-version_check-0.9.4-LICENSE-MIT.txt",
+          "sha256": "b7e650f3fce5c53249d1cdc608b54df156a97edd636cf9d23498d0cfe7aec63e"
+        }
+      ],
+      "authors": [
+        "Sergio Benitez <sb@sergio.bz>"
+      ]
+    },
+    {
+      "name": "windows",
+      "version": "0.62.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-collections",
+      "version": "0.3.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-core",
+      "version": "0.62.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-future",
+      "version": "0.3.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-implement",
+      "version": "0.60.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-interface",
+      "version": "0.59.3",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-link",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": null,
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-numerics",
+      "version": "0.3.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-result",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-strings",
+      "version": "0.5.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-sys",
+      "version": "0.61.2",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "windows-targets",
+      "version": "0.52.999",
+      "license": "MPL-2.0",
+      "repository": null,
+      "license_files": [],
+      "source_license_headers": [
+        "This Source Code Form is subject to the terms of the Mozilla Public\nLicense, v. 2.0. If a copy of the MPL was not distributed with this\nfile, You can obtain one at http://mozilla.org/MPL/2.0/."
+      ],
+      "license_text_reference": "firefox-license.html#mpl",
+      "note": "This package export contains per-file MPL notices and no separate license document."
+    },
+    {
+      "name": "windows-threading",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "repository": "https://github.com/microsoft/windows-rs",
+      "license_files": [
+        {
+          "upstream_file": "license-apache-2.0",
+          "file": "rust-windows-0.62.2-license-apache-2.0.txt",
+          "sha256": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b"
+        },
+        {
+          "upstream_file": "license-mit",
+          "file": "rust-windows-0.62.2-license-mit.txt",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "name": "winnow",
+      "version": "1.0.3",
+      "license": "MIT",
+      "repository": "https://github.com/winnow-rs/winnow",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-winnow-1.0.3-LICENSE-MIT.txt",
+          "sha256": "cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d"
+        }
+      ]
+    },
+    {
+      "name": "zeroize",
+      "version": "1.8.1",
+      "license": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/RustCrypto/utils/tree/master/zeroize",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-clang-sys-1.7.0-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-zeroize-1.8.1-LICENSE-MIT.txt",
+          "sha256": "0b04ee3ce0021a922f43f37a17fee09a5a1ee6d1f4e149d5bf75b72395a49c72"
+        }
+      ],
+      "authors": [
+        "The RustCrypto Project Developers"
+      ]
+    },
+    {
+      "name": "zeroize_derive",
+      "version": "1.4.2",
+      "license": "Apache-2.0 OR MIT",
+      "repository": "https://github.com/RustCrypto/utils/tree/master/zeroize/derive",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-APACHE",
+          "file": "rust-clang-sys-1.7.0-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-zeroize_derive-1.4.2-LICENSE-MIT.txt",
+          "sha256": "90a8b6622d5e3faa3055007a9ab99c4e99a51e6ebdccbada7530cb16dc2bd4fb"
+        }
+      ],
+      "authors": [
+        "The RustCrypto Project Developers"
+      ]
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.20",
+      "license": "MIT",
+      "repository": "https://github.com/dtolnay/zmij",
+      "license_files": [
+        {
+          "upstream_file": "LICENSE-MIT",
+          "file": "rust-env_logger-0.10.0-LICENSE-MIT.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ],
+      "authors": [
+        "David Tolnay <dtolnay@gmail.com>"
+      ]
+    }
+  ]
+}
