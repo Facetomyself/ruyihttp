@@ -2,10 +2,12 @@
 
 This directory is a complete Linux x86_64 Necko/NSS set built from pinned
 Firefox 161.0 and the pinned ff-ruyijs donor on an Ubuntu 24.04 x86_64 runner.
-The installed wheel passed H1/H2/H3, proxy checks, explicit Firefox 159/160/161
-wire controls and the in-place upgrade from the 0.9.0 fork. On CPython 3.10 and
-3.14, the 1,048,579-byte binary and JSON echo controls and argument bounds with
-two simultaneous native owners passed.
+The [hosted qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419)
+replayed the source libraries by digest. The installed wheel passed H1/H2/H3,
+proxy checks, the same-slot comparison against official Firefox 159/160/161 with
+fresh TLS permutation witnesses, and the in-place upgrade from the 0.9.0 fork.
+On CPython 3.10 and 3.14, the 1,048,579-byte binary and JSON echo controls and
+argument bounds with two simultaneous native owners passed.
 
 | File | Role |
 | --- | --- |
