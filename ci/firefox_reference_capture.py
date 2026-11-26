@@ -291,14 +291,14 @@ def validate(case, record, release):
     record['user_agent'] = ua
 
 
-async def collect(slot, release, browser, images, case, diagnostic):
+async def collect(slot, release, browser, images, case, diagnostic, *, h2_preface=False):
     with TemporaryDirectory(prefix='ff-reference-', ignore_cleanup_errors=sys.platform == 'win32') as temp:
         directory = Path(temp)
         leaf, key, root = certificate(directory)
         profile = write_profile(browser, directory, root, case)
         bootstrap_protocol = os.getenv('FIREFOX_REFERENCE_BOOTSTRAP', 'h1')
         expect(bootstrap_protocol in ('h1', 'h2'), 'invalid H3 bootstrap protocol')
-        async with Origin(case, leaf, key, bootstrap_protocol) as origin:
+        async with Origin(case, leaf, key, bootstrap_protocol, h2_preface=h2_preface) as origin:
             process = launch(browser, SLOTS[slot][1], profile, origin.url, directory, case)
             try:
                 arch = SLOTS[slot][1]
@@ -338,32 +338,44 @@ def save_json(path, value):
 
 
 def capture(slot, release, work, out, samples):
+    h2_preface = os.getenv('FIREFOX_REFERENCE_H2_PREFACE') == '1'
+    cases = ('h2',) if h2_preface else ('h1', 'h2', 'h3')
     out.mkdir(parents=True, exist_ok=True)
     acquisition = json.loads((work / 'release.json').read_text(encoding='utf-8'))
     expect(acquisition['version'] == f'{release}.0' and acquisition['sha256'] == PINS[release][SLOTS[slot][3]],
            'capture release does not match pinned acquisition')
     browser = identity(slot, acquisition, work)
     platform_name, arch, _, _ = SLOTS[slot]
+    release_row = {**acquisition, 'samples': []}
     row = {'schema_version': 1, 'slot': slot, 'platform': platform_name, 'arch': arch, 'source': 'official-firefox',
-           'captures': {release: {**acquisition, 'samples': []}}}
+           'captures': {release: release_row}}
+    if h2_preface:
+        row['scope'] = 'h2-preface'
+        release_row['sample_provenance'] = []
     row['ci'] = {k.lower().removeprefix('github_'): os.getenv(k) for k in
                  ('GITHUB_SHA', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'ImageOS', 'ImageVersion') if os.getenv(k)}
     diagnostics, partial = [], []
     for attempt in range(samples):
         sample = {}
-        for case in ('h1', 'h2', 'h3'):
+        for case in cases:
             diagnostic = {'attempt': attempt, 'case': case}
             diagnostics.append(diagnostic)
             try:
-                sample[case] = asyncio.run(collect(slot, release, browser, acquisition['packaged_executables'], case, diagnostic))
+                sample[case] = asyncio.run(collect(slot, release, browser, acquisition['packaged_executables'], case,
+                                                   diagnostic, h2_preface=h2_preface))
                 print(f'{slot} Firefox {release}.0 sample {attempt + 1} {case}: {sample[case]["user_agent"]}', flush=True)
             except Exception as exc:
                 diagnostic['failure'] = str(exc)
                 print(f'{slot} Firefox {release}.0 sample {attempt + 1} {case}: {exc}', flush=True)
-        if set(sample) == {'h1', 'h2', 'h3'}:
-            row['captures'][release]['samples'].append(sample)
-        else:
+        if set(sample) != set(cases):
             partial.append(sample)
+        elif h2_preface:
+            observed = sample['h2']
+            release_row['samples'].append(observed['h2_preface'])
+            release_row['sample_provenance'].append({key: observed[key] for key in
+                                                     ('port', 'process', 'user_agent', 'protocol', 'mode')})
+        else:
+            release_row['samples'].append(sample)
     if partial:
         save_json(out / f'{slot}-{release}-partial.json', {**row, 'partial_samples': partial, 'diagnostics': diagnostics})
         raise RuntimeError(f'{slot} Firefox {release}.0: {len(partial)} of {samples} samples incomplete')
@@ -380,7 +392,8 @@ def merge(slot, out):
         if combined is None:
             combined = observation
         else:
-            expect(observation['ci'] == combined['ci'], 'capture pieces have distinct run identities')
+            expect(observation['ci'] == combined['ci'] and observation.get('scope') == combined.get('scope'),
+                   'capture pieces have distinct run identities or modes')
             combined['captures'].update(observation['captures'])
     save_json(out / f'{slot}.json', combined)
 
