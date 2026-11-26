@@ -52,12 +52,18 @@ qualify() {
   local image_id
   image_id=$(docker image inspect --format '{{.Id}}' "$image")
   python3 - "$receipt/image.json" "$index" "$digest" "$image_id" "$docker_platform" "$root" "$py" <<'PY'
-import json, subprocess, sys
+import json, os, subprocess, sys
 out, index, manifest, image, platform, checkout, endpoint = sys.argv[1:]
 commit = subprocess.check_output(['git', '-C', checkout, 'rev-parse', 'HEAD'], text=True).strip()
+run = os.environ['GITHUB_RUN_ID']
+attempt = os.environ['GITHUB_RUN_ATTEMPT']
 with open(out, 'w', encoding='utf-8') as fp:
     json.dump({'index': index, 'base_manifest': manifest, 'image_id': image, 'docker_platform': platform,
-               'qualification_commit': commit, 'endpoint': endpoint}, fp, indent=2, sort_keys=True)
+               'qualification_commit': commit, 'endpoint': endpoint, 'run_id': run, 'attempt': attempt,
+               'producer_run_id': os.environ.get('FLOOR_PRODUCER_RUN_ID') or run,
+               'producer_attempt': os.environ.get('FLOOR_PRODUCER_ATTEMPT') or attempt,
+               'artifact_kind': os.environ.get('FLOOR_ARTIFACT_KIND') or 'local-release-directory'},
+              fp, indent=2, sort_keys=True)
     fp.write('\n')
 PY
   local -a common=(--rm --platform "$docker_platform" --user "$(id -u):$(id -g)"

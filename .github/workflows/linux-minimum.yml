@@ -88,6 +88,9 @@ jobs:
       - name: Isolated native floor qualification
         env:
           MODE: ${{ inputs.mode }}
+          FLOOR_PRODUCER_RUN_ID: ${{ inputs.candidate_run_id }}
+          FLOOR_PRODUCER_ATTEMPT: ${{ inputs.candidate_attempt }}
+          FLOOR_ARTIFACT_KIND: ${{ inputs.mode == 'probe' && 'probe-no-wheel' || inputs.artifact_kind }}
         run: bash ci/linux_floor/run.sh '${{ matrix.slot }}' "$RUNNER_TEMP/floor-wheel" "$RUNNER_TEMP/floor-evidence" "$MODE" '${{ matrix.python }}'
       - uses: actions/upload-artifact@v4
         if: always()
