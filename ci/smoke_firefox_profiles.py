@@ -45,8 +45,7 @@ UA_SYSTEM = {
     "linux_x86_64": "X11; Linux x86_64",
     "linux_aarch64": "X11; Linux aarch64",
 }
-# Stable navigation fields and the initial SETTINGS payload, as serialized by
-# the client. They are expectations independent of its configuration tables.
+# Stable navigation fields shared by H1, H2 and H3, as seen by the server.
 NAV_HEADERS = {
     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "accept-language": "en-US,en;q=0.9",
@@ -58,7 +57,7 @@ NAV_HEADERS = {
     "sec-fetch-user": "?1",
     "priority": "u=0, i",
 }
-H2_SETTINGS = [(1, 65536), (2, 0), (4, 131072), (5, 16384)]
+REFERENCE_PATH = Path(__file__).with_name("firefox_wire_reference.json")
 QUIC_PARAMETERS = {
     "ack_delay_exponent", "active_connection_id_limit", "disable_active_migration",
     "initial_max_data", "initial_max_stream_data_bidi_local", "initial_max_stream_data_bidi_remote",
@@ -313,7 +312,6 @@ async def capture(profile, entry, cert):
 def verify(profile, slot, wire):
     expected_agent = f"Mozilla/5.0 ({UA_SYSTEM[slot]}; rv:{profile}.0) Gecko/20100101 Firefox/{profile}.0"
     assert wire["h1"]["request_line"] == f"GET {PATH} HTTP/1.1", wire["h1"]
-    assert wire["h2"]["settings"] == H2_SETTINGS, wire["h2"]["settings"]
     assert wire["h3"]["protocol"] == "h3" and wire["h3"]["quic_version"] in (1, 0x6B3343CF), wire["h3"]
     assert wire["h3"]["settings"] and wire["h3"]["transport_parameters"], wire["h3"]
     for protocol, observation in wire.items():
@@ -344,12 +342,50 @@ def comparable(wire):
     }
 
 
+def reference_comparison(profile, wire, reference):
+    stable = comparable(wire)
+    report = {"source": reference["source"], "firefox": profile}
+    for protocol in ("h1", "h2"):
+        observed = stable[protocol]
+        expected = reference["observations"][protocol]
+        report[protocol] = {
+            "headers_match": [list(item) for item in observed["headers"]] == expected["headers"],
+            "client_hello_differences": {
+                field: {"reference": value, "wheel": observed["hello"][field]}
+                for field, value in reference["observations"]["client_hello"].items()
+                if observed["hello"][field] != value
+            },
+        }
+    actual_ua = next(value for key, value in wire["h1"]["headers"] if key.lower() == "user-agent")
+    expected_ua = reference["observations"]["user_agent_template"].replace("{major}", profile)
+    if actual_ua != expected_ua:
+        report["user_agent_difference"] = {"reference": expected_ua, "wheel": actual_ua}
+    report["h2"]["settings_match"] = (
+        [list(pair) for pair in stable["h2"]["settings"]] == reference["observations"]["h2"]["settings"]
+    )
+    h3 = stable["h3"]
+    ref_h3 = reference["observations"]["h3_fetch"]
+    actual_settings = set(h3["settings"])
+    expected_settings = set(map(tuple, ref_h3["settings"]))
+    report["h3"] = {
+        "reference_firefox": ref_h3["firefox"],
+        "headers_compared": False,  # Browser JS fetch vs. wheel navigation.
+        "quic_version_matches": h3["quic_version"] == ref_h3["quic_version"],
+        "transport_parameters_match": h3["transport_parameters"] == ref_h3["transport_parameters"],
+        "settings_reference_only": sorted(expected_settings - actual_settings),
+        "settings_wheel_only": sorted(actual_settings - expected_settings),
+    }
+    return report
+
+
 def main(slot):
     assert runtime_platform() == slot, (runtime_platform(), slot)
     root = Path(ruyihttp.__file__).resolve().parent
     assert root.is_relative_to(Path(sys.prefix).resolve()), root
     manifest = json.loads((root / "runtime-manifest.json").read_text(encoding="utf-8"))
     entry = manifest["platforms"][slot]
+    reference = json.loads(REFERENCE_PATH.read_text(encoding="utf-8"))
+    assert tuple(reference["captures"]) == SELECTIONS
     # Reuse the other installed-wheel gate's local CA fixture without making
     # the source tree importable under the isolation required by this gate.
     certificate = runpy.run_path(str(Path(__file__).with_name("smoke_native_target.py")))["certificate"]
@@ -358,9 +394,16 @@ def main(slot):
         baseline = None
         for firefox in SELECTIONS:
             wire, responses = asyncio.run(capture(firefox, entry, cert))
+            comparison = reference_comparison(firefox, wire, reference)
             print(json.dumps({"slot": slot, "firefox": firefox, "native_source": entry["firefox"],
-                              "nss": entry["nss"], "neqo": entry["neqo"], "responses": responses, "wire": wire}), flush=True)
+                              "nss": entry["nss"], "neqo": entry["neqo"], "responses": responses,
+                              "wire": wire, "reference_comparison": comparison}), flush=True)
             verify(firefox, slot, wire)
+            # H1/H2 navigation and initial SETTINGS must match the reference.
+            # Other TLS/QUIC deltas are recorded explicitly per native slot;
+            # the structural checks and the slot's own 159 control still apply.
+            assert comparison["h1"]["headers_match"] and comparison["h2"]["headers_match"], comparison
+            assert comparison["h2"]["settings_match"], comparison
             stable = comparable(wire)
             if baseline is None:
                 baseline = stable
