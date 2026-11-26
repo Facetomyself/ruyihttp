@@ -15,8 +15,8 @@ Firefox/NSS by themselves.
 
 Use the [Native runtime qualification and source candidates workflow](../.github/workflows/native-arm64-intel.yml)
 for POSIX `rebuild` (pinned builds) or `requalify` (the exact native bytes of a
-named diagnostic artifact rebuilt into a fresh candidate wheel). Both run
-installed wheels on CPython 3.10 and 3.14. Windows uses `platform=win_amd64`
+named `source-native-wheel` artifact rebuilt into a fresh candidate wheel).
+Both run installed wheels on CPython 3.10 and 3.14. Windows uses `platform=win_amd64`
 with `mode=verify` to qualify the tracked DLL import on hosted Windows x64.
 
 For promotion, download the successful target job's `verified-native-wheel`
@@ -28,6 +28,8 @@ python3 -B tools/promote_native_candidate.py PLATFORM WHEEL EVIDENCE_DIR RUN_JSO
 python3 -B tools/build_native.py --check
 ```
 
-Promotion requires exact digests and a successful native H3 binary/JSON and
-owner-thread witness on both interpreter endpoints. The proof pins the wheel,
-native hashes, source build run and qualification run in the platform provenance.
+Promotion requires exact digests, the [POSIX protocol policy](../native/patches/GECKO_H3_POLICY.md),
+a successful native H3 binary/JSON and owner-thread witness, and three successful
+same-slot official Firefox wire receipts on both interpreter endpoints. The
+promoter recomputes the comparison against the current official fixture and pins
+its digest, wheel and native hashes, and both run identities in the platform provenance.

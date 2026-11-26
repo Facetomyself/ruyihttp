@@ -53,18 +53,21 @@ class Origin(QuicConnectionProtocol):
         if isinstance(event, HandshakeCompleted):
             assert event.alpn_protocol == 'h3'
             version_info = self._quic._remote_version_information
+            # RFC 9368 reserves versions with low nibble 0xa in each byte.
+            # Retain every real advertised version and its offered order.
+            versions = [v for v in version_info.available_versions if v & 0x0f0f0f0f != 0x0a0a0a0a]
             self.observed.update(version=int(self._quic._version),
-                                 initial=int(version_info.chosen_version),
-                                 available=list(version_info.available_versions))
+                                 initial=int(version_info.chosen_version), available=versions)
         for message in self.http.handle_event(event):
             if isinstance(message, HeadersReceived):
                 self.observed.setdefault('requests', []).append(dict(message.headers))
-                self.observed['settings'] = {
-                    int(key): value for key, value in self.http.received_settings.items()
-                    if key < 0x21 or (key - 0x21) % 0x1f
-                }
                 self.http.send_headers(message.stream_id, [(b':status', b'204')], end_stream=True)
                 self.transmit()
+        if self.http.received_settings is not None:
+            self.observed['settings'] = {
+                int(key): value for key, value in self.http.received_settings.items()
+                if key < 0x21 or (key - 0x21) % 0x1f
+            }
 
 
 def bridge(slot):
@@ -197,18 +200,18 @@ async def policy(slot):
             assert observed['available'] == ([V2, V1] if profile['version2'] else [V1]), observed
             assert observed['version'] == (V2 if profile['version2'] else V1), observed
             assert observed['settings'].get(CONNECT) == (1 if profile['h3_connect'] else None), observed
-            assert WT not in observed['settings'] and observed['windows'] == MAX_WINDOWS, observed
+            assert observed['settings'].get(WT, 0) == 0 and observed['windows'] == MAX_WINDOWS, observed
             print(f'Firefox {version}: Initial=v1 negotiated=0x{observed["version"]:08x} '
                   f'CONNECT={observed["settings"].get(CONNECT)} windows={observed["windows"]}', flush=True)
 
         observed = await transactions(call, cert, '161', current, (V1,), peer_connect=False)
         assert observed['initial'] == observed['version'] == V1 and observed['available'] == [V2, V1], observed
-        assert observed['settings'][CONNECT] == 1 and WT not in observed['settings'], observed
+        assert observed['settings'][CONNECT] == 1 and observed['settings'].get(WT, 0) == 0, observed
         print('v1-only peer without CONNECT: negotiated v1; client advertises id8, GET only', flush=True)
 
         missing = {key: value for key, value in current.items() if key != 'h3_connect'}
         observed = await transactions(call, cert, '161', missing, both)
-        assert CONNECT not in observed['settings'] and WT not in observed['settings'], observed
+        assert CONNECT not in observed['settings'] and observed['settings'].get(WT, 0) == 0, observed
         print('Missing h3_connect preference: id8 absent', flush=True)
 
         shuffled = dict(reversed(tuple(current.items())))
