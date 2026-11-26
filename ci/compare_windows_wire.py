@@ -49,7 +49,14 @@ def main():
         type=Path,
         help="fresh official single-release raw capture from this Windows job",
     )
+    ap.add_argument(
+        "--official-h2",
+        type=Path,
+        help="fresh H2 first flight from the same Firefox executable and runner",
+    )
     args = ap.parse_args()
+    if (args.official is None) != (args.official_h2 is None):
+        ap.error("provide both fresh signed-browser references or neither")
     if sys.platform != "win32" or platform.machine().lower() not in ("amd64", "x86_64"):
         ap.error("the upstream 0.11.0 Windows binary requires native Windows x64")
     candidate = args.candidate_wheel.resolve(strict=True)
@@ -80,7 +87,8 @@ def main():
     reference = None
     comparison = {}
     if args.official is not None:
-        from firefox_wire import analyze_official, decode_json
+        from firefox_wire import analyze_official, decode_json, diff
+        from verify_h2_first_flight import compile_supplement, stable_flight
 
         raw = args.official.resolve(strict=True).read_bytes()
         official = decode_json(raw.decode("utf-8"))
@@ -96,7 +104,21 @@ def main():
         reference = analyze_official(official, SLOT, releases=(args.release,))[
             args.release
         ]
+        h2raw = args.official_h2.resolve(strict=True).read_bytes()
+        official_h2 = decode_json(h2raw.decode("utf-8"))
+        if (
+            official_h2["ci"] != official["ci"]
+            or official_h2["captures"][args.release]["executable_sha256"]
+            != official["captures"][args.release]["executable_sha256"]
+        ):
+            raise ValueError(
+                "the first-flight control came from another job or executable"
+            )
+        h2_reference = compile_supplement(SLOT, official_h2, releases=(args.release,))[
+            args.release
+        ]
         comparison.update(
+            official_h2_raw_sha256=hashlib.sha256(h2raw).hexdigest(),
             official_file=args.official.name,
             official_raw_sha256=hashlib.sha256(raw).hexdigest(),
             official_archive_sha256=official["captures"][args.release]["sha256"],
@@ -188,6 +210,13 @@ def main():
                 "wire_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
             }
             if reference is not None:
+                results[label]["h2_first_flight_differences"] = [
+                    diff(
+                        h2_reference,
+                        stable_flight(sample["responses"]["h2"]["first_flight"]),
+                    )
+                    for sample in (record, *record["repeats"])
+                ]
                 results[label]["differences_vs_official"] = reference.compare_receipt(
                     record["wire"], record["repeats"]
                 )
@@ -224,7 +253,9 @@ def main():
     if reference is not None:
         for label, result in results.items():
             print(label, "vs official:", sorted(result["differences_vs_official"]))
-        if results["candidate"]["differences_vs_official"]:
+        if results["candidate"]["differences_vs_official"] or any(
+            results["candidate"]["h2_first_flight_differences"]
+        ):
             raise SystemExit(
                 "candidate differs from the fresh same-slot official Firefox controls"
             )

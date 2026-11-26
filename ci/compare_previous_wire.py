@@ -25,6 +25,12 @@ def main():
     ]
     if [r["firefox"] for r in records] != list(RELEASES):
         raise ValueError("incomplete old-wheel capture")
+    from verify_h2_first_flight import REFS, compile_supplement, grade
+
+    h2_reference = compile_supplement(
+        slot, decode_json((REFS / (slot + ".json")).read_text(encoding="utf-8"))
+    )
+    h2_flights = grade(records, h2_reference, slot)
     results = {}
     for r in records:
         if (r["source"], r["slot"], r["package_version"]) != (
@@ -59,6 +65,7 @@ def main():
                 "initial_max_stream_data_bidi_local"
             ],
             "differences": changes,
+            "h2_preface_differences": h2_flights[profile]["differences"],
         }
         print(slot, profile, "v0.9.2 stable difference fields:", sorted(changes))
     pin = asset_spec("fork-0.9.2", slot)

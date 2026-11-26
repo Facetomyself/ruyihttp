@@ -19,8 +19,11 @@ from firefox_wire import RELEASES, SLOTS, decode_json, diff, pinned_build, requi
 REFS = CI / "firefox_h2_preface_references"
 
 
-def compile_supplement(slot, data):
-    require(slot in SLOTS, "unknown platform")
+def compile_supplement(slot, data, *, releases=RELEASES):
+    require(
+        slot in SLOTS and bool(releases) and set(releases) <= set(RELEASES),
+        "unknown platform or release",
+    )
     os_name, arch, _ = SLOTS[slot]
     require(
         (
@@ -34,11 +37,11 @@ def compile_supplement(slot, data):
         "unexpected H2 reference origin/platform",
     )
     require(
-        set(data.get("captures", {})) == set(RELEASES),
+        set(data.get("captures", {})) == set(releases),
         "incomplete H2 reference releases",
     )
     expected = {}
-    for release in RELEASES:
+    for release in releases:
         b = data["captures"][release]
         pin = pinned_build(slot, release)
         require(
