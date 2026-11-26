@@ -5,6 +5,7 @@
 """Requests API transport backed by NSS and native HTTP/1 or hyper-h2."""
 
 import ctypes
+import hashlib
 import io
 import math
 import os
@@ -88,6 +89,17 @@ _QUIC_TOKEN_LIMIT = 128
 _QUIC_TOKEN_BYTES = 512 * 1024
 _QUIC_TOKEN_MAX_SIZE = 16 * 1024
 _QUIC_TOKEN_MAX_AGE = 86400
+
+
+def is_masque_proxy(proxy):
+    # An ordinary HTTPS CONNECT proxy remains a TCP proxy, not a MASQUE URI.
+    return isinstance(proxy, str) and proxy.partition(':')[0].lower() == 'masque' and ':' in proxy
+
+
+def masque_route_id(proxy):
+    # Include authority, credentials and template in the partition without
+    # retaining Basic credentials in pool keys or redirect markers.
+    return hashlib.sha256(proxy.encode('utf-8')).digest()
 
 
 def _expired_records(cache, now):
@@ -1017,10 +1029,32 @@ class HTTPAdapter(RequestsAdapter):
             self._cool_alternative(key, alternate)
         return connection
 
+    def _connect_masque(self, request, proxy, verify, proxy_verify, budget):
+        from ._http3 import Connection as H3Connection
+        from ._masque import open_tunnel
+
+        target = urlsplit(request.url)
+        host, port = target.hostname, target.port or 443
+        library = self.library
+        context = _ssl_context(verify, None, Path(library._name).parent)
+
+        def via_proxy(cancel_event, on_error):
+            return open_tunnel(proxy, host, port, proxy_verify=proxy_verify,
+                               timeout=budget.remaining(), cancel_event=cancel_event, on_error=on_error)
+
+        try:
+            conn = H3Connection(host, port, context, library._name, budget.remaining(),
+                                attempt=budget, firefox=self.firefox, tunnel_factory=via_proxy)
+        except TimeoutError as error:
+            raise ConnectTimeout('HTTP/3 connection through the MASQUE proxy timed out', request=request) from error
+        conn.origin_port = port
+        return conn
+
     def send(
-        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
+        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None, proxy_verify=True
     ):
         retries = self.max_retries
+        masque = is_masque_proxy(select_proxy(request.url, proxies or {}))
         body_position = None
         if hasattr(request.body, "tell"):
             try:
@@ -1050,11 +1084,17 @@ class HTTPAdapter(RequestsAdapter):
             attempted = True
             try:
                 response = self._send_once(
-                    request, stream, timeout, verify, cert, proxies, http1, http3
+                    request, stream, timeout, verify, cert, proxies, http1, http3,
+                    **({'proxy_verify': proxy_verify} if masque else {}),
                 )
             except (ConnectionError, ReadTimeout) as error:
-                http1 |= getattr(error, "_necko_http1", False)
-                http3 &= not getattr(error, "_necko_direct", False)
+                if not masque:
+                    http1 |= getattr(error, "_necko_http1", False)
+                    http3 &= not getattr(error, "_necko_direct", False)
+                elif getattr(error, '_necko_http1', False) or getattr(error, '_necko_direct', False):
+                    # A mandatory UDP route has no TCP fallback. In particular,
+                    # a reset on this route must not replay a POST over TCP.
+                    raise
                 if (
                     getattr(error, "_necko_restartable", False)
                     and protocol_retries < MAX_REQUEST_ATTEMPTS - 1
@@ -1124,7 +1164,7 @@ class HTTPAdapter(RequestsAdapter):
             retries.sleep(response.raw)
 
     def _send_once(
-        self, request, stream, timeout, verify, cert, proxies, http1=False, http3=True
+        self, request, stream, timeout, verify, cert, proxies, http1=False, http3=True, *, proxy_verify=True
     ):
         if isinstance(timeout, tuple):
             if len(timeout) != 2:
@@ -1142,7 +1182,19 @@ class HTTPAdapter(RequestsAdapter):
         budget = Attempt(None if connect_timeout is None else started + connect_timeout)
         target = urlsplit(request.url)
         proxy = select_proxy(request.url, proxies or {})
-        if proxy:
+        masque = is_masque_proxy(proxy)
+        if masque:
+            if target.scheme != 'https':
+                raise ProxyError('MASQUE requires an HTTPS origin', request=request)
+            if not verify:
+                raise SSLError('MASQUE requires verification of the origin certificate', request=request)
+            if cert:
+                raise InvalidSchema('HTTP/3 origin client certificates are not implemented', request=request)
+            if not (proxy_verify is True or isinstance(proxy_verify, (str, os.PathLike)) and os.fspath(proxy_verify)):
+                raise ValueError('MASQUE proxy_verify must be True or a CA bundle file path')
+            if http1 or not http3:
+                raise ProxyError('A MASQUE route requires end-to-end HTTP/3', request=request)
+        elif proxy:
             proxy = prepend_scheme_if_needed(proxy, "http")
             if not urlsplit(proxy).hostname:
                 raise InvalidProxyURL(f"Invalid proxy URL: {proxy}")
@@ -1158,14 +1210,15 @@ class HTTPAdapter(RequestsAdapter):
             target.scheme,
             target.hostname,
             target.port,
-            proxy,
+            ('masque', masque_route_id(proxy), proxy_verify is True,
+             None if proxy_verify is True else os.fspath(proxy_verify)) if masque else proxy,
             str(verify),
             str(cert),
             http1,
         )
         pool = self._pool(key)
         direct_tls = target.scheme == "https" and not (proxy or cert or http1)
-        prefer = "h3" if direct_tls and http3 and self._active_alternative(key) else None
+        prefer = "h3" if masque or (direct_tls and http3 and self._active_alternative(key)) else None
         transport = pool.acquire(prefer, http3=http3, attempt=budget)
         unused_pooled_lease = transport is not None
         coalesced = False
@@ -1175,8 +1228,10 @@ class HTTPAdapter(RequestsAdapter):
                 try:
                     # acquire() may have waited behind a handshake which cooled
                     # the route, or the advertised route may have expired meanwhile.
-                    alternate = self._active_alternative(key) if prefer else None
-                    if alternate:
+                    alternate = self._active_alternative(key) if prefer and not masque else None
+                    if masque:
+                        candidate = self._connect_masque(request, proxy, verify, proxy_verify, budget)
+                    elif alternate:
                         candidate = self._connect_alternative(
                             request, key, alternate, verify, budget, None, pool=pool
                         )
@@ -1212,7 +1267,7 @@ class HTTPAdapter(RequestsAdapter):
                         transport = candidate
                         pool.register(transport)
                 except ConnectionError as error:
-                    if proxy and not isinstance(error, (SSLError, ProxyError)):
+                    if proxy and not isinstance(error, (SSLError, ProxyError)) and not (masque and isinstance(error, ConnectTimeout)):
                         raise ProxyError(error, request=request) from error
                     raise
                 finally:
@@ -1322,6 +1377,10 @@ class HTTPAdapter(RequestsAdapter):
             response = self.build_response(request, raw)
             response.headers = HeaderMap(exchange.headers.items())
             response.tls = getattr(transport, "info", None)
+            if masque:
+                # This never substitutes proxy ALPN/TLS for the origin proof.
+                response.proxy_tls = dict(transport.proxy_tls)
+                response._ruyi_masque_route = masque_route_id(proxy)
             response._necko_coalesced = coalesced
             response._necko_transport = transport
             return response

@@ -128,7 +128,11 @@ class Connection:
         token_callback=None,
         attempt=None,
         firefox=None,
+        tunnel_factory=None,
     ):
+        self._tunnel_factory = tunnel_factory
+        self._tunnel = None
+        self.proxy_tls = None
         self.firefox = firefox or DEFAULT_FIREFOX
         name = (
             "necko_quic.dll"
@@ -181,9 +185,13 @@ class Connection:
         self._thread.start()
         if attempt is not None:
             attempt.set_interrupt(self._cancel_connect)
-        if not self.ready.wait(timeout):
+        try:
+            remaining = attempt.remaining() if tunnel_factory is not None and attempt is not None else timeout
+            if not self.ready.wait(remaining):
+                raise TimeoutError("HTTP/3 handshake timed out")
+        except Exception:
             self.close()
-            raise TimeoutError("HTTP/3 handshake timed out")
+            raise
         if self.error:
             self.close()
             raise self.error
@@ -445,6 +453,15 @@ class Connection:
     def _run_loop(self, udp, selector):
         pump_at = 0
         while not self._stopping.is_set():
+            # CONNECT-UDP has its own authenticated connection and lifetime. A
+            # failed outer path is not an invitation to dial the origin directly.
+            tunnel = getattr(self, '_tunnel', None)
+            if tunnel is not None and tunnel.error is not None:
+                if self.ready.is_set():
+                    # The origin may already have received request bytes. Do not
+                    # classify this as a retryable pre-request proxy dial failure.
+                    raise ProtocolError('HTTP/3 CONNECT-UDP tunnel closed') from tunnel.error
+                raise tunnel.error
             repump = False
             if time.monotonic() >= pump_at:
                 delay = max(0.0, min(0.1, self._call("pump")["delay"]))
@@ -496,15 +513,25 @@ class Connection:
         selector = None
         self.handle = 0
         try:
-            addresses = socket.getaddrinfo(*self.endpoint, type=socket.SOCK_DGRAM)
-            family, kind, protocol, _, address = addresses[0]
-            udp = socket.socket(family, kind, protocol)
-            udp.connect(address)
+            factory = getattr(self, '_tunnel_factory', None)
+            if factory is None:
+                addresses = socket.getaddrinfo(*self.endpoint, type=socket.SOCK_DGRAM)
+                family, kind, protocol, _, address = addresses[0]
+                udp = socket.socket(family, kind, protocol)
+                udp.connect(address)
+            else:
+                # Neqo consumes an OS datagram handle on all five targets. Its
+                # only peer here is the local endpoint of the authenticated
+                # tunnel. Never resolve or open a socket to the origin here.
+                self._tunnel = factory(self._stopping, self._wake)
+                udp = self._tunnel.socket
+                self.proxy_tls = dict(self._tunnel.info)
             udp.setblocking(False)
             selector = selectors.DefaultSelector()
             selector.register(udp, selectors.EVENT_READ)
             selector.register(self._wake_read, selectors.EVENT_READ)
-            self.peer_address = udp.getpeername()[0]
+            # A relay address is not evidence for origin DNS coalescing.
+            self.peer_address = udp.getpeername()[0] if factory is None else None
             self._decode_callback = _Decoder(self._decode)
             self.library.necko_quic_set_decoder(self._decode_callback)
             handle = self._call(
@@ -547,12 +574,16 @@ class Connection:
             finally:
                 if selector:
                     selector.close()
-                if udp:
-                    udp.close()
-                self._wake_read.close()
-                self._wake_write.close()
-                if self._dll_directory:
-                    self._dll_directory.close()
+                try:
+                    if self._tunnel is not None:
+                        self._tunnel.close()
+                    elif udp:
+                        udp.close()
+                finally:
+                    self._wake_read.close()
+                    self._wake_write.close()
+                    if self._dll_directory:
+                        self._dll_directory.close()
 
     def idle(self):
         return not self.closed and not self.goaway
