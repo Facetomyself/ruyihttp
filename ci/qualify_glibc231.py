@@ -235,7 +235,21 @@ def ldd_paths(text, arch, extra=None):
     return paths
 
 
-def elf_receipt(arch, slot, evidence, wheel):
+def native_tag_record(manifest, arch, mode):
+    tag = f"manylinux_2_31_{arch}"
+    historical = f"manylinux_2_39_{arch}"
+    field = "linux_baseline" if manifest.get("wheel_platform_tag") == tag else "linux_baseline_candidate"
+    require(field == "linux_baseline" or (mode == "candidate" and manifest.get("wheel_platform_tag") == historical),
+            "release wheel must carry the admitted glibc 2.31 native manifest tag")
+    measured = manifest[field]
+    require(measured.get("policy") == "manylinux_2_31" and measured.get("candidate_tag") == tag
+            and all(re.fullmatch(r"[a-f0-9]{64}", measured.get(key, "")) for key in ("elf_sha256", "build_sha256")),
+            "native manifest does not record the pinned low-floor build and ELF policy")
+    require(manifest.get("h3_body_abi") == manifest.get("h3_protocol_policy") == 1, "native H3 policies differ from the floor contract")
+    return {"kind": field, "manifest_tag": manifest["wheel_platform_tag"], **measured}
+
+
+def elf_receipt(arch, slot, evidence, wheel, mode):
     source = Path(importlib.util.find_spec("ruyihttp").origin).resolve().parent
     require(source.name == "ruyihttp" and source.parent.name == "site-packages" and source.is_relative_to(Path(sys.prefix).resolve()),
             f"package is not in this venv's site-packages: {source}")
@@ -243,7 +257,7 @@ def elf_receipt(arch, slot, evidence, wheel):
     direct_url = json.loads(dist.read_text("direct_url.json"))
     require(direct_url["archive_info"]["hashes"]["sha256"] == sha(wheel), "installed distribution points to wrong bytes")
     manifest = json.loads((source / "runtime-manifest.json").read_text(encoding="utf-8"))["platforms"][slot]
-    require(manifest["h3_body_abi"] == 1 and manifest["wheel_platform_tag"] == f"manylinux_2_31_{arch}", str(manifest))
+    native_tag = native_tag_record(manifest, arch, mode)
     libraries = dict(manifest["files"])
     require(len(libraries) == 14 and {p.name for p in source.glob("*.so")} == set(libraries), "wrong native file set")
     maximums = {}
@@ -259,8 +273,10 @@ def elf_receipt(arch, slot, evidence, wheel):
             output.write(f"{name} sha256={digest}\n{ldd}\n")
             if "Version needs section" in elf:
                 output.write("Version needs section" + elf.split("Version needs section", 1)[1] + "\n")
+    highest = max(tuple(map(int, v["GLIBC"].split("."))) for v in maximums.values() if "GLIBC" in v)
+    require(manifest["highest_glibc_dynamic_requirement"] == version_string(highest), "actual glibc symbol maximum differs from manifest")
     return {"site_packages": str(source), "native_sha256": libraries, "native_required_abi_maxima": maximums,
-            "native_loader_paths": resolved}
+            "highest_glibc_dynamic_requirement": version_string(highest), "native_loader_paths": resolved, "native_policy": native_tag}
 
 
 def require_network_offline():
@@ -421,7 +437,7 @@ def main():
         require_network_offline()
         wheel, _, _ = wheel_info(args.wheels, arch, args.mode)
         if args.phase == "suite":
-            receipt = elf_receipt(arch, args.slot, args.evidence, wheel)
+            receipt = elf_receipt(arch, args.slot, args.evidence, wheel, args.mode)
             receipt["gates"] = suite(args.evidence, args.slot, wheel)
             json_file(args.evidence / "native-runtime.json", receipt)
         else:

@@ -44,6 +44,19 @@ class QualificationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "incorrect release wheel version"):
                 FLOOR.wheel_info(root, "aarch64", "release")
 
+    def test_proposed_native_manifest_cannot_be_used_for_release(self):
+        arch = "aarch64"
+        tag = f"manylinux_2_31_{arch}"
+        record = {"policy": "manylinux_2_31", "candidate_tag": tag, "elf_sha256": "a" * 64, "build_sha256": "b" * 64}
+        manifest = {"wheel_platform_tag": f"manylinux_2_39_{arch}", "linux_baseline_candidate": record,
+                    "h3_body_abi": 1, "h3_protocol_policy": 1}
+        self.assertEqual(FLOOR.native_tag_record(manifest, arch, "candidate")["kind"], "linux_baseline_candidate")
+        with self.assertRaisesRegex(RuntimeError, "admitted glibc 2.31 native manifest"):
+            FLOOR.native_tag_record(manifest, arch, "release")
+        manifest["linux_baseline"] = manifest.pop("linux_baseline_candidate")
+        manifest["wheel_platform_tag"] = tag
+        self.assertEqual(FLOOR.native_tag_record(manifest, arch, "release")["kind"], "linux_baseline")
+
     def test_required_symbol_caps_ignore_exports_and_reject_future_or_private_needs(self):
         need = "Version needs section '.gnu.version_r':\n   Name: GLIBC_2.31\n   Name: GLIBCXX_3.4.28\n   Name: CXXABI_1.3.12\n"
         exported = "Version definition section '.gnu.version_d':\n   Name: GLIBC_2.39\n"
