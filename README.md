@@ -8,13 +8,19 @@ RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。每个
 
 | | 上游 PyPI 发行 | 本仓 `Facetomyself/ruyihttp` |
 | --- | --- | --- |
-| 版本（2026-11-26 核对） | [0.11.0](https://pypi.org/project/ruyihttp/0.11.0/)，默认 Firefox 161，范围 100–161 | **0.9.2**，默认 Firefox 159，范围 100–161；独立版本线 |
+| 版本（2026-11-26 核对） | [0.11.0](https://pypi.org/project/ruyihttp/0.11.0/)，默认 Firefox 161，范围 100–161 | **0.9.3**，默认 Firefox 159，范围 100–161；独立版本线 |
 | 原生运行时（NSS / Neqo） | Windows：3.133 / 0.34.0 | 五平台均为 3.133 / 0.34.0；Windows 原样导入，Linux/macOS 从源码构建 |
 | 该版本的 wheel | PyPI 仅列 Windows x64 | Windows x64、Linux x86_64 / ARM64、macOS Intel / Apple Silicon；见[逐平台验收](docs/platform-support.md)与[Wheels 工作流](https://github.com/Facetomyself/ruyihttp/actions/workflows/wheels.yml) |
 
-**安装时请区分来源：** 两条线的包名和导入名都是 `ruyihttp`。从公共 PyPI 执行 `pip install -U ruyihttp` 会按平台解析**上游**发行包；要使用本仓，请在独立虚拟环境安装本仓 CI 的对应 wheel，或按下文从本仓源码安装。这里的 `0.9.2` 并非上游 `0.11.0` 的五平台重打包。
+**安装时请区分来源：** 两条线的包名和导入名都是 `ruyihttp`。从公共 PyPI 执行 `pip install -U ruyihttp` 会按平台解析**上游**发行包；要使用本仓，请在独立虚拟环境安装本仓 CI 的对应 wheel，或按下文从本仓源码安装。已发布的版本见 [GitHub Releases](https://github.com/Facetomyself/ruyihttp/releases)。这里的 `0.9.3` 并非上游 `0.11.0` 的五平台重打包。
 
-0.9.2 已同步 Mozilla Firefox 161 的 118 张 TLS 服务端受信根和公共后缀列表。`Session(firefox="160")`、`Session(firefox="161")` 可显式选择新配置，未指定时继续用 159。参见[上游差异与选择性同步记录](docs/upstream.md)和[与 Mozilla 实际浏览器的线路对照](docs/firefox-profile-wire.md)，其中区分已观测字段、兼容差异及未测范围。[传输策略与性能趋势](docs/performance.md)说明本仓的连接复用、H2 背压与 H3 数据接口。
+0.9.3 沿用 0.9.2 已核验的 118 张 Mozilla TLS 服务端受信根与公共后缀列表。`Session(firefox="160")`、`Session(firefox="161")` 可显式选择新配置，未指定时继续用 159。参见[上游差异与选择性同步记录](docs/upstream.md)和[与 Mozilla 实际浏览器的线路对照](docs/firefox-profile-wire.md)，其中区分已观测字段、兼容差异及未测范围。[传输策略与性能趋势](docs/performance.md)说明本仓的连接复用、H2 背压与 H3 数据接口。
+
+## 网络配置的验收含义
+
+`firefox="161"` 的基准是相同操作系统和 CPU 架构的 **Mozilla 官方 en-US Firefox 161.0**，不是宿主 CPU 名称，也不是 PyPI 包的版本号。对 159/160/161，各平台均有[签名浏览器在目标机上的原始采样](docs/firefox-reference-collection.md)及独立的 [HTTP/2 首次请求帧采样](docs/firefox-h2-preface.md)。H1/H2 对照顶层导航，H3 对照从同源文档发起的普通 `fetch`。完整 UA、有序头、TLS 协商结构、H2/H3 SETTINGS、QUIC 初始/协商版本与已列的传输参数等稳定字段是安装后 wheel 的失败门禁。
+
+Linux ARM64 继续加载 ARM64 `.so`；从 Firefox 123 起，桌面默认 UA 输出官方约简后的 `X11; Linux x86_64`。0.9.3 还调整了 POSIX QUIC 桥的真实选项，并保留 Windows 发布方原来的 DLL 和配置格式。100–158 是按版本源规则维护的历史配置，不能据此宣称所有历史版本、重连、页面上下文或任意站点都已逐字段实测；这里也不涉及 DOM、Canvas、WebGL 指纹。
 
 ## 平台矩阵
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.3 — same-platform Firefox network behavior (2026-11-26)
+
+- Correct the desktop Linux ARM64 public UA at the actual Firefox **123** release boundary. Through 122 the Linux token remains host-derived; native file selection continues to use the actual architecture on both sides.
+- Align the Linux/macOS Neqo adapters with Gecko's release preferences: negotiate Extended CONNECT separately from WebTransport, use Gecko's version preference and receive windows, and correct the macOS Initial source connection-ID length and NSS delegated-credentials setting. These are real native protocol options, not cosmetic bytes. Keep the Windows ABI and its upstream DLLs unchanged.
+- Promote only verified native outputs. Each target compares against signed official en-US builds for 159, 160 and 161 on the same OS/architecture. Check raw UA and ordered headers, TCP/QUIC ClientHello structure, H2 control frames and HEADERS priority, ordered H3 SETTINGS, QUIC Initial vs negotiated versions, selected peer transport parameters and fresh-extension-order behavior. [Scope](docs/firefox-profile-wire.md), [raw references](docs/firefox-reference-collection.md), [H2 supplement](docs/firefox-h2-preface.md).
+- Separate the original PyPI 0.11.0 Windows wheel, the previously published fork 0.9.2, and the current Windows wheel; collect actual TLS/H1/H2/H3 observations and compare to a fresh official Firefox 161. Add ordinary upgrade from the exact public 0.9.2 asset alongside the existing baselines. The `v0.9.2` tag/Release is the immutable comparison, not a republished wheel.
+
 ## 0.9.2 — selective upstream data, profiles and native runtimes (2026-11-26)
 
 - Update the packaged TLS server roots (121 → 118), one unchanged issuance cutoff, and the public suffix list (+70 / −5 rules) against both the official Mozilla 161 release and upstream PyPI 0.11.0. Test same-/cross-site Strict cookies and compare retired roots against a retained trust control.

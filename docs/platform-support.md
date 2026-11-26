@@ -22,7 +22,7 @@ platform's binary.
 - `ruyihttp/_firefox.py` supplies the platform User-Agent:
   - Windows: `Windows NT 10.0; Win64; x64`
   - macOS: `Macintosh; Intel Mac OS X 10.15`
-  - Linux: `X11; Linux x86_64` (or `aarch64` when the host reports it)
+  - Linux desktop ARM64: Firefox 100–122 uses `X11; Linux aarch64`, 123+ uses `X11; Linux x86_64`. Linux x86_64 uses `X11; Linux x86_64` throughout; the ARM64 wheel still selects its own native runtime.
 - HTTP/2 SETTINGS and header order are selected by the Firefox profile and are
   platform-independent in this tree.
 - HTTP/3 requires `Alt-Svc`. DNS HTTPS/ECH configuration is still not integrated.
@@ -62,13 +62,15 @@ with ruyihttp.Session(firefox="159") as session:
 
 Expected: `200`, ALPN `h2`, and the NSS version from the platform manifest.
 
-## 0.9.2 qualification policy
+## 0.9.3 qualification policy
 
 Every [wheel job](../.github/workflows/wheels.yml) builds the platform wheel once, installs that same artifact on CPython 3.10 and 3.14, and records the interpreter, installed paths, native hashes and actual protocol results. Wire-level HTTP/3, strict certificate negatives, early response, IPv4/IPv6 Alt-Svc, blocked UDP/warm TCP, two-hop TCP proxies, H2 EOF/backpressure and source-to-destination upgrade are distinct checks. See [transport performance and limitations](performance.md) for budgets and the weekly comparison.
 
 Windows uses the unmodified 0.11.0 upstream x64 DLLs (NSS 3.133), distinct from the original upgrade fixture. Its H3 TLS result is `NSS/Neqo` and contains the negotiated protocol/version/cipher/resumption flag; it does not invent a Firefox-profile or NSS-version field. The core NSS version is measured separately. The four POSIX sets use source-built versioned body exports and provide the native NSS/Neqo TLS report. Binary ABI tests send and receive real bodies with embedded zeros, test owner isolation, and force the same bridge through JSON as an independent compatibility control. Protocol support here does not mean H3 through an ordinary TCP proxy.
 
-The matrix links are the native candidate job receipts. The [release-wheel workflow](../.github/workflows/wheels.yml) also verifies ordinary upgrades from both the 0.9.0 lineage and our preceding 0.9.1, the retired/retained TLS root controls, per-file identities and real UDP-only profile handshakes on CPython 3.10 and 3.14. The 0.11.0 PyPI distribution is a different version line.
+The matrix links are the native candidate job receipts. The [release-wheel workflow](../.github/workflows/wheels.yml) also verifies ordinary upgrades from the 0.9.0 lineage, fork 0.9.1 and the actual [v0.9.2 Release assets](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.2), the retired/retained TLS root controls, per-file identities and real UDP-only profile handshakes on CPython 3.10 and 3.14. The 0.11.0 PyPI distribution is a different version line.
+
+The measured stable fields are compared against the appropriate native machine / browser version. Record forks, upstream distributions, and actual browser observations separately: [wire comparison](firefox-profile-wire.md), [signed browser capture](firefox-reference-collection.md), and [first HTTP/2 flight](firefox-h2-preface.md).
 
 ## Validation record
 
