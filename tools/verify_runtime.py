@@ -22,6 +22,7 @@ CORE_SYMBOLS = {
     "necko_exchange_open",
 }
 QUIC_SYMBOLS = {"necko_quic_call", "necko_quic_set_decoder"}
+BODY_V1_SYMBOLS = {"necko_quic_body_abi_version", "necko_quic_body_read_v1", "necko_quic_body_write_v1"}
 
 
 def names(platform: str) -> tuple[str, str]:
@@ -57,7 +58,8 @@ def main() -> int:
         core = NATIVE / platform / core_name
         quic = NATIVE / platform / quic_name
         print(f"{platform}: {entry['nss']} / {entry['neqo']}")
-        for path, required in ((core, CORE_SYMBOLS), (quic, QUIC_SYMBOLS)):
+        quic_required = QUIC_SYMBOLS | (BODY_V1_SYMBOLS if entry.get('h3_body_abi') == 1 else set())
+        for path, required in ((core, CORE_SYMBOLS), (quic, quic_required)):
             if not path.is_file():
                 print(f"  missing {path.name}")
                 failed += 1
@@ -78,11 +80,14 @@ def main() -> int:
                     failed += 1
                 else:
                     print(f"  {path.name}: markers OK (lief unavailable)")
-        expected = str(entry["nss"]).encode()
-        if platform.startswith("darwin"):
-            if expected not in core.read_bytes():
-                print(f"  {core.name}: NSS marker {expected.decode()} missing")
-                failed += 1
+        # The bridge calls NSS_GetVersion; it need not embed the library's
+        # current release number. Check the NSS binary's own version record.
+        nss = NATIVE / platform / ('nss3.dll' if platform == 'win_amd64' else
+                                   'libnss3.dylib' if platform.startswith('darwin') else 'libnss3.so')
+        expected = b'Version: NSS ' + entry['nss'].encode('ascii') + b'\x00'
+        if not nss.is_file() or expected not in nss.read_bytes():
+            print(f"  {nss.name}: missing NSS {entry['nss']} version record")
+            failed += 1
     return 1 if failed else 0
 
 

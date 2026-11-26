@@ -101,6 +101,8 @@ print(f'installed {expected} with Python {sys.version.split()[0]} in {root}', fl
         call("-m", "pip", "check")
         version(candidate_version)
         call(CI / "verify_installed.py", slot, candidate)
+        if fork_baseline:
+            call(CI / "verify_trust_transition.py", baseline)
         call(CI / "smoke_local.py")
         print(
             f"PASS: in-place {old_version} -> {candidate_version}; one distribution, native hashes, HTTP before and after",
