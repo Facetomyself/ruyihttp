@@ -9,6 +9,9 @@ on:
       platform:
         type: string
         default: all
+      endpoint:
+        type: string
+        default: all
       candidate_run_id:
         type: string
         default: ''
@@ -29,6 +32,7 @@ jobs:
     with:
       mode: ${{ inputs.mode }}
       platform: ${{ inputs.platform }}
+      endpoint: ${{ inputs.endpoint }}
       candidate_run_id: ${{ inputs.candidate_run_id }}
       candidate_attempt: ${{ inputs.candidate_attempt }}
       artifact_kind: ${{ inputs.artifact_kind }}
