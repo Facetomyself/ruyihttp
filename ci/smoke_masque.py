@@ -617,7 +617,6 @@ async def fixture_self_test(origin_pem, relay_pem):
     from aioquic.quic.connection import QuicConnection
 
     async with fixture(origin_pem, relay_pem) as state:
-        loop = asyncio.get_running_loop()
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as stray:
             # A real UDP packet from another loopback socket must reach the gate
             # and be discarded before any QUIC parser/protocol handles it.

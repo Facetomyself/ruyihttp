@@ -121,8 +121,6 @@ def candidate_record(slot, elf, build):
 
 
 def verify_built_candidate(slot, libraries, evidence):
-    from check_linux_candidate import check
-
     build = _read(evidence / 'baseline-build.json')
     elf = _read(evidence / 'baseline-elf.json')
     _require(build == builder_record(slot, evidence), 'Builder record differs from pinned CI evidence')
