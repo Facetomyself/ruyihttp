@@ -2,7 +2,19 @@
 
 RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。每个会话可以选择 Firefox 100–159 的网络配置，使用真实的 HTTP/1.1、HTTP/2 或 HTTP/3 传输，无需启动浏览器。项目维护 Python API、原生库、构建来源与安装后的协议验收；浏览器 DOM 和页面生命周期属于其他组件。
 
-当前包版本 **0.9.1**，用于区分此前同名的 `0.9.0` 构建。使用与操作系统及架构匹配的仓库 wheel 安装；CI 工件与 PyPI 发布是两个独立步骤。[传输策略与性能趋势](docs/performance.md)说明了连接复用、H2 背压、H3 数据接口和基准口径。
+## 上游与本仓的关系
+
+本仓是 [PyPI `ruyihttp`](https://pypi.org/project/ruyihttp/) 的**独立维护分支**，起点是上游 [0.9.0 发行包](https://pypi.org/project/ruyihttp/0.9.0/)中的 Python 源码和 Windows x64 原生库。上游署名 **LoseNine**，PyPI 列出的项目仓库为 [charlesval/ruyiHttp](https://github.com/charlesval/ruyiHttp)（核对时公开访问返回 404，发行文件以 PyPI 为准）。[ff-ruyijs](https://github.com/cutetailbud/ff-ruyijs) 和 [Mozilla Firefox](https://github.com/mozilla-firefox/firefox) 是本仓 POSIX 原生组件的源码来源，与 Python 项目上游是两层关系。
+
+| | 上游 PyPI 发行 | 本仓 `Facetomyself/ruyihttp` |
+| --- | --- | --- |
+| 版本（2026-11-26 核对） | [0.11.0](https://pypi.org/project/ruyihttp/0.11.0/)，默认 Firefox 161，范围 100–161 | **0.9.1**，默认 Firefox 159，范围 100–159；独立版本线 |
+| 原生运行时（NSS / Neqo） | Windows：3.133 / 0.34.0 | Windows：3.131 / 0.32.0；Linux、macOS：3.132 / 0.33.0 |
+| 该版本的 wheel | PyPI 仅列 Windows x64 | Windows x64、Linux x86_64 / ARM64、macOS Intel / Apple Silicon；见[五平台工件与验收](https://github.com/Facetomyself/ruyihttp/actions/runs/45670260976) |
+
+**安装时请区分来源：** 两条线的包名和导入名都是 `ruyihttp`。从公共 PyPI 执行 `pip install -U ruyihttp` 会按平台解析**上游**发行包；要使用本仓，请在独立虚拟环境安装本仓 CI 的对应 wheel，或按下文从本仓源码安装。这里的 `0.9.1` 并非上游 `0.11.0` 的五平台重打包。
+
+[上游 0.11.0 差异与跟进计划](docs/upstream.md)记录了优先更新的信任数据、Firefox 160/161 与原生库的验收条件，以及应保留的分支修复。[传输策略与性能趋势](docs/performance.md)说明本仓的连接复用、H2 背压与 H3 数据接口。
 
 ## 平台矩阵
 
