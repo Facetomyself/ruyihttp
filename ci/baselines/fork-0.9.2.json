@@ -1,0 +1,38 @@
+{
+  "repo": "Facetomyself/ruyihttp",
+  "tag": "v0.9.2",
+  "commit": "656655d3cc6b2027eb0d8c148a855e97f817db53",
+  "release_id": 458940726,
+  "wheels": {
+    "darwin_arm64": {
+      "name": "ruyihttp-0.9.2-py3-none-macosx_26_0_arm64.whl",
+      "sha256": "555bb5a92cf09f74bf8a076cd39acaa58ce2936629dd63aad5b9bf7d56e575d6",
+      "bytes": 4193748,
+      "asset_id": 794256896
+    },
+    "darwin_x86_64": {
+      "name": "ruyihttp-0.9.2-py3-none-macosx_15_0_x86_64.whl",
+      "sha256": "3381e474284800fa348ccbef0d8585c7be9bbfa77f16ea057aef44759ef9cfa1",
+      "bytes": 4384154,
+      "asset_id": 794256894
+    },
+    "linux_aarch64": {
+      "name": "ruyihttp-0.9.2-py3-none-manylinux_2_39_aarch64.whl",
+      "sha256": "25da59905ec5d14ada625d035cf3dc889934e0512abfe56787d117b873c896f9",
+      "bytes": 4132658,
+      "asset_id": 794256895
+    },
+    "linux_x86_64": {
+      "name": "ruyihttp-0.9.2-py3-none-manylinux_2_39_x86_64.whl",
+      "sha256": "0807a741d8f8e541fe0c71273888d653372a036f7a2aca35f4c4f215093a9045",
+      "bytes": 4189158,
+      "asset_id": 794256933
+    },
+    "win_amd64": {
+      "name": "ruyihttp-0.9.2-py3-none-win_amd64.whl",
+      "sha256": "d485a28b8123cdfca5766d51b01a048ab22a41c6c124834d47447c2795b5b686",
+      "bytes": 4071734,
+      "asset_id": 794256946
+    }
+  }
+}
