@@ -65,7 +65,6 @@ PLATFORM_FILES["linux_aarch64"] = PLATFORM_FILES["linux_x86_64"]
 PLATFORM_FILES["darwin_x86_64"] = PLATFORM_FILES["darwin_arm64"]
 
 DEFAULT_RUNTIME = {
-    "win_amd64": {"firefox": "159.0", "nss": "3.131", "nspr": "4.40", "neqo": "0.32.0"},
     "darwin_arm64": {"firefox": "159.0", "nss": "3.132", "nspr": "4.40", "neqo": "0.33.0"},
     "linux_x86_64": {"firefox": "159.0", "nss": "3.132", "nspr": "4.40", "neqo": "0.33.0"},
 }
@@ -181,6 +180,8 @@ def inspect_stable_wheel(wheel: Path, platform: str) -> tuple[dict[str, bytes], 
 
 
 def import_wheel(wheel: Path, platform: str) -> None:
+    if platform == 'win_amd64':
+        raise ValueError('win_amd64: use the pinned sync_windows_native.py importer')
     if platform not in DEFAULT_RUNTIME:
         raise ValueError(f'{platform}: use stage_native_candidate.py on the target host')
     members, wheel_sha256 = inspect_stable_wheel(wheel, platform)
