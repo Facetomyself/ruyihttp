@@ -189,7 +189,9 @@ class Connection:
             remaining = attempt.remaining() if tunnel_factory is not None and attempt is not None else timeout
             if not self.ready.wait(remaining):
                 raise TimeoutError("HTTP/3 handshake timed out")
-        except Exception:
+        except BaseException:
+            # Ctrl-C is not a network error. Stop the owner as well as
+            # propagating the interrupt so an unreturned tunnel never survives.
             self.close()
             raise
         if self.error:
@@ -575,8 +577,9 @@ class Connection:
                 if selector:
                     selector.close()
                 try:
-                    if self._tunnel is not None:
-                        self._tunnel.close()
+                    tunnel = getattr(self, '_tunnel', None)
+                    if tunnel is not None:
+                        tunnel.close()
                     elif udp:
                         udp.close()
                 finally:
@@ -586,7 +589,8 @@ class Connection:
                         self._dll_directory.close()
 
     def idle(self):
-        return not self.closed and not self.goaway
+        tunnel = getattr(self, '_tunnel', None)
+        return not self.closed and not self.goaway and (tunnel is None or tunnel.error is None)
 
     def close(self):
         self._stopping.set()

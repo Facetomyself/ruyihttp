@@ -1407,7 +1407,16 @@ class HTTPAdapter(RequestsAdapter):
             response._necko_coalesced = coalesced
             response._necko_transport = transport
             return response
-        except Exception as error:
+        except BaseException as error:
+            if not isinstance(error, Exception):
+                # The pool reservation was taken before opening a transport.
+                # Never strand it (or the socket owner) on caller interruption.
+                try:
+                    if exchange is not None:
+                        exchange.close()
+                finally:
+                    pool.release(transport, reuse=False)
+                raise
             if (
                 isinstance(error, Http3ProtocolError)
                 and not PROFILES[self.firefox]["h3_protocol_error_fallback"]

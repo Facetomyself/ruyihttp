@@ -1,8 +1,11 @@
 """The explicit MASQUE route is a pool, credential and redirect boundary."""
 
 import importlib
+import os
 from pathlib import Path
 import pickle
+from threading import Event
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -163,6 +166,100 @@ class MasqueRouteTests(unittest.TestCase):
                     "https://origin.invalid",
                     proxies={"https": "masque://relay.invalid"},
                 )
+
+    def test_explicit_session_route_wins_over_environment_in_get_and_send(self):
+        from requests.utils import select_proxy
+
+        url = "https://origin.invalid/test"
+        udp, tcp = "masque://fixture.invalid:8443", "https://environment.invalid:8443"
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "https_proxy": tcp,
+                    "HTTPS_PROXY": tcp,
+                    "NO_PROXY": "",
+                    "no_proxy": "",
+                },
+            ),
+            Session(verify="origin-only.pem") as s,
+        ):
+            for key in ("all", "https", "https://origin.invalid"):
+                s.proxies = {key: udp}
+                with patch(
+                    "requests.sessions.get_environ_proxies",
+                    side_effect=AssertionError("origin used system proxy discovery"),
+                ):
+                    result = s.merge_environment_settings(url, {}, None, None, None)
+                    self.assertEqual(select_proxy(url, result["proxies"]), udp)
+                    self.assertEqual(result["verify"], "origin-only.pem")
+                    with (
+                        patch.object(
+                            HTTPAdapter,
+                            "send",
+                            side_effect=ProxyError("stop before dial"),
+                        ) as dial,
+                        self.assertRaises(ProxyError),
+                    ):
+                        s.send(self.req(url))
+                    self.assertEqual(
+                        select_proxy(url, dial.call_args.kwargs["proxies"]), udp
+                    )
+                    self.assertEqual(
+                        select_proxy(
+                            url, s.rebuild_proxies(self.req(url), result["proxies"])
+                        ),
+                        udp,
+                    )
+            s.proxies = {"https": udp}
+            self.assertEqual(
+                select_proxy(
+                    url,
+                    s.merge_environment_settings(url, {"https": tcp}, None, None, None)[
+                        "proxies"
+                    ],
+                ),
+                tcp,
+            )
+
+    def test_interrupted_connect_releases_reservation(self):
+        a = HTTPAdapter()
+        opts = {"proxies": {"https": "masque://proxy.invalid"}, "timeout": 0.1}
+        with (
+            patch.object(a, "_connect_masque", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            a.send(self.req(), **opts)
+        (pool,) = a._pools.values()
+        self.assertEqual((pool.leased, pool.connecting), (0, False))
+        with (
+            patch.object(
+                a, "_connect_masque", side_effect=ProxyError("fresh dial")
+            ) as dial,
+            self.assertRaisesRegex(ProxyError, "fresh dial"),
+        ):
+            a.send(self.req(), **opts)
+        dial.assert_called_once()
+        a.close()
+
+    def test_pool_observes_latched_tunnel_error_before_native_owner_wakes(self):
+        from ruyihttp._http3 import Connection
+        from ruyihttp._transport import _Pool
+
+        pool = _Pool(2, False)
+        self.assertIsNone(pool.acquire("h3"))
+        c = Connection.__new__(Connection)
+        c._tunnel = SimpleNamespace(error=None)
+        c.closed = c.goaway = False
+        stop = Event()
+        c.close = stop.set
+        pool.register(c)
+        pool.release(c)
+        c._tunnel.error = ProxyError("outer connection retired")
+        self.assertIsNone(pool.acquire("h3"))
+        self.assertTrue(stop.is_set())
+        pool.release(None)
+        pool.close()
 
     def test_api_options_do_not_change_default_direct_behavior(self):
         with Session(
