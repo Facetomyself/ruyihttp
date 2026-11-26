@@ -1,5 +1,5 @@
 diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
-index 07536c3..4a77e7a 100644
+index 07536c3..64ab147 100644
 --- a/native/necko_quic/src/lib.rs
 +++ b/native/necko_quic/src/lib.rs
 @@ -29,7 +29,7 @@ use neqo_http3::{
@@ -52,7 +52,18 @@ index 07536c3..4a77e7a 100644
  }
  
  const APPLE_COMPRESSION_ZLIB: u32 = 0x205;
-@@ -804,16 +814,21 @@ fn command_new(body: &Value) -> Result<Value, String> {
+@@ -259,6 +269,10 @@ fn u16_list(profile: &Value, key: &str) -> Result<Vec<u16>, String> {
+ }
+ 
+ fn apply_client_hello(conn: &mut Connection, profile: &Value) -> Result<(u8, usize), String> {
++    // Desktop Gecko enables delegated credentials through PSM. Set the same
++    // option on this QUIC TLS connection; keep NSS process defaults untouched.
++    conn.enable_delegated_credentials()
++        .map_err(|error| error.to_string())?;
+     let groups = u16_list(profile, "groups")?;
+     if !groups.is_empty() {
+         conn.set_groups(&groups)
+@@ -804,16 +818,21 @@ fn command_new(body: &Value) -> Result<Value, String> {
          .map_err(|_| "HTTP/3 remote address is invalid".to_string())?;
      let profile = body.get("profile").cloned().unwrap_or_else(|| json!({}));
      let firefox = body.get("firefox").and_then(Value::as_str).map(str::to_owned);
@@ -77,3 +88,45 @@ index 07536c3..4a77e7a 100644
          local,
          remote,
          http3.get_connection_parameters().clone(),
+diff --git a/tools/build_necko_quic.py b/tools/build_necko_quic.py
+index d66cbe7..31db044 100644
+--- a/tools/build_necko_quic.py
++++ b/tools/build_necko_quic.py
+@@ -407,6 +407,18 @@ def _unwrap_src(crate: Path) -> None:
+ 
+ 
+ def _patch_nss(nss_copy: Path) -> None:
++    _replace_once(
++        nss_copy / "bindings" / "bindings.toml",
++        '  "SSL_ENABLE_CH_EXTENSION_PERMUTATION",\n',
++        '  "SSL_ENABLE_CH_EXTENSION_PERMUTATION",\n'
++        '  "SSL_ENABLE_DELEGATED_CREDENTIALS",\n',
++    )
++    _replace_once(
++        nss_copy / "src" / "ssl.rs",
++        "    OcspStapling = SSLOption::SSL_ENABLE_OCSP_STAPLING,\n",
++        "    OcspStapling = SSLOption::SSL_ENABLE_OCSP_STAPLING,\n"
++        "    DelegatedCredentials = SSLOption::SSL_ENABLE_DELEGATED_CREDENTIALS,\n",
++    )
+     agent = nss_copy / "src" / "agent.rs"
+     _replace_once(
+         agent,
+@@ -511,6 +523,18 @@ def _patch_transport(crate: Path) -> None:
+         "        }\n"
+         "        self.crypto.tls_mut().set_signature_schemes(schemes)?;\n"
+         "        Ok(())\n"
++        "    }\n"
++        "\n"
++        "    /// Enable NSS delegated credentials on this connection before its ClientHello.\n"
++        "    ///\n"
++        "    /// # Errors\n"
++        "    /// When the handshake has started or NSS rejects the option.\n"
++        "    pub fn enable_delegated_credentials(&mut self) -> Res<()> {\n"
++        "        if self.state != State::Init {\n"
++        "            return Err(Error::ConnectionState);\n"
++        "        }\n"
++        "        self.crypto.tls_mut().set_option(nss::Opt::DelegatedCredentials, true)?;\n"
++        "        Ok(())\n"
+         "    }\n",
+     )
+     _replace_once(
