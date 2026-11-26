@@ -13,7 +13,7 @@ on:
     inputs:
       targets:
         type: choice
-        options: [all, diagnostic]
+        options: [all, diagnostic, macos]
         default: all
       release:
         type: choice
@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        slot: ${{ fromJSON(inputs.targets == 'diagnostic' && '["linux_aarch64","darwin_arm64","win_amd64"]' || '["linux_x86_64","linux_aarch64","darwin_arm64","darwin_x86_64","win_amd64"]') }}
+        slot: ${{ fromJSON(inputs.targets == 'macos' && '["darwin_arm64","darwin_x86_64"]' || inputs.targets == 'diagnostic' && '["linux_aarch64","darwin_arm64","win_amd64"]' || '["linux_x86_64","linux_aarch64","darwin_arm64","darwin_x86_64","win_amd64"]') }}
     defaults:
       run:
         shell: bash

@@ -189,9 +189,8 @@ def write_profile(browser, directory, root, case):
 def launch(browser, arch, profile, url, directory, case):
     argv = [str(browser), '-headless', '-no-remote', '-new-instance', '-profile', str(profile), url]
     if sys.platform == 'darwin':
-        seatbelt = ('(version 1) (allow default) (deny network-outbound '
-                    '(require-all (remote ip "*:*" ) (require-not (remote ip "localhost:*"))))')
-        argv[:0] = ['/usr/bin/sandbox-exec', '-p', seatbelt, '/usr/bin/arch', '-' + arch]
+        expect(os.environ.get('FIREFOX_REFERENCE_MACOS_GUARD') == 'pf', 'run via the macOS packet-filter isolation wrapper')
+        argv[:0] = ['/usr/bin/arch', '-' + arch]
     if sys.platform == 'win32':
         argv.insert(1, '-wait-for-browser')
     env = dict(os.environ)

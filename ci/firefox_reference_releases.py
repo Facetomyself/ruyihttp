@@ -67,8 +67,11 @@ def expect(condition, detail):
 
 
 def sha256(path):
+    digest = hashlib.sha256()
     with path.open('rb') as file:
-        return hashlib.file_digest(file, 'sha256').hexdigest()
+        for chunk in iter(lambda: file.read(1 << 20), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def output(*command):

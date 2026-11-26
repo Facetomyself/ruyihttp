@@ -23,9 +23,29 @@ case "$slot" in
             "$(id -un)" "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
         ;;
     darwin_x86_64|darwin_arm64)
-        # The runner applies Seatbelt to Firefox only. The observer process
-        # explicitly binds its TCP/UDP fixtures to IPv4 loopback.
-        "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
+        # The outer Seatbelt sandbox conflicts with Firefox's own content
+        # sandbox, so isolate new IP egress at the macOS packet filter instead.
+        [[ ${GITHUB_ACTIONS:-} == true || ${FIREFOX_REFERENCE_DEDICATED_MAC:-} == 1 ]]
+        pf=/sbin/pfctl
+        anchor="com.apple/ruyihttp-reference-$$"
+        lease=
+        cleanup() {
+            sudo "$pf" -a "$anchor" -F rules >/dev/null 2>&1 || true
+            if [[ -n "$lease" ]]; then sudo "$pf" -X "$lease" >/dev/null 2>&1 || true; fi
+        }
+        trap cleanup EXIT
+        trap 'exit 130' INT HUP TERM
+        if ! sudo "$pf" -sr 2>/dev/null | awk '/^anchor "com.apple\/\*"/ { found=1 } END { exit !found }'; then
+            # An ephemeral Mac image can boot with an empty active ruleset.
+            sudo "$pf" -f /etc/pf.conf
+        fi
+        sudo "$pf" -sr 2>/dev/null | awk '/^anchor "com.apple\/\*"/ { found=1 } END { exit !found }'
+        printf 'block drop out quick on ! lo0 all\n' | sudo "$pf" -a "$anchor" -f -
+        activation=$(sudo "$pf" -E 2>&1)
+        lease=$(printf '%s\n' "$activation" | awk '/Token[[:space:]]*:/ { print $NF }')
+        [[ $lease =~ ^[0-9]+$ ]]
+        sudo "$pf" -a "$anchor" -sr 2>/dev/null | awk '/^block drop out quick on ! lo0 all/ {found=1} END {exit !found}'
+        FIREFOX_REFERENCE_MACOS_GUARD=pf "$python" ci/firefox_reference_capture.py capture "$slot" "$@"
         ;;
     win_amd64)
         # A Windows-native shell establishes per-executable rules for this
