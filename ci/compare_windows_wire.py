@@ -167,6 +167,8 @@ def main():
                 "--collect",
                 "--release",
                 args.release,
+                "--repeats",
+                "3",
                 "--output",
                 output,
             )
@@ -186,8 +188,11 @@ def main():
                 "wire_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
             }
             if reference is not None:
-                results[label]["differences_vs_official"] = reference.compare(
-                    record["wire"]
+                results[label]["differences_vs_official"] = reference.compare_receipt(
+                    record["wire"], record["repeats"]
+                )
+                results[label]["repeat_proof"] = reference.repeat_proof(
+                    [record["wire"], *[s["wire"] for s in record["repeats"]]]
                 )
         if (
             len(
