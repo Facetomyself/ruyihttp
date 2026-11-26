@@ -13,6 +13,11 @@ on:
         type: choice
         default: all
         options: [all, linux_x86_64, linux_aarch64]
+      endpoint:
+        description: CPython endpoint (all is mandatory for release promotion)
+        type: choice
+        default: all
+        options: [all, '3.10', '3.14']
       candidate_run_id:
         description: Exact producing run ID (required outside probe mode)
         type: string
@@ -32,6 +37,9 @@ on:
         type: string
         default: probe
       platform:
+        type: string
+        default: all
+      endpoint:
         type: string
         default: all
       candidate_run_id:
@@ -57,7 +65,7 @@ jobs:
       fail-fast: false
       matrix:
         slot: ${{ fromJSON(inputs.platform == 'linux_x86_64' && '["linux_x86_64"]' || inputs.platform == 'linux_aarch64' && '["linux_aarch64"]' || '["linux_x86_64","linux_aarch64"]') }}
-        python: ['3.10', '3.14']
+        python: ${{ fromJSON(inputs.endpoint == '3.10' && '["3.10"]' || inputs.endpoint == '3.14' && '["3.14"]' || '["3.10","3.14"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,16 +74,21 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
           PLATFORM: ${{ inputs.platform }}
+          ENDPOINT: ${{ inputs.endpoint }}
           SOURCE_RUN: ${{ inputs.candidate_run_id }}
           SOURCE_ATTEMPT: ${{ inputs.candidate_attempt }}
           ARTIFACT_KIND: ${{ inputs.artifact_kind }}
         run: |
           set -euo pipefail
           case "$PLATFORM" in all|linux_x86_64|linux_aarch64) ;; *) exit 2 ;; esac
+          case "$ENDPOINT" in all|3.10|3.14) ;; *) exit 2 ;; esac
           case "$ARTIFACT_KIND" in source-native-wheel|verified-ruyihttp) ;; *) exit 2 ;; esac
           case "$MODE" in
             probe) [[ -z $SOURCE_RUN ]] ;;
-            candidate|release) [[ $SOURCE_RUN =~ ^[1-9][0-9]*$ && $SOURCE_ATTEMPT =~ ^[1-9][0-9]*$ ]] ;;
+            candidate|release)
+              [[ $SOURCE_RUN =~ ^[1-9][0-9]*$ && $SOURCE_ATTEMPT =~ ^[1-9][0-9]*$ ]]
+              [[ $MODE == candidate || $ENDPOINT == all ]]
+              ;;
             *) exit 2 ;;
           esac
       - uses: actions/download-artifact@v4
@@ -109,7 +122,7 @@ jobs:
       fail-fast: false
       matrix:
         slot: ${{ fromJSON(inputs.platform == 'linux_x86_64' && '["linux_x86_64"]' || inputs.platform == 'linux_aarch64' && '["linux_aarch64"]' || '["linux_x86_64","linux_aarch64"]') }}
-        python: ['3.10', '3.14']
+        python: ${{ fromJSON(inputs.endpoint == '3.10' && '["3.10"]' || inputs.endpoint == '3.14' && '["3.14"]' || '["3.10","3.14"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
