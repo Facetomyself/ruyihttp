@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 
 SCHEMA_VERSION = 1
 RELEASES = ("159", "160", "161")
+REPEAT_LIMIT = 5
 SLOTS = {
     "win_amd64": ("win32", "amd64", "win64"),
     "darwin_arm64": ("darwin", "arm64", "mac"),
@@ -331,6 +332,10 @@ class Reference:
             self.possible_packet_bases = set.intersection(*({size - 1, size - 2} for size in measurements))
             require(self.possible_packet_bases, f"{label}: old official Initial lengths exceed the known PN-width variation")
         self.permuted_tls = {proto for proto in MODES if len({tuple(sample[proto]["hello"]["extensions"]) for sample in samples}) > 1}
+        self.shuffle_required = {
+            proto for proto in self.permuted_tls
+            if len({tuple(code for code in sample[proto]["hello"]["extensions"] if code != "GREASE") for sample in samples}) > 1
+        }
         self.moving_tls_grease = {
             proto for proto in self.permuted_tls
             if len({tuple(i for i, x in enumerate(sample[proto]["hello"]["extensions"]) if x == "GREASE")
@@ -379,7 +384,32 @@ class Reference:
         return result
 
     def compare(self, wire, *, legacy=False):
+        """Compare one observation's stable values; not a qualification on its own."""
         return diff(self.stable, self.project(stable_wire(wire, legacy=legacy, previous_observer=self.previous_observer)))
+
+    def repeat_proof(self, wires):
+        require(1 <= len(wires) <= REPEAT_LIMIT, "wire receipt has an invalid number of fresh captures")
+        distinct = {}
+        for proto in sorted(self.shuffle_required):
+            orders = {tuple(code for code in wire[proto]["hello"]["extensions"] if code not in TLS_GREASE)
+                      for wire in wires}
+            distinct[proto] = len(orders)
+        return {"captures": len(wires), "distinct_non_grease_tls_orders": distinct,
+                "complete": all(count >= 2 for count in distinct.values())}
+
+    def compare_receipt(self, wire, repeats):
+        """Require both stable per-capture values and evidence of extension permutation."""
+        require(isinstance(repeats, list) and len(repeats) < REPEAT_LIMIT, "malformed or excessive wire repeat receipts")
+        changes = self.compare(wire)
+        wires = [wire]
+        for index, repeat in enumerate(repeats, 1):
+            instance = repeat["wire"]
+            wires.append(instance)
+            changes.update({f"repeat[{index}].{key}": value for key, value in self.compare(instance).items()})
+        proof = self.repeat_proof(wires)
+        if not changes and not proof["complete"]:
+            changes["repeat_proof"] = {"official": "at least two permissible non-GREASE extension orders", "observed": proof}
+        return changes
 
 
 def load_reference(directory, slot, *, previous_observer=False):
@@ -491,11 +521,13 @@ def cli():
     parser.add_argument("--references", type=Path, default=REFERENCE_DIR)
     parser.add_argument("--legacy", action="store_true", help="historical smoke log (H3 navigation, never admissible)")
     parser.add_argument("--previous-observer", action="store_true", help="diagnose pre-PN-width same-context receipts (never admissible)")
+    parser.add_argument("--single-observation", action="store_true", help="report stable diffs without proof of extension order variation")
     args = parser.parse_args()
     try:
         expected = load_reference(args.references, args.slot, previous_observer=args.previous_observer)
         seen = set()
-        failed = args.legacy or args.previous_observer
+        diagnostic = args.legacy or args.previous_observer or args.single_observation
+        failed = diagnostic
         for line in args.receipt.read_text(encoding="utf-8").splitlines():
             if args.legacy and not line.startswith("{"):
                 continue  # The legacy probe mixed JSON records with human output.
@@ -505,11 +537,16 @@ def cli():
                     "wrong slot, unsupported release, or duplicate receipt")
             seen.add(release)
             if not args.legacy:
+                require("capture_error" not in record and "repeat_capture_error" not in record,
+                        f"Firefox {release}: receipt contains a capture failure")
                 expected_platform, expected_arch, _ = SLOTS[args.slot]
                 require((record.get("schema_version"), record.get("source"), record.get("platform"), record.get("arch"))
                         == (SCHEMA_VERSION, "installed-wheel", expected_platform, expected_arch), "invalid receipt identity")
             wire = legacy_wire(record["wire"]) if args.legacy else record["wire"]
-            changes = expected[release].compare(wire, legacy=args.legacy)
+            if diagnostic:
+                changes = expected[release].compare(wire, legacy=args.legacy)
+            else:
+                changes = expected[release].compare_receipt(wire, record.get("repeats", []))
             print(json.dumps({"slot": args.slot, "firefox": release, "differences": changes}), flush=True)
             failed |= bool(changes)
         require(seen == set(RELEASES), f"receipt missing Firefox releases {sorted(set(RELEASES) - seen)}")

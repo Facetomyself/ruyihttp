@@ -125,7 +125,15 @@ print(f'installed {expected} with Python {sys.version.split()[0]} in {root}', fl
                 strict=True
             )
             raw = evidence / "release-0.9.2-wire.jsonl"
-            call(CI / "smoke_firefox_profiles.py", slot, "--collect", "--output", raw)
+            call(
+                CI / "smoke_firefox_profiles.py",
+                slot,
+                "--collect",
+                "--repeats",
+                "3",
+                "--output",
+                raw,
+            )
             call(
                 CI / "compare_previous_wire.py",
                 slot,

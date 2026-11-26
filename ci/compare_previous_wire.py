@@ -35,7 +35,7 @@ def main():
             raise ValueError("wrong old-wheel identity")
         profile = r["firefox"]
         wire = r["wire"]
-        changes = official[profile].compare(wire)
+        changes = official[profile].compare_receipt(wire, r["repeats"])
         settings = dict(wire["h3"]["settings"])
         tp = wire["h3"]["transport_parameters"]
         ua = next(v for n, v in wire["h1"]["headers"] if n.lower() == "user-agent")
