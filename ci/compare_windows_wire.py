@@ -44,6 +44,11 @@ def main():
     ap.add_argument("candidate_wheel", type=Path)
     ap.add_argument("evidence", type=Path)
     ap.add_argument("--release", choices=["159", "160", "161"], default="161")
+    ap.add_argument(
+        "--official",
+        type=Path,
+        help="fresh official single-release raw capture from this Windows job",
+    )
     args = ap.parse_args()
     if sys.platform != "win32" or platform.machine().lower() not in ("amd64", "x86_64"):
         ap.error("the upstream 0.11.0 Windows binary requires native Windows x64")
@@ -72,6 +77,33 @@ def main():
         "DYLD_LIBRARY_PATH",
     ):
         env.pop(k, None)
+    reference = None
+    comparison = {}
+    if args.official is not None:
+        from firefox_wire import analyze_official, decode_json
+
+        raw = args.official.resolve(strict=True).read_bytes()
+        official = decode_json(raw.decode("utf-8"))
+        for var, key in [
+            ("GITHUB_RUN_ID", "run_id"),
+            ("GITHUB_RUN_ATTEMPT", "run_attempt"),
+            ("GITHUB_SHA", "sha"),
+        ]:
+            if os.environ.get(var) and official["ci"].get(key) != os.environ[var]:
+                raise ValueError(
+                    "the fresh browser observation belongs to a different run or source"
+                )
+        reference = analyze_official(official, SLOT, releases=(args.release,))[
+            args.release
+        ]
+        comparison.update(
+            official_file=args.official.name,
+            official_raw_sha256=hashlib.sha256(raw).hexdigest(),
+            official_archive_sha256=official["captures"][args.release]["sha256"],
+            official_build_id=official["captures"][args.release]["build_id"],
+            run_id=os.environ.get("GITHUB_RUN_ID"),
+            source_commit=os.environ.get("GITHUB_SHA"),
+        )
     with TemporaryDirectory(prefix="ruyihttp-windows-wire-") as tmp:
         tmp = Path(tmp)
         wheels = {
@@ -153,6 +185,22 @@ def main():
                 "wire_file": output.name,
                 "wire_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
             }
+            if reference is not None:
+                results[label]["differences_vs_official"] = reference.compare(
+                    record["wire"]
+                )
+        if (
+            len(
+                {
+                    tuple(sorted(r["identity"]["dependencies"].items()))
+                    for r in results.values()
+                }
+            )
+            != 1
+        ):
+            raise ValueError(
+                "comparison lanes did not use the same Python dependencies"
+            )
         if (
             results["upstream-0.11.0"]["identity"]["dll_sha256"]
             != results["candidate"]["identity"]["dll_sha256"]
@@ -161,10 +209,20 @@ def main():
                 "candidate is no longer using the verified upstream Windows runtime; re-evaluate comparator"
             )
     (args.evidence / "peers.json").write_text(
-        json.dumps({"slot": SLOT, "firefox": args.release, "peers": results}, indent=2)
+        json.dumps(
+            {"slot": SLOT, "firefox": args.release, "peers": results, **comparison},
+            indent=2,
+        )
         + "\n",
         encoding="utf-8",
     )
+    if reference is not None:
+        for label, result in results.items():
+            print(label, "vs official:", sorted(result["differences_vs_official"]))
+        if results["candidate"]["differences_vs_official"]:
+            raise SystemExit(
+                "candidate differs from the fresh same-slot official Firefox controls"
+            )
     print(
         "Measured original upstream, previous fork and candidate; same host, pinned binaries, independent installs."
     )

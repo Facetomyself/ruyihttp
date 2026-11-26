@@ -1,0 +1,4474 @@
+{
+  "schema_version": 1,
+  "slot": "linux_aarch64",
+  "platform": "linux",
+  "arch": "aarch64",
+  "source": "official-firefox",
+  "captures": {
+    "159": {
+      "sha256": "de7b16588bf3ab11774f6c1b1461dafde943c1cf0ea93dc15aa5f7bd99aa1191",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/159.0/linux-aarch64/en-US/firefox-159.0.tar.xz",
+      "manifest_sha256": "9c402489e6307e4cc1933ca1ebc01f6937f5ce1a9fb4354c2d212ab37eed26e5",
+      "manifest_url": "https://archive.mozilla.org/pub/firefox/releases/159.0/SHA256SUMS",
+      "signer": "827E658608679618CD349F93678E455D76767AA3",
+      "signing_primary": "14F26682D0916CDD81E37B6D61B7B526D98F0353",
+      "source_tag": "FIREFOX_159_0_RELEASE",
+      "source_commit": "9a2dc53c369c7ae5172018b35988e1d2ffeff402",
+      "source_archive": "https://archive.mozilla.org/pub/firefox/releases/159.0/source/firefox-159.0.source.tar.xz",
+      "source_archive_sha256": "3d98df785894057fce60603e845828e758a5411ad79aaaaff2b8230597f500d9",
+      "version": "159.0",
+      "build_id": "20261022150525",
+      "executable_sha256": "3e40ae6b0f27a826c9a52522651f3c6f7406c2ee581d2cf5d42eeb668534ed42",
+      "executable_slices": [
+        "aarch64"
+      ],
+      "runtime_host": {
+        "machine": "aarch64",
+        "os_release": "7.0.0-1020-azure",
+        "os_version": "#21~24.04.2-Ubuntu SMP PREEMPT Tue Nov 10 01:19:17 UTC 2026",
+        "distribution": "Ubuntu 24.04.5 LTS"
+      },
+      "source_stamp": "5add844c26613d7e4d84c799d6e23cf987b1240d",
+      "archive_locale": "en-US",
+      "executable_relative": "firefox/firefox",
+      "packaged_executables": {
+        "firefox": "3e40ae6b0f27a826c9a52522651f3c6f7406c2ee581d2cf5d42eeb668534ed42",
+        "firefox-bin": "6c70730485d28afc7f03d9854aefb06c90ebc2f7976b1563221f4cddfde79378"
+      },
+      "acquired_unix": 1795673673,
+      "samples": [
+        {
+          "h1": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "http/1.1",
+            "port": 41443,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "request_line": "GET /profile-wire HTTP/1.1",
+            "headers": [
+              [
+                "Host",
+                "localhost:41443"
+              ],
+              [
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+              ],
+              [
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "Accept-Language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "Accept-Encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "Connection",
+                "keep-alive"
+              ],
+              [
+                "Upgrade-Insecure-Requests",
+                "1"
+              ],
+              [
+                "Sec-Fetch-Dest",
+                "document"
+              ],
+              [
+                "Sec-Fetch-Mode",
+                "navigate"
+              ],
+              [
+                "Sec-Fetch-Site",
+                "none"
+              ],
+              [
+                "Sec-Fetch-User",
+                "?1"
+              ],
+              [
+                "Priority",
+                "u=0, i"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "6c70730485d28afc7f03d9854aefb06c90ebc2f7976b1563221f4cddfde79378"
+            }
+          },
+          "h2": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "h2",
+            "port": 37207,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                4,
+                131072
+              ],
+              [
+                5,
+                16384
+              ]
+            ],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                ":authority",
+                "localhost:37207"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+              ],
+              [
+                "accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "upgrade-insecure-requests",
+                "1"
+              ],
+              [
+                "sec-fetch-dest",
+                "document"
+              ],
+              [
+                "sec-fetch-mode",
+                "navigate"
+              ],
+              [
+                "sec-fetch-site",
+                "none"
+              ],
+              [
+                "sec-fetch-user",
+                "?1"
+              ],
+              [
+                "priority",
+                "u=0, i"
+              ],
+              [
+                "te",
+                "trailers"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "6c70730485d28afc7f03d9854aefb06c90ebc2f7976b1563221f4cddfde79378"
+            }
+          },
+          "h3": {
+            "port": 36521,
+            "mode": "same-origin-fetch",
+            "protocol": "h3",
+            "quic_version": 1798521807,
+            "initial": {
+              "version": 1,
+              "udp_payload_bytes": 1252,
+              "packet_bytes": 1002,
+              "dcid_length": 17,
+              "scid_length": 3,
+              "token_length": 0,
+              "packet_number_length": 2,
+              "transport_parameter_ids": [
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                11,
+                14,
+                15,
+                17,
+                29,
+                4278378010,
+                32
+              ],
+              "version_information": {
+                "chosen": 1,
+                "available": [
+                  1244285626,
+                  1798521807,
+                  1
+                ]
+              }
+            },
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 0,
+              "ciphers": [
+                4865,
+                4867,
+                4866
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                13,
+                51,
+                16,
+                27,
+                5,
+                43,
+                10,
+                0,
+                65281,
+                23,
+                45,
+                34,
+                28,
+                57,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                515,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                513
+              ],
+              "cert_compression": [
+                1,
+                3,
+                2
+              ],
+              "supported_versions": [
+                772
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h3"
+              ],
+              "ec_point_formats": [],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                7,
+                20
+              ],
+              [
+                727725890,
+                0
+              ],
+              [
+                16765559,
+                1
+              ],
+              [
+                51,
+                1
+              ],
+              [
+                8,
+                1
+              ]
+            ],
+            "grease_settings": [],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                ":authority",
+                "localhost:36521"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+              ],
+              [
+                "accept",
+                "*/*"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "referer",
+                "https://localhost:36521/boot"
+              ],
+              [
+                "alt-used",
+                "localhost:36521"
+              ],
+              [
+                "sec-fetch-dest",
+                "empty"
+              ],
+              [
+                "sec-fetch-mode",
+                "cors"
+              ],
+              [
+                "sec-fetch-site",
+                "same-origin"
+              ],
+              [
+                "priority",
+                "u=4"
+              ]
+            ],
+            "transport_parameters": {
+              "active_connection_id_limit": 8,
+              "disable_active_migration": false,
+              "initial_max_data": 25165824,
+              "initial_max_stream_data_bidi_local": 12582912,
+              "initial_max_stream_data_bidi_remote": 1048576,
+              "initial_max_stream_data_uni": 1048576,
+              "initial_max_streams_bidi": 100,
+              "initial_max_streams_uni": 100,
+              "max_ack_delay": 20,
+              "max_datagram_frame_size": 65535,
+              "max_idle_timeout": 30000
+            },
+            "bootstrap_protocol": "h1",
+            "bootstrap": [
+              {
+                "hello": {
+                  "legacy_version": 771,
+                  "session_id_length": 32,
+                  "ciphers": [
+                    4865,
+                    4867,
+                    4866,
+                    49195,
+                    49199,
+                    52393,
+                    52392,
+                    49196,
+                    49200,
+                    49171,
+                    49172,
+                    156,
+                    157,
+                    47,
+                    53
+                  ],
+                  "compression_methods": [
+                    0
+                  ],
+                  "extensions": [
+                    0,
+                    23,
+                    65281,
+                    10,
+                    11,
+                    35,
+                    16,
+                    5,
+                    34,
+                    18,
+                    51,
+                    43,
+                    13,
+                    45,
+                    28,
+                    27,
+                    65037
+                  ],
+                  "groups": [
+                    4588,
+                    29,
+                    23,
+                    24,
+                    25
+                  ],
+                  "signatures": [
+                    1027,
+                    1283,
+                    1539,
+                    2052,
+                    2053,
+                    2054,
+                    1025,
+                    1281,
+                    1537,
+                    515,
+                    513
+                  ],
+                  "cert_compression": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "supported_versions": [
+                    772,
+                    771
+                  ],
+                  "key_share_groups": [
+                    4588,
+                    29,
+                    23
+                  ],
+                  "offered_alpn": [
+                    "h2",
+                    "http/1.1"
+                  ],
+                  "ec_point_formats": [
+                    0
+                  ],
+                  "psk_key_exchange_modes": [
+                    1
+                  ],
+                  "server_names": [
+                    [
+                      0,
+                      "localhost"
+                    ]
+                  ]
+                },
+                "client_hello_count": 1,
+                "protocol": "http/1.1",
+                "port": 36521,
+                "mode": "navigation",
+                "negotiated_tls": {
+                  "version": "TLSv1.3",
+                  "cipher": "TLS_AES_256_GCM_SHA384"
+                },
+                "request_line": "GET /boot HTTP/1.1",
+                "headers": [
+                  [
+                    "Host",
+                    "localhost:36521"
+                  ],
+                  [
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+                  ],
+                  [
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                  ],
+                  [
+                    "Accept-Language",
+                    "en-US,en;q=0.9"
+                  ],
+                  [
+                    "Accept-Encoding",
+                    "gzip, deflate, br, zstd"
+                  ],
+                  [
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
+                    "1"
+                  ],
+                  [
+                    "Sec-Fetch-Dest",
+                    "document"
+                  ],
+                  [
+                    "Sec-Fetch-Mode",
+                    "navigate"
+                  ],
+                  [
+                    "Sec-Fetch-Site",
+                    "none"
+                  ],
+                  [
+                    "Sec-Fetch-User",
+                    "?1"
+                  ],
+                  [
+                    "Priority",
+                    "u=0, i"
+                  ]
+                ]
+              }
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "6c70730485d28afc7f03d9854aefb06c90ebc2f7976b1563221f4cddfde79378"
+            }
+          }
+        },
+        {
+          "h1": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "http/1.1",
+            "port": 35189,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "request_line": "GET /profile-wire HTTP/1.1",
+            "headers": [
+              [
+                "Host",
+                "localhost:35189"
+              ],
+              [
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+              ],
+              [
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "Accept-Language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "Accept-Encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "Connection",
+                "keep-alive"
+              ],
+              [
+                "Upgrade-Insecure-Requests",
+                "1"
+              ],
+              [
+                "Sec-Fetch-Dest",
+                "document"
+              ],
+              [
+                "Sec-Fetch-Mode",
+                "navigate"
+              ],
+              [
+                "Sec-Fetch-Site",
+                "none"
+              ],
+              [
+                "Sec-Fetch-User",
+                "?1"
+              ],
+              [
+                "Priority",
+                "u=0, i"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "6c70730485d28afc7f03d9854aefb06c90ebc2f7976b1563221f4cddfde79378"
+            }
+          },
+          "h2": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "h2",
+            "port": 43551,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                4,
+                131072
+              ],
+              [
+                5,
+                16384
+              ]
+            ],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                ":authority",
+                "localhost:43551"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+              ],
+              [
+                "accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "upgrade-insecure-requests",
+                "1"
+              ],
+              [
+                "sec-fetch-dest",
+                "document"
+              ],
+              [
+                "sec-fetch-mode",
+                "navigate"
+              ],
+              [
+                "sec-fetch-site",
+                "none"
+              ],
+              [
+                "sec-fetch-user",
+                "?1"
+              ],
+              [
+                "priority",
+                "u=0, i"
+              ],
+              [
+                "te",
+                "trailers"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "6c70730485d28afc7f03d9854aefb06c90ebc2f7976b1563221f4cddfde79378"
+            }
+          },
+          "h3": {
+            "port": 41955,
+            "mode": "same-origin-fetch",
+            "protocol": "h3",
+            "quic_version": 1798521807,
+            "initial": {
+              "version": 1,
+              "udp_payload_bytes": 1252,
+              "packet_bytes": 992,
+              "dcid_length": 8,
+              "scid_length": 3,
+              "token_length": 0,
+              "packet_number_length": 1,
+              "transport_parameter_ids": [
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                11,
+                14,
+                15,
+                17,
+                29,
+                4278378010,
+                32
+              ],
+              "version_information": {
+                "chosen": 1,
+                "available": [
+                  3399125738,
+                  1798521807,
+                  1
+                ]
+              }
+            },
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 0,
+              "ciphers": [
+                4865,
+                4867,
+                4866
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                10,
+                27,
+                34,
+                43,
+                16,
+                28,
+                13,
+                23,
+                45,
+                65281,
+                0,
+                51,
+                5,
+                57,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                515,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                513
+              ],
+              "cert_compression": [
+                1,
+                3,
+                2
+              ],
+              "supported_versions": [
+                772
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h3"
+              ],
+              "ec_point_formats": [],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                7,
+                20
+              ],
+              [
+                727725890,
+                0
+              ],
+              [
+                16765559,
+                1
+              ],
+              [
+                51,
+                1
+              ],
+              [
+                8,
+                1
+              ]
+            ],
+            "grease_settings": [],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                ":authority",
+                "localhost:41955"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+              ],
+              [
+                "accept",
+                "*/*"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "referer",
+                "https://localhost:41955/boot"
+              ],
+              [
+                "alt-used",
+                "localhost:41955"
+              ],
+              [
+                "sec-fetch-dest",
+                "empty"
+              ],
+              [
+                "sec-fetch-mode",
+                "cors"
+              ],
+              [
+                "sec-fetch-site",
+                "same-origin"
+              ],
+              [
+                "priority",
+                "u=4"
+              ]
+            ],
+            "transport_parameters": {
+              "active_connection_id_limit": 8,
+              "disable_active_migration": false,
+              "initial_max_data": 25165824,
+              "initial_max_stream_data_bidi_local": 12582912,
+              "initial_max_stream_data_bidi_remote": 1048576,
+              "initial_max_stream_data_uni": 1048576,
+              "initial_max_streams_bidi": 100,
+              "initial_max_streams_uni": 100,
+              "max_ack_delay": 20,
+              "max_datagram_frame_size": 65535,
+              "max_idle_timeout": 30000
+            },
+            "bootstrap_protocol": "h1",
+            "bootstrap": [
+              {
+                "hello": {
+                  "legacy_version": 771,
+                  "session_id_length": 32,
+                  "ciphers": [
+                    4865,
+                    4867,
+                    4866,
+                    49195,
+                    49199,
+                    52393,
+                    52392,
+                    49196,
+                    49200,
+                    49171,
+                    49172,
+                    156,
+                    157,
+                    47,
+                    53
+                  ],
+                  "compression_methods": [
+                    0
+                  ],
+                  "extensions": [
+                    0,
+                    23,
+                    65281,
+                    10,
+                    11,
+                    35,
+                    16,
+                    5,
+                    34,
+                    18,
+                    51,
+                    43,
+                    13,
+                    45,
+                    28,
+                    27,
+                    65037
+                  ],
+                  "groups": [
+                    4588,
+                    29,
+                    23,
+                    24,
+                    25
+                  ],
+                  "signatures": [
+                    1027,
+                    1283,
+                    1539,
+                    2052,
+                    2053,
+                    2054,
+                    1025,
+                    1281,
+                    1537,
+                    515,
+                    513
+                  ],
+                  "cert_compression": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "supported_versions": [
+                    772,
+                    771
+                  ],
+                  "key_share_groups": [
+                    4588,
+                    29,
+                    23
+                  ],
+                  "offered_alpn": [
+                    "h2",
+                    "http/1.1"
+                  ],
+                  "ec_point_formats": [
+                    0
+                  ],
+                  "psk_key_exchange_modes": [
+                    1
+                  ],
+                  "server_names": [
+                    [
+                      0,
+                      "localhost"
+                    ]
+                  ]
+                },
+                "client_hello_count": 1,
+                "protocol": "http/1.1",
+                "port": 41955,
+                "mode": "navigation",
+                "negotiated_tls": {
+                  "version": "TLSv1.3",
+                  "cipher": "TLS_AES_256_GCM_SHA384"
+                },
+                "request_line": "GET /boot HTTP/1.1",
+                "headers": [
+                  [
+                    "Host",
+                    "localhost:41955"
+                  ],
+                  [
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+                  ],
+                  [
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                  ],
+                  [
+                    "Accept-Language",
+                    "en-US,en;q=0.9"
+                  ],
+                  [
+                    "Accept-Encoding",
+                    "gzip, deflate, br, zstd"
+                  ],
+                  [
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
+                    "1"
+                  ],
+                  [
+                    "Sec-Fetch-Dest",
+                    "document"
+                  ],
+                  [
+                    "Sec-Fetch-Mode",
+                    "navigate"
+                  ],
+                  [
+                    "Sec-Fetch-Site",
+                    "none"
+                  ],
+                  [
+                    "Sec-Fetch-User",
+                    "?1"
+                  ],
+                  [
+                    "Priority",
+                    "u=0, i"
+                  ]
+                ]
+              }
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "6c70730485d28afc7f03d9854aefb06c90ebc2f7976b1563221f4cddfde79378"
+            }
+          }
+        }
+      ]
+    },
+    "160": {
+      "sha256": "0fd9e4fd7ab97f7b1eec42f70e809080679498ebabd78fd692f0b94f9b6bf92f",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/160.0/linux-aarch64/en-US/firefox-160.0.tar.xz",
+      "manifest_sha256": "cc24dd72af3c4aa3ad300cf9ce0641d8437a746b35db6c0de7549a8fe4077fbf",
+      "manifest_url": "https://archive.mozilla.org/pub/firefox/releases/160.0/SHA256SUMS",
+      "signer": "827E658608679618CD349F93678E455D76767AA3",
+      "signing_primary": "14F26682D0916CDD81E37B6D61B7B526D98F0353",
+      "source_tag": "FIREFOX_160_0_RELEASE",
+      "source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+      "source_archive": "https://archive.mozilla.org/pub/firefox/releases/160.0/source/firefox-160.0.source.tar.xz",
+      "source_archive_sha256": "2b23d2bf6716ea16b45c10aa5c275c78a1d7ff50ad53150809ab27424c58fd81",
+      "version": "160.0",
+      "build_id": "20261104181552",
+      "executable_sha256": "a2edc166515c80cae7b744ee7ff91f227954619b87f6e1ae9a88905cb923b64c",
+      "executable_slices": [
+        "aarch64"
+      ],
+      "runtime_host": {
+        "machine": "aarch64",
+        "os_release": "7.0.0-1020-azure",
+        "os_version": "#21~24.04.2-Ubuntu SMP PREEMPT Tue Nov 10 01:19:17 UTC 2026",
+        "distribution": "Ubuntu 24.04.5 LTS"
+      },
+      "source_stamp": "d84e7a6936554efe26097d9d9b24a0e11330e630",
+      "archive_locale": "en-US",
+      "executable_relative": "firefox/firefox",
+      "packaged_executables": {
+        "firefox": "a2edc166515c80cae7b744ee7ff91f227954619b87f6e1ae9a88905cb923b64c",
+        "firefox-bin": "62243de5fa7ed714738e7034e1231c3fce0277d4c7b0cdec992e84f73f257243"
+      },
+      "acquired_unix": 1795673687,
+      "samples": [
+        {
+          "h1": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "http/1.1",
+            "port": 39451,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "request_line": "GET /profile-wire HTTP/1.1",
+            "headers": [
+              [
+                "Host",
+                "localhost:39451"
+              ],
+              [
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+              ],
+              [
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "Accept-Language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "Accept-Encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "Connection",
+                "keep-alive"
+              ],
+              [
+                "Upgrade-Insecure-Requests",
+                "1"
+              ],
+              [
+                "Sec-Fetch-Dest",
+                "document"
+              ],
+              [
+                "Sec-Fetch-Mode",
+                "navigate"
+              ],
+              [
+                "Sec-Fetch-Site",
+                "none"
+              ],
+              [
+                "Sec-Fetch-User",
+                "?1"
+              ],
+              [
+                "Priority",
+                "u=0, i"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "62243de5fa7ed714738e7034e1231c3fce0277d4c7b0cdec992e84f73f257243"
+            }
+          },
+          "h2": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "h2",
+            "port": 33467,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                4,
+                131072
+              ],
+              [
+                5,
+                16384
+              ]
+            ],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                ":authority",
+                "localhost:33467"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+              ],
+              [
+                "accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "upgrade-insecure-requests",
+                "1"
+              ],
+              [
+                "sec-fetch-dest",
+                "document"
+              ],
+              [
+                "sec-fetch-mode",
+                "navigate"
+              ],
+              [
+                "sec-fetch-site",
+                "none"
+              ],
+              [
+                "sec-fetch-user",
+                "?1"
+              ],
+              [
+                "priority",
+                "u=0, i"
+              ],
+              [
+                "te",
+                "trailers"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "62243de5fa7ed714738e7034e1231c3fce0277d4c7b0cdec992e84f73f257243"
+            }
+          },
+          "h3": {
+            "port": 34137,
+            "mode": "same-origin-fetch",
+            "protocol": "h3",
+            "quic_version": 1798521807,
+            "initial": {
+              "version": 1,
+              "udp_payload_bytes": 1252,
+              "packet_bytes": 992,
+              "dcid_length": 8,
+              "scid_length": 3,
+              "token_length": 0,
+              "packet_number_length": 1,
+              "transport_parameter_ids": [
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                11,
+                14,
+                15,
+                17,
+                29,
+                4278378010,
+                32
+              ],
+              "version_information": {
+                "chosen": 1,
+                "available": [
+                  983190138,
+                  1798521807,
+                  1
+                ]
+              }
+            },
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 0,
+              "ciphers": [
+                4865,
+                4867,
+                4866
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                27,
+                43,
+                34,
+                51,
+                0,
+                10,
+                13,
+                5,
+                23,
+                65281,
+                16,
+                28,
+                45,
+                57,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                515,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                513
+              ],
+              "cert_compression": [
+                1,
+                3,
+                2
+              ],
+              "supported_versions": [
+                772
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h3"
+              ],
+              "ec_point_formats": [],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                7,
+                20
+              ],
+              [
+                727725890,
+                0
+              ],
+              [
+                16765559,
+                1
+              ],
+              [
+                51,
+                1
+              ],
+              [
+                8,
+                1
+              ]
+            ],
+            "grease_settings": [],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                ":authority",
+                "localhost:34137"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+              ],
+              [
+                "accept",
+                "*/*"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "referer",
+                "https://localhost:34137/boot"
+              ],
+              [
+                "alt-used",
+                "localhost:34137"
+              ],
+              [
+                "sec-fetch-dest",
+                "empty"
+              ],
+              [
+                "sec-fetch-mode",
+                "cors"
+              ],
+              [
+                "sec-fetch-site",
+                "same-origin"
+              ],
+              [
+                "priority",
+                "u=4"
+              ]
+            ],
+            "transport_parameters": {
+              "active_connection_id_limit": 8,
+              "disable_active_migration": false,
+              "initial_max_data": 25165824,
+              "initial_max_stream_data_bidi_local": 12582912,
+              "initial_max_stream_data_bidi_remote": 1048576,
+              "initial_max_stream_data_uni": 1048576,
+              "initial_max_streams_bidi": 100,
+              "initial_max_streams_uni": 100,
+              "max_ack_delay": 20,
+              "max_datagram_frame_size": 65535,
+              "max_idle_timeout": 30000
+            },
+            "bootstrap_protocol": "h1",
+            "bootstrap": [
+              {
+                "hello": {
+                  "legacy_version": 771,
+                  "session_id_length": 32,
+                  "ciphers": [
+                    4865,
+                    4867,
+                    4866,
+                    49195,
+                    49199,
+                    52393,
+                    52392,
+                    49196,
+                    49200,
+                    49171,
+                    49172,
+                    156,
+                    157,
+                    47,
+                    53
+                  ],
+                  "compression_methods": [
+                    0
+                  ],
+                  "extensions": [
+                    0,
+                    23,
+                    65281,
+                    10,
+                    11,
+                    35,
+                    16,
+                    5,
+                    34,
+                    18,
+                    51,
+                    43,
+                    13,
+                    45,
+                    28,
+                    27,
+                    65037
+                  ],
+                  "groups": [
+                    4588,
+                    29,
+                    23,
+                    24,
+                    25
+                  ],
+                  "signatures": [
+                    1027,
+                    1283,
+                    1539,
+                    2052,
+                    2053,
+                    2054,
+                    1025,
+                    1281,
+                    1537,
+                    515,
+                    513
+                  ],
+                  "cert_compression": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "supported_versions": [
+                    772,
+                    771
+                  ],
+                  "key_share_groups": [
+                    4588,
+                    29,
+                    23
+                  ],
+                  "offered_alpn": [
+                    "h2",
+                    "http/1.1"
+                  ],
+                  "ec_point_formats": [
+                    0
+                  ],
+                  "psk_key_exchange_modes": [
+                    1
+                  ],
+                  "server_names": [
+                    [
+                      0,
+                      "localhost"
+                    ]
+                  ]
+                },
+                "client_hello_count": 1,
+                "protocol": "http/1.1",
+                "port": 34137,
+                "mode": "navigation",
+                "negotiated_tls": {
+                  "version": "TLSv1.3",
+                  "cipher": "TLS_AES_256_GCM_SHA384"
+                },
+                "request_line": "GET /boot HTTP/1.1",
+                "headers": [
+                  [
+                    "Host",
+                    "localhost:34137"
+                  ],
+                  [
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+                  ],
+                  [
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                  ],
+                  [
+                    "Accept-Language",
+                    "en-US,en;q=0.9"
+                  ],
+                  [
+                    "Accept-Encoding",
+                    "gzip, deflate, br, zstd"
+                  ],
+                  [
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
+                    "1"
+                  ],
+                  [
+                    "Sec-Fetch-Dest",
+                    "document"
+                  ],
+                  [
+                    "Sec-Fetch-Mode",
+                    "navigate"
+                  ],
+                  [
+                    "Sec-Fetch-Site",
+                    "none"
+                  ],
+                  [
+                    "Sec-Fetch-User",
+                    "?1"
+                  ],
+                  [
+                    "Priority",
+                    "u=0, i"
+                  ]
+                ]
+              }
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "62243de5fa7ed714738e7034e1231c3fce0277d4c7b0cdec992e84f73f257243"
+            }
+          }
+        },
+        {
+          "h1": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "http/1.1",
+            "port": 44157,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "request_line": "GET /profile-wire HTTP/1.1",
+            "headers": [
+              [
+                "Host",
+                "localhost:44157"
+              ],
+              [
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+              ],
+              [
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "Accept-Language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "Accept-Encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "Connection",
+                "keep-alive"
+              ],
+              [
+                "Upgrade-Insecure-Requests",
+                "1"
+              ],
+              [
+                "Sec-Fetch-Dest",
+                "document"
+              ],
+              [
+                "Sec-Fetch-Mode",
+                "navigate"
+              ],
+              [
+                "Sec-Fetch-Site",
+                "none"
+              ],
+              [
+                "Sec-Fetch-User",
+                "?1"
+              ],
+              [
+                "Priority",
+                "u=0, i"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "62243de5fa7ed714738e7034e1231c3fce0277d4c7b0cdec992e84f73f257243"
+            }
+          },
+          "h2": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "h2",
+            "port": 41697,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                4,
+                131072
+              ],
+              [
+                5,
+                16384
+              ]
+            ],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                ":authority",
+                "localhost:41697"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+              ],
+              [
+                "accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "upgrade-insecure-requests",
+                "1"
+              ],
+              [
+                "sec-fetch-dest",
+                "document"
+              ],
+              [
+                "sec-fetch-mode",
+                "navigate"
+              ],
+              [
+                "sec-fetch-site",
+                "none"
+              ],
+              [
+                "sec-fetch-user",
+                "?1"
+              ],
+              [
+                "priority",
+                "u=0, i"
+              ],
+              [
+                "te",
+                "trailers"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "62243de5fa7ed714738e7034e1231c3fce0277d4c7b0cdec992e84f73f257243"
+            }
+          },
+          "h3": {
+            "port": 42207,
+            "mode": "same-origin-fetch",
+            "protocol": "h3",
+            "quic_version": 1798521807,
+            "initial": {
+              "version": 1,
+              "udp_payload_bytes": 1252,
+              "packet_bytes": 998,
+              "dcid_length": 13,
+              "scid_length": 3,
+              "token_length": 0,
+              "packet_number_length": 2,
+              "transport_parameter_ids": [
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                11,
+                14,
+                15,
+                17,
+                29,
+                4278378010,
+                32
+              ],
+              "version_information": {
+                "chosen": 1,
+                "available": [
+                  1515887322,
+                  1798521807,
+                  1
+                ]
+              }
+            },
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 0,
+              "ciphers": [
+                4865,
+                4867,
+                4866
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                27,
+                23,
+                10,
+                43,
+                34,
+                16,
+                45,
+                28,
+                13,
+                51,
+                5,
+                65281,
+                0,
+                57,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                515,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                513
+              ],
+              "cert_compression": [
+                1,
+                3,
+                2
+              ],
+              "supported_versions": [
+                772
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h3"
+              ],
+              "ec_point_formats": [],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                7,
+                20
+              ],
+              [
+                727725890,
+                0
+              ],
+              [
+                16765559,
+                1
+              ],
+              [
+                51,
+                1
+              ],
+              [
+                8,
+                1
+              ]
+            ],
+            "grease_settings": [],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                ":authority",
+                "localhost:42207"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+              ],
+              [
+                "accept",
+                "*/*"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "referer",
+                "https://localhost:42207/boot"
+              ],
+              [
+                "alt-used",
+                "localhost:42207"
+              ],
+              [
+                "sec-fetch-dest",
+                "empty"
+              ],
+              [
+                "sec-fetch-mode",
+                "cors"
+              ],
+              [
+                "sec-fetch-site",
+                "same-origin"
+              ],
+              [
+                "priority",
+                "u=4"
+              ]
+            ],
+            "transport_parameters": {
+              "active_connection_id_limit": 8,
+              "disable_active_migration": false,
+              "initial_max_data": 25165824,
+              "initial_max_stream_data_bidi_local": 12582912,
+              "initial_max_stream_data_bidi_remote": 1048576,
+              "initial_max_stream_data_uni": 1048576,
+              "initial_max_streams_bidi": 100,
+              "initial_max_streams_uni": 100,
+              "max_ack_delay": 20,
+              "max_datagram_frame_size": 65535,
+              "max_idle_timeout": 30000
+            },
+            "bootstrap_protocol": "h1",
+            "bootstrap": [
+              {
+                "hello": {
+                  "legacy_version": 771,
+                  "session_id_length": 32,
+                  "ciphers": [
+                    4865,
+                    4867,
+                    4866,
+                    49195,
+                    49199,
+                    52393,
+                    52392,
+                    49196,
+                    49200,
+                    49171,
+                    49172,
+                    156,
+                    157,
+                    47,
+                    53
+                  ],
+                  "compression_methods": [
+                    0
+                  ],
+                  "extensions": [
+                    0,
+                    23,
+                    65281,
+                    10,
+                    11,
+                    35,
+                    16,
+                    5,
+                    34,
+                    18,
+                    51,
+                    43,
+                    13,
+                    45,
+                    28,
+                    27,
+                    65037
+                  ],
+                  "groups": [
+                    4588,
+                    29,
+                    23,
+                    24,
+                    25
+                  ],
+                  "signatures": [
+                    1027,
+                    1283,
+                    1539,
+                    2052,
+                    2053,
+                    2054,
+                    1025,
+                    1281,
+                    1537,
+                    515,
+                    513
+                  ],
+                  "cert_compression": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "supported_versions": [
+                    772,
+                    771
+                  ],
+                  "key_share_groups": [
+                    4588,
+                    29,
+                    23
+                  ],
+                  "offered_alpn": [
+                    "h2",
+                    "http/1.1"
+                  ],
+                  "ec_point_formats": [
+                    0
+                  ],
+                  "psk_key_exchange_modes": [
+                    1
+                  ],
+                  "server_names": [
+                    [
+                      0,
+                      "localhost"
+                    ]
+                  ]
+                },
+                "client_hello_count": 1,
+                "protocol": "http/1.1",
+                "port": 42207,
+                "mode": "navigation",
+                "negotiated_tls": {
+                  "version": "TLSv1.3",
+                  "cipher": "TLS_AES_256_GCM_SHA384"
+                },
+                "request_line": "GET /boot HTTP/1.1",
+                "headers": [
+                  [
+                    "Host",
+                    "localhost:42207"
+                  ],
+                  [
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+                  ],
+                  [
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                  ],
+                  [
+                    "Accept-Language",
+                    "en-US,en;q=0.9"
+                  ],
+                  [
+                    "Accept-Encoding",
+                    "gzip, deflate, br, zstd"
+                  ],
+                  [
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
+                    "1"
+                  ],
+                  [
+                    "Sec-Fetch-Dest",
+                    "document"
+                  ],
+                  [
+                    "Sec-Fetch-Mode",
+                    "navigate"
+                  ],
+                  [
+                    "Sec-Fetch-Site",
+                    "none"
+                  ],
+                  [
+                    "Sec-Fetch-User",
+                    "?1"
+                  ],
+                  [
+                    "Priority",
+                    "u=0, i"
+                  ]
+                ]
+              }
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "62243de5fa7ed714738e7034e1231c3fce0277d4c7b0cdec992e84f73f257243"
+            }
+          }
+        }
+      ]
+    },
+    "161": {
+      "sha256": "b3c2992292efc4a2f7ab6abe2de0ba6e15a482d41813e469c255a2528cacf10a",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/161.0/linux-aarch64/en-US/firefox-161.0.tar.xz",
+      "manifest_sha256": "803a78b7c8f18d179d40e2b9dec1eeaafc3bb12059c7da61c7aa6b91bdc9f1fd",
+      "manifest_url": "https://archive.mozilla.org/pub/firefox/releases/161.0/SHA256SUMS",
+      "signer": "827E658608679618CD349F93678E455D76767AA3",
+      "signing_primary": "14F26682D0916CDD81E37B6D61B7B526D98F0353",
+      "source_tag": "FIREFOX_161_0_RELEASE",
+      "source_commit": "9c70d5d48c866afc2e581d6b7ff6de98a1371d99",
+      "source_archive": "https://archive.mozilla.org/pub/firefox/releases/161.0/source/firefox-161.0.source.tar.xz",
+      "source_archive_sha256": "c649de11e4dc6266bc905ce4b33eb8672a1947c2e210ec53dce285cb86296a5a",
+      "version": "161.0",
+      "build_id": "20261118180411",
+      "executable_sha256": "be997d591b837dfff9f3581bf5e842f1dbfc4c52c084c4a76204ca386ccf9016",
+      "executable_slices": [
+        "aarch64"
+      ],
+      "runtime_host": {
+        "machine": "aarch64",
+        "os_release": "7.0.0-1020-azure",
+        "os_version": "#21~24.04.2-Ubuntu SMP PREEMPT Tue Nov 10 01:19:17 UTC 2026",
+        "distribution": "Ubuntu 24.04.5 LTS"
+      },
+      "source_stamp": "b00bde68873aedb80bea5c3ff8eba8344b50d3b4",
+      "archive_locale": "en-US",
+      "executable_relative": "firefox/firefox",
+      "packaged_executables": {
+        "firefox": "be997d591b837dfff9f3581bf5e842f1dbfc4c52c084c4a76204ca386ccf9016",
+        "firefox-bin": "c5ed75e5b8945a9a855145889bea16f8a8e82e7a3bd94092822d481ea4078fa1"
+      },
+      "acquired_unix": 1795673701,
+      "samples": [
+        {
+          "h1": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "http/1.1",
+            "port": 46695,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "request_line": "GET /profile-wire HTTP/1.1",
+            "headers": [
+              [
+                "Host",
+                "localhost:46695"
+              ],
+              [
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+              ],
+              [
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "Accept-Language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "Accept-Encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "Connection",
+                "keep-alive"
+              ],
+              [
+                "Upgrade-Insecure-Requests",
+                "1"
+              ],
+              [
+                "Sec-Fetch-Dest",
+                "document"
+              ],
+              [
+                "Sec-Fetch-Mode",
+                "navigate"
+              ],
+              [
+                "Sec-Fetch-Site",
+                "none"
+              ],
+              [
+                "Sec-Fetch-User",
+                "?1"
+              ],
+              [
+                "Priority",
+                "u=0, i"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "c5ed75e5b8945a9a855145889bea16f8a8e82e7a3bd94092822d481ea4078fa1"
+            }
+          },
+          "h2": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "h2",
+            "port": 35661,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                4,
+                131072
+              ],
+              [
+                5,
+                16384
+              ]
+            ],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                ":authority",
+                "localhost:35661"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+              ],
+              [
+                "accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "upgrade-insecure-requests",
+                "1"
+              ],
+              [
+                "sec-fetch-dest",
+                "document"
+              ],
+              [
+                "sec-fetch-mode",
+                "navigate"
+              ],
+              [
+                "sec-fetch-site",
+                "none"
+              ],
+              [
+                "sec-fetch-user",
+                "?1"
+              ],
+              [
+                "priority",
+                "u=0, i"
+              ],
+              [
+                "te",
+                "trailers"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "c5ed75e5b8945a9a855145889bea16f8a8e82e7a3bd94092822d481ea4078fa1"
+            }
+          },
+          "h3": {
+            "port": 33343,
+            "mode": "same-origin-fetch",
+            "protocol": "h3",
+            "quic_version": 1798521807,
+            "initial": {
+              "version": 1,
+              "udp_payload_bytes": 1252,
+              "packet_bytes": 993,
+              "dcid_length": 9,
+              "scid_length": 3,
+              "token_length": 0,
+              "packet_number_length": 1,
+              "transport_parameter_ids": [
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                11,
+                14,
+                15,
+                17,
+                29,
+                4278378010,
+                32
+              ],
+              "version_information": {
+                "chosen": 1,
+                "available": [
+                  3130673722,
+                  1798521807,
+                  1
+                ]
+              }
+            },
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 0,
+              "ciphers": [
+                4865,
+                4867,
+                4866
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                45,
+                23,
+                5,
+                65281,
+                27,
+                10,
+                13,
+                28,
+                43,
+                0,
+                16,
+                51,
+                34,
+                57,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                515,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                513
+              ],
+              "cert_compression": [
+                1,
+                3,
+                2
+              ],
+              "supported_versions": [
+                772
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h3"
+              ],
+              "ec_point_formats": [],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                7,
+                20
+              ],
+              [
+                727725890,
+                0
+              ],
+              [
+                16765559,
+                1
+              ],
+              [
+                51,
+                1
+              ],
+              [
+                8,
+                1
+              ]
+            ],
+            "grease_settings": [],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                ":authority",
+                "localhost:33343"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+              ],
+              [
+                "accept",
+                "*/*"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "referer",
+                "https://localhost:33343/boot"
+              ],
+              [
+                "alt-used",
+                "localhost:33343"
+              ],
+              [
+                "sec-fetch-dest",
+                "empty"
+              ],
+              [
+                "sec-fetch-mode",
+                "cors"
+              ],
+              [
+                "sec-fetch-site",
+                "same-origin"
+              ],
+              [
+                "priority",
+                "u=4"
+              ]
+            ],
+            "transport_parameters": {
+              "active_connection_id_limit": 8,
+              "disable_active_migration": false,
+              "initial_max_data": 25165824,
+              "initial_max_stream_data_bidi_local": 12582912,
+              "initial_max_stream_data_bidi_remote": 1048576,
+              "initial_max_stream_data_uni": 1048576,
+              "initial_max_streams_bidi": 100,
+              "initial_max_streams_uni": 100,
+              "max_ack_delay": 20,
+              "max_datagram_frame_size": 65535,
+              "max_idle_timeout": 30000
+            },
+            "bootstrap_protocol": "h1",
+            "bootstrap": [
+              {
+                "hello": {
+                  "legacy_version": 771,
+                  "session_id_length": 32,
+                  "ciphers": [
+                    4865,
+                    4867,
+                    4866,
+                    49195,
+                    49199,
+                    52393,
+                    52392,
+                    49196,
+                    49200,
+                    49171,
+                    49172,
+                    156,
+                    157,
+                    47,
+                    53
+                  ],
+                  "compression_methods": [
+                    0
+                  ],
+                  "extensions": [
+                    0,
+                    23,
+                    65281,
+                    10,
+                    11,
+                    35,
+                    16,
+                    5,
+                    34,
+                    18,
+                    51,
+                    43,
+                    13,
+                    45,
+                    28,
+                    27,
+                    65037
+                  ],
+                  "groups": [
+                    4588,
+                    29,
+                    23,
+                    24,
+                    25
+                  ],
+                  "signatures": [
+                    1027,
+                    1283,
+                    1539,
+                    2052,
+                    2053,
+                    2054,
+                    1025,
+                    1281,
+                    1537,
+                    515,
+                    513
+                  ],
+                  "cert_compression": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "supported_versions": [
+                    772,
+                    771
+                  ],
+                  "key_share_groups": [
+                    4588,
+                    29,
+                    23
+                  ],
+                  "offered_alpn": [
+                    "h2",
+                    "http/1.1"
+                  ],
+                  "ec_point_formats": [
+                    0
+                  ],
+                  "psk_key_exchange_modes": [
+                    1
+                  ],
+                  "server_names": [
+                    [
+                      0,
+                      "localhost"
+                    ]
+                  ]
+                },
+                "client_hello_count": 1,
+                "protocol": "http/1.1",
+                "port": 33343,
+                "mode": "navigation",
+                "negotiated_tls": {
+                  "version": "TLSv1.3",
+                  "cipher": "TLS_AES_256_GCM_SHA384"
+                },
+                "request_line": "GET /boot HTTP/1.1",
+                "headers": [
+                  [
+                    "Host",
+                    "localhost:33343"
+                  ],
+                  [
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+                  ],
+                  [
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                  ],
+                  [
+                    "Accept-Language",
+                    "en-US,en;q=0.9"
+                  ],
+                  [
+                    "Accept-Encoding",
+                    "gzip, deflate, br, zstd"
+                  ],
+                  [
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
+                    "1"
+                  ],
+                  [
+                    "Sec-Fetch-Dest",
+                    "document"
+                  ],
+                  [
+                    "Sec-Fetch-Mode",
+                    "navigate"
+                  ],
+                  [
+                    "Sec-Fetch-Site",
+                    "none"
+                  ],
+                  [
+                    "Sec-Fetch-User",
+                    "?1"
+                  ],
+                  [
+                    "Priority",
+                    "u=0, i"
+                  ]
+                ]
+              }
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "c5ed75e5b8945a9a855145889bea16f8a8e82e7a3bd94092822d481ea4078fa1"
+            }
+          }
+        },
+        {
+          "h1": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "http/1.1",
+            "port": 39405,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "request_line": "GET /profile-wire HTTP/1.1",
+            "headers": [
+              [
+                "Host",
+                "localhost:39405"
+              ],
+              [
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+              ],
+              [
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "Accept-Language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "Accept-Encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "Connection",
+                "keep-alive"
+              ],
+              [
+                "Upgrade-Insecure-Requests",
+                "1"
+              ],
+              [
+                "Sec-Fetch-Dest",
+                "document"
+              ],
+              [
+                "Sec-Fetch-Mode",
+                "navigate"
+              ],
+              [
+                "Sec-Fetch-Site",
+                "none"
+              ],
+              [
+                "Sec-Fetch-User",
+                "?1"
+              ],
+              [
+                "Priority",
+                "u=0, i"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "c5ed75e5b8945a9a855145889bea16f8a8e82e7a3bd94092822d481ea4078fa1"
+            }
+          },
+          "h2": {
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 32,
+              "ciphers": [
+                4865,
+                4867,
+                4866,
+                49195,
+                49199,
+                52393,
+                52392,
+                49196,
+                49200,
+                49171,
+                49172,
+                156,
+                157,
+                47,
+                53
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                23,
+                65281,
+                10,
+                11,
+                35,
+                16,
+                5,
+                34,
+                18,
+                51,
+                43,
+                13,
+                45,
+                28,
+                27,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                515,
+                513
+              ],
+              "cert_compression": [
+                1,
+                2,
+                3
+              ],
+              "supported_versions": [
+                772,
+                771
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h2",
+                "http/1.1"
+              ],
+              "ec_point_formats": [
+                0
+              ],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "client_hello_count": 1,
+            "protocol": "h2",
+            "port": 44981,
+            "mode": "navigation",
+            "negotiated_tls": {
+              "version": "TLSv1.3",
+              "cipher": "TLS_AES_256_GCM_SHA384"
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                4,
+                131072
+              ],
+              [
+                5,
+                16384
+              ]
+            ],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                ":authority",
+                "localhost:44981"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+              ],
+              [
+                "accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "upgrade-insecure-requests",
+                "1"
+              ],
+              [
+                "sec-fetch-dest",
+                "document"
+              ],
+              [
+                "sec-fetch-mode",
+                "navigate"
+              ],
+              [
+                "sec-fetch-site",
+                "none"
+              ],
+              [
+                "sec-fetch-user",
+                "?1"
+              ],
+              [
+                "priority",
+                "u=0, i"
+              ],
+              [
+                "te",
+                "trailers"
+              ]
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "c5ed75e5b8945a9a855145889bea16f8a8e82e7a3bd94092822d481ea4078fa1"
+            }
+          },
+          "h3": {
+            "port": 38263,
+            "mode": "same-origin-fetch",
+            "protocol": "h3",
+            "quic_version": 1798521807,
+            "initial": {
+              "version": 1,
+              "udp_payload_bytes": 1252,
+              "packet_bytes": 992,
+              "dcid_length": 8,
+              "scid_length": 3,
+              "token_length": 0,
+              "packet_number_length": 1,
+              "transport_parameter_ids": [
+                1,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                11,
+                14,
+                15,
+                17,
+                29,
+                4278378010,
+                32
+              ],
+              "version_information": {
+                "chosen": 1,
+                "available": [
+                  1779043066,
+                  1798521807,
+                  1
+                ]
+              }
+            },
+            "hello": {
+              "legacy_version": 771,
+              "session_id_length": 0,
+              "ciphers": [
+                4865,
+                4867,
+                4866
+              ],
+              "compression_methods": [
+                0
+              ],
+              "extensions": [
+                0,
+                51,
+                28,
+                16,
+                65281,
+                10,
+                34,
+                43,
+                23,
+                45,
+                13,
+                5,
+                27,
+                57,
+                65037
+              ],
+              "groups": [
+                4588,
+                29,
+                23,
+                24,
+                25
+              ],
+              "signatures": [
+                1027,
+                1283,
+                1539,
+                515,
+                2052,
+                2053,
+                2054,
+                1025,
+                1281,
+                1537,
+                513
+              ],
+              "cert_compression": [
+                1,
+                3,
+                2
+              ],
+              "supported_versions": [
+                772
+              ],
+              "key_share_groups": [
+                4588,
+                29,
+                23
+              ],
+              "offered_alpn": [
+                "h3"
+              ],
+              "ec_point_formats": [],
+              "psk_key_exchange_modes": [
+                1
+              ],
+              "server_names": [
+                [
+                  0,
+                  "localhost"
+                ]
+              ]
+            },
+            "settings": [
+              [
+                1,
+                65536
+              ],
+              [
+                7,
+                20
+              ],
+              [
+                727725890,
+                0
+              ],
+              [
+                16765559,
+                1
+              ],
+              [
+                51,
+                1
+              ],
+              [
+                8,
+                1
+              ]
+            ],
+            "grease_settings": [],
+            "headers": [
+              [
+                ":method",
+                "GET"
+              ],
+              [
+                ":scheme",
+                "https"
+              ],
+              [
+                ":authority",
+                "localhost:38263"
+              ],
+              [
+                ":path",
+                "/profile-wire"
+              ],
+              [
+                "user-agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+              ],
+              [
+                "accept",
+                "*/*"
+              ],
+              [
+                "accept-language",
+                "en-US,en;q=0.9"
+              ],
+              [
+                "accept-encoding",
+                "gzip, deflate, br, zstd"
+              ],
+              [
+                "referer",
+                "https://localhost:38263/boot"
+              ],
+              [
+                "alt-used",
+                "localhost:38263"
+              ],
+              [
+                "sec-fetch-dest",
+                "empty"
+              ],
+              [
+                "sec-fetch-mode",
+                "cors"
+              ],
+              [
+                "sec-fetch-site",
+                "same-origin"
+              ],
+              [
+                "priority",
+                "u=4"
+              ]
+            ],
+            "transport_parameters": {
+              "active_connection_id_limit": 8,
+              "disable_active_migration": false,
+              "initial_max_data": 25165824,
+              "initial_max_stream_data_bidi_local": 12582912,
+              "initial_max_stream_data_bidi_remote": 1048576,
+              "initial_max_stream_data_uni": 1048576,
+              "initial_max_streams_bidi": 100,
+              "initial_max_streams_uni": 100,
+              "max_ack_delay": 20,
+              "max_datagram_frame_size": 65535,
+              "max_idle_timeout": 30000
+            },
+            "bootstrap_protocol": "h1",
+            "bootstrap": [
+              {
+                "hello": {
+                  "legacy_version": 771,
+                  "session_id_length": 32,
+                  "ciphers": [
+                    4865,
+                    4867,
+                    4866,
+                    49195,
+                    49199,
+                    52393,
+                    52392,
+                    49196,
+                    49200,
+                    49171,
+                    49172,
+                    156,
+                    157,
+                    47,
+                    53
+                  ],
+                  "compression_methods": [
+                    0
+                  ],
+                  "extensions": [
+                    0,
+                    23,
+                    65281,
+                    10,
+                    11,
+                    35,
+                    16,
+                    5,
+                    34,
+                    18,
+                    51,
+                    43,
+                    13,
+                    45,
+                    28,
+                    27,
+                    65037
+                  ],
+                  "groups": [
+                    4588,
+                    29,
+                    23,
+                    24,
+                    25
+                  ],
+                  "signatures": [
+                    1027,
+                    1283,
+                    1539,
+                    2052,
+                    2053,
+                    2054,
+                    1025,
+                    1281,
+                    1537,
+                    515,
+                    513
+                  ],
+                  "cert_compression": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "supported_versions": [
+                    772,
+                    771
+                  ],
+                  "key_share_groups": [
+                    4588,
+                    29,
+                    23
+                  ],
+                  "offered_alpn": [
+                    "h2",
+                    "http/1.1"
+                  ],
+                  "ec_point_formats": [
+                    0
+                  ],
+                  "psk_key_exchange_modes": [
+                    1
+                  ],
+                  "server_names": [
+                    [
+                      0,
+                      "localhost"
+                    ]
+                  ]
+                },
+                "client_hello_count": 1,
+                "protocol": "http/1.1",
+                "port": 38263,
+                "mode": "navigation",
+                "negotiated_tls": {
+                  "version": "TLSv1.3",
+                  "cipher": "TLS_AES_256_GCM_SHA384"
+                },
+                "request_line": "GET /boot HTTP/1.1",
+                "headers": [
+                  [
+                    "Host",
+                    "localhost:38263"
+                  ],
+                  [
+                    "User-Agent",
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0"
+                  ],
+                  [
+                    "Accept",
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                  ],
+                  [
+                    "Accept-Language",
+                    "en-US,en;q=0.9"
+                  ],
+                  [
+                    "Accept-Encoding",
+                    "gzip, deflate, br, zstd"
+                  ],
+                  [
+                    "Connection",
+                    "keep-alive"
+                  ],
+                  [
+                    "Upgrade-Insecure-Requests",
+                    "1"
+                  ],
+                  [
+                    "Sec-Fetch-Dest",
+                    "document"
+                  ],
+                  [
+                    "Sec-Fetch-Mode",
+                    "navigate"
+                  ],
+                  [
+                    "Sec-Fetch-Site",
+                    "none"
+                  ],
+                  [
+                    "Sec-Fetch-User",
+                    "?1"
+                  ],
+                  [
+                    "Priority",
+                    "u=0, i"
+                  ]
+                ]
+              }
+            ],
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:161.0) Gecko/20100101 Firefox/161.0",
+            "process": {
+              "native": "aarch64",
+              "image": "firefox-bin",
+              "image_sha256": "c5ed75e5b8945a9a855145889bea16f8a8e82e7a3bd94092822d481ea4078fa1"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ci": {
+    "sha": "e7a89e45f883b541de3a6a86a4e4c263d7e76e7f",
+    "run_id": "45766794582",
+    "run_attempt": "1",
+    "imageos": "ubuntu24-arm64",
+    "imageversion": "20261122.193.1"
+  }
+}

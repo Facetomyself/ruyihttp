@@ -7,7 +7,7 @@
 import argparse
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 SCHEMA_VERSION = 1
 RELEASES = ("159", "160", "161")
@@ -79,7 +79,7 @@ OFFICIAL_DIAGNOSTICS = {"user_agent", "process"}
 OFFICIAL_BUILD = {
     "version", "manifest_sha256", "manifest_url", "signer", "signing_primary", "source_tag", "source_commit",
     "source_archive", "source_archive_sha256", "executable_sha256", "executable_slices", "runtime_host",
-    "source_stamp", "archive_locale", "executable_relative", "acquired_unix",
+    "source_stamp", "archive_locale", "executable_relative", "acquired_unix", "packaged_executables",
 }
 
 
@@ -160,8 +160,10 @@ def grease_settings(settings):
     return [[i, code, value] for i, (code, value) in enumerate(settings) if code >= 0x21 and (code - 0x21) % 0x1F == 0]
 
 
-def canonical_initial(initial):
+def canonical_initial(initial, *, previous_observer=False):
     counters = {"version", "udp_payload_bytes", "packet_bytes", "dcid_length", "scid_length", "token_length"}
+    if not previous_observer:
+        counters.add("packet_number_length")
     fields(initial, counters | {"transport_parameter_ids", "version_information"}, "h3.initial")
     require(all(uint(initial[name]) for name in counters) and initial["version"] != 0, "h3: malformed client Initial")
     require(initial["udp_payload_bytes"] >= 1200 and initial["packet_bytes"] <= initial["udp_payload_bytes"],
@@ -184,9 +186,15 @@ def canonical_initial(initial):
                                                    for v in advertised["available"]]}
     result = {**initial, "version_information": advertised,
               "transport_parameter_ids": ["GREASE" if p >= 27 and (p - 27) % 31 == 0 else p for p in ids]}
-    # Neqo ConnectionId::generate_initial randomly sizes the destination ID
-    # between 8 and 20 bytes. Its length is one-for-one in this packet size.
-    result["packet_bytes_without_dcid"] = result.pop("packet_bytes") - result.pop("dcid_length")
+    # Neqo sizes both the Initial DCID and the randomized starting PN. Their
+    # measured lengths account exactly for their contribution to packet size.
+    base = result.pop("packet_bytes") - result.pop("dcid_length")
+    if previous_observer:
+        result["packet_bytes_without_dcid"] = base
+    else:
+        pn_width = result.pop("packet_number_length")
+        require(pn_width in (1, 2), "h3: cold Neqo Initial PN width must be one or two bytes")
+        result["packet_bytes_without_dcid_and_pn"] = base - pn_width
     return result
 
 
@@ -201,11 +209,13 @@ def canonical_header(name, value, port):
     return name, value
 
 
-def stable_wire(wire, *, reference=False, legacy=False):
+def stable_wire(wire, *, reference=False, legacy=False, previous_observer=False):
     fields(wire, MODES.keys(), "wire")
     result = {}
     for protocol, case in wire.items():
         required = (LEGACY_CASE if legacy else CASE_FIELDS)[protocol] | {"protocol", "headers", "port", "mode"}
+        if protocol == "h3" and not (legacy or previous_observer):
+            required |= {"bootstrap_protocol"}
         fields(case, required | (OFFICIAL_DIAGNOSTICS if reference else set()), protocol)
         port = case["port"]
         require(uint(port, 65535) and 0 < port != 443, f"{protocol}: missing ephemeral listener port")
@@ -272,16 +282,24 @@ def stable_wire(wire, *, reference=False, legacy=False):
             require(all(type(v) is bool if k == "disable_active_migration" else uint(v) for k, v in tp.items()),
                     "h3: malformed selected QUIC parameter value")
             if not legacy:
-                current["initial"] = canonical_initial(case["initial"])
+                current["initial"] = canonical_initial(case["initial"], previous_observer=previous_observer)
                 bootstraps = case["bootstrap"]
-                require(isinstance(bootstraps, list) and len(bootstraps) == 1, "h3: required one verified H2 bootstrap")
+                require(isinstance(bootstraps, list) and len(bootstraps) == 1, "h3: required one verified TCP bootstrap")
                 boot, = bootstraps
-                fields(boot, CASE_FIELDS["h2"] | {"protocol", "headers", "port", "mode"}, "h3.bootstrap")
-                boot_headers = dict(pairs(boot["headers"], lambda k, v: isinstance(k, str) and isinstance(v, str), "h3.bootstrap.headers"))
-                require(boot["port"] == port and boot["protocol"] == "h2" and boot["mode"] == "navigation"
-                        and boot["negotiated_tls"]["version"] == "TLSv1.3"
-                        and [boot_headers.get(key) for key in (":method", ":scheme", ":authority", ":path", "sec-fetch-mode")]
-                        == ["GET", "https", f"localhost:{port}", BOOT, "navigate"], "h3: wrong route or request context for H2 bootstrap")
+                boot_proto = "h2" if previous_observer and boot["protocol"] == "h2" else "h1"
+                require(previous_observer or case["bootstrap_protocol"] == boot_proto, "h3: bootstrap protocol evidence mismatch")
+                fields(boot, CASE_FIELDS[boot_proto] | {"protocol", "headers", "port", "mode"}, "h3.bootstrap")
+                boot_headers = {k.lower(): v for k, v in pairs(boot["headers"], lambda k, v: isinstance(k, str) and isinstance(v, str),
+                                                               "h3.bootstrap.headers")}
+                authority = f"localhost:{port}"
+                if boot_proto == "h2":
+                    target = [boot_headers.get(key) for key in (":method", ":scheme", ":authority", ":path")] == ["GET", "https", authority, BOOT]
+                else:
+                    target = (boot["protocol"] in {None, "http/1.1"} and boot["request_line"] == f"GET {BOOT} HTTP/1.1"
+                              and boot_headers.get("host") == authority)
+                require(target and boot["port"] == port and boot["mode"] == "navigation" and boot["client_hello_count"] == 1
+                        and boot["negotiated_tls"]["version"] == "TLSv1.3" and boot_headers.get("sec-fetch-mode") == "navigate",
+                        f"h3: wrong route or request context for {boot_proto} bootstrap")
         result[protocol] = current
     return result
 
@@ -303,7 +321,15 @@ def diff(expected, observed, prefix=""):
 
 
 class Reference:
-    def __init__(self, samples, label):
+    def __init__(self, samples, label, *, previous_observer=False):
+        self.previous_observer = previous_observer
+        self.possible_packet_bases = None
+        if previous_observer:
+            # Pre-width receipts are provenance diagnostics only. Their raw
+            # size has one byte of uncertainty from Neqo's initial PN width.
+            measurements = [sample["h3"]["initial"]["packet_bytes_without_dcid"] for sample in samples]
+            self.possible_packet_bases = set.intersection(*({size - 1, size - 2} for size in measurements))
+            require(self.possible_packet_bases, f"{label}: old official Initial lengths exceed the known PN-width variation")
         self.permuted_tls = {proto for proto in MODES if len({tuple(sample[proto]["hello"]["extensions"]) for sample in samples}) > 1}
         self.moving_tls_grease = {
             proto for proto in self.permuted_tls
@@ -344,13 +370,19 @@ class Reference:
             h3 = dict(result["h3"])
             h3["settings_grease_count"] = len(h3.pop("settings_grease"))
             result["h3"] = h3
+        if self.possible_packet_bases is not None and "initial" in result["h3"]:
+            initial = dict(result["h3"]["initial"])
+            size = initial["packet_bytes_without_dcid"]
+            if self.possible_packet_bases & {size - 1, size - 2}:
+                initial["packet_bytes_without_dcid"] = {"compatible_envelopes_only": sorted(self.possible_packet_bases)}
+            result["h3"] = {**result["h3"], "initial": initial}
         return result
 
     def compare(self, wire, *, legacy=False):
-        return diff(self.stable, self.project(stable_wire(wire, legacy=legacy)))
+        return diff(self.stable, self.project(stable_wire(wire, legacy=legacy, previous_observer=self.previous_observer)))
 
 
-def load_reference(directory, slot):
+def load_reference(directory, slot, *, previous_observer=False):
     """Load and validate the complete exact-slot release matrix before capture."""
     require(slot in SLOTS, f"unknown native slot: {slot}")
     path = directory / f"{slot}.json"
@@ -358,7 +390,7 @@ def load_reference(directory, slot):
         ref = decode_json(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise WireError(f"invalid or missing official Firefox reference for {slot}: {path}: {exc}") from exc
-    return analyze_official(ref, slot, label=str(path))
+    return analyze_official(ref, slot, label=str(path), previous_observer=previous_observer)
 
 
 def pinned_build(slot, release):
@@ -376,7 +408,7 @@ def pinned_build(slot, release):
             "signer": SIGNER, "signing_primary": SIGNING_PRIMARY}
 
 
-def analyze_official(ref, slot, *, releases=RELEASES, label="official Firefox capture"):
+def analyze_official(ref, slot, *, releases=RELEASES, label="official Firefox capture", previous_observer=False):
     """Compile same-slot official raw samples; a subset is for diagnostics only."""
     require(slot in SLOTS and bool(releases) and set(releases) <= set(RELEASES), "unknown reference slot or release")
     fields(ref, {"schema_version", "slot", "platform", "arch", "source", "captures", "ci"}, label)
@@ -392,8 +424,17 @@ def analyze_official(ref, slot, *, releases=RELEASES, label="official Firefox ca
         fields(build, OFFICIAL_BUILD | {"build_id", "sha256", "url", "samples"}, label)
         for key, value in pinned_build(slot, release).items():
             require(build[key] == value, f"{label}: Mozilla pin mismatch for {key}: expected {value!r}")
-        require(isinstance(build["executable_sha256"], str) and re.fullmatch(r"[a-f0-9]{64}", build["executable_sha256"]),
-                f"{label}: invalid executable_sha256")
+        relative = PurePosixPath(build["executable_relative"])
+        images = build["packaged_executables"]
+        image_keys = {"firefox.exe"} if os_name == "win32" else {"firefox"}
+        if os_name == "linux":
+            image_keys.add("firefox-bin")
+        require(not relative.is_absolute() and ".." not in relative.parts and relative.name in image_keys,
+                f"{label}: invalid executable path metadata")
+        require(isinstance(images, dict) and images.keys() == image_keys
+                and all(isinstance(sha, str) and re.fullmatch(r"[a-f0-9]{64}", sha) for sha in images.values())
+                and build["executable_sha256"] == images[relative.name], f"{label}: invalid packaged executable hashes")
+        require(uint(build["acquired_unix"]) and build["acquired_unix"] > 0, f"{label}: missing archive acquisition time")
         require(isinstance(build["executable_slices"], list) and arch in build["executable_slices"]
                 and isinstance(build["runtime_host"], dict) and build["runtime_host"].get("machine", "").lower() == arch,
                 f"{label}: wrong executable or runtime architecture")
@@ -407,22 +448,27 @@ def analyze_official(ref, slot, *, releases=RELEASES, label="official Firefox ca
         verified = []
         for index, sample in enumerate(samples):
             try:
-                observed = stable_wire(sample, reference=True)
+                observed = stable_wire(sample, reference=True, previous_observer=previous_observer)
                 for proto, case in sample.items():
                     process = case["process"]
                     require(isinstance(process, dict) and process.get("native") == arch,
                             f"{proto}: wrong official browser process architecture")
                     if os_name == "darwin":
-                        require(process.get("launch_arch") == f"/usr/bin/arch -{arch}",
-                                f"{proto}: missing native CPU launch evidence")
+                        cputype = 0x0100000C if arch == "arm64" else 0x01000007
+                        require(process.get("launch_arch") == f"/usr/bin/arch -{arch}" and process.get("cpu_type") == cputype
+                                and type(process.get("cpu_subtype")) is int, f"{proto}: missing native CPU launch evidence")
                     elif os_name == "win32":
                         require(process.get("wow_machine") == 0 and process.get("host_machine") == 0x8664,
                                 f"{proto}: missing native Windows process evidence")
+                    else:
+                        image = process.get("image")
+                        require(image in images and process.get("image_sha256") == images[image],
+                                f"{proto}: official Linux process image does not match verified executable")
                     require(case["user_agent"].endswith(f" Firefox/{release}.0"), f"{proto}: official UA release mismatch")
                 verified.append(observed)
             except WireError as exc:
                 raise WireError(f"{label}: sample {index + 1}: {exc}") from exc
-        stable[release] = Reference(verified, label)
+        stable[release] = Reference(verified, label, previous_observer=previous_observer)
     return stable
 
 
@@ -444,11 +490,12 @@ def cli():
     parser.add_argument("receipt", type=Path)
     parser.add_argument("--references", type=Path, default=REFERENCE_DIR)
     parser.add_argument("--legacy", action="store_true", help="historical smoke log (H3 navigation, never admissible)")
+    parser.add_argument("--previous-observer", action="store_true", help="diagnose pre-PN-width same-context receipts (never admissible)")
     args = parser.parse_args()
     try:
-        expected = load_reference(args.references, args.slot)
+        expected = load_reference(args.references, args.slot, previous_observer=args.previous_observer)
         seen = set()
-        failed = args.legacy
+        failed = args.legacy or args.previous_observer
         for line in args.receipt.read_text(encoding="utf-8").splitlines():
             if args.legacy and not line.startswith("{"):
                 continue  # The legacy probe mixed JSON records with human output.

@@ -36,9 +36,8 @@ def wire(port=12345):
            "negotiated_tls": {"version": "TLSv1.3", "cipher": "TLS_AES_128_GCM_SHA256"}}
     h2 = {**tcp, "protocol": "h2", "hello": copy.deepcopy(hello),
           "headers": copy.deepcopy(h2h3), "settings": [[1, 65536], [2, 0], [4, 131072], [5, 16384]]}
-    bootstrap = copy.deepcopy(h2)
-    bootstrap["headers"][1][1] = "/boot"
-    bootstrap["headers"].append(["sec-fetch-mode", "navigate"])
+    bootstrap = {**tcp, "protocol": "http/1.1", "request_line": "GET /boot HTTP/1.1", "hello": copy.deepcopy(hello),
+                 "headers": [["Host", a], ["User-Agent", ua], ["Sec-Fetch-Mode", "navigate"]]}
     settings = [[51, 1], [1, 65536], [33, 5], [8, 1], [7, 20], [16765559, 1], [727725890, 0]]
     return {
         "h1": {**tcp, "protocol": "http/1.1", "request_line": "GET /profile-wire HTTP/1.1",
@@ -47,8 +46,8 @@ def wire(port=12345):
         "h3": {"port": port, "protocol": "h3", "mode": "same-origin-fetch", "headers": [*h2h3, ["accept", "*/*"],
                ["referer", f"https://{a}/boot"], ["alt-used", a], ["sec-fetch-dest", "empty"], ["sec-fetch-mode", "cors"],
                ["sec-fetch-site", "same-origin"]], "quic_version": 0x6B3343CF, "hello": copy.deepcopy(hello),
-               "settings": settings, "grease_settings": grease_settings(settings), "bootstrap": [bootstrap],
-               "initial": {"version": 0x6B3343CF, "udp_payload_bytes": 1357, "packet_bytes": 1357,
+               "settings": settings, "grease_settings": grease_settings(settings), "bootstrap": [bootstrap], "bootstrap_protocol": "h1",
+               "initial": {"version": 0x6B3343CF, "udp_payload_bytes": 1357, "packet_bytes": 995, "packet_number_length": 1,
                            "dcid_length": 8, "scid_length": 3, "token_length": 0, "transport_parameter_ids": [17, 14, 4],
                            "version_information": {"chosen": 0x6B3343CF, "available": [0x6B3343CF, 1]}},
                "transport_parameters": {"active_connection_id_limit": 8, "disable_active_migration": False,
@@ -65,7 +64,7 @@ def official(sample, release="159"):
             if row[0].lower() == "user-agent":
                 row[1] = row[1].replace("159", release)
                 case["user_agent"] = row[1]
-        case["process"] = {"native": "aarch64"}
+        case["process"] = {"native": "aarch64", "image": "firefox-bin", "image_sha256": "b" * 64}
     return sample
 
 
@@ -74,7 +73,9 @@ def reference():
     for release in ("159", "160", "161"):
         samples = [official(wire(12345), release), official(wire(43210), release)]
         meta = dict.fromkeys(GATE["OFFICIAL_BUILD"], "test-metadata")
-        meta.update(executable_slices=["aarch64"], runtime_host={"machine": "aarch64"}, executable_sha256="d" * 64)
+        meta.update(executable_slices=["aarch64"], runtime_host={"machine": "aarch64"}, executable_sha256="d" * 64,
+                    executable_relative="firefox/firefox", acquired_unix=1795467600,
+                    packaged_executables={"firefox": "d" * 64, "firefox-bin": "b" * 64})
         releases[release] = {**meta, **GATE["pinned_build"]("linux_aarch64", release), "samples": samples}
     return {"schema_version": 1, "source": "official-firefox", "slot": "linux_aarch64", "platform": "linux",
             "arch": "aarch64", "captures": releases, "ci": {}}
@@ -111,6 +112,13 @@ class WireComparisonTests(unittest.TestCase):
         self.observed["h3"]["transport_parameters"]["initial_max_stream_data_bidi_remote"] = 2097152
         self.assertWireMismatch("h3.transport_parameters.initial_max_stream_data_bidi_remote")
 
+    def test_legacy_generic_2m_1m_windows_are_not_desktop_24m_12m(self):
+        self.observed["h3"]["transport_parameters"].update(initial_max_data=2097152,
+                                                          initial_max_stream_data_bidi_local=1048576)
+        self.assertEqual(set(diff(self.expected, stable_wire(self.observed))), {
+            "h3.transport_parameters.initial_max_data", "h3.transport_parameters.initial_max_stream_data_bidi_local",
+        })
+
     def test_unexpected_quic_optional_parameter(self):
         self.observed["h3"]["transport_parameters"]["max_udp_payload_size"] = 1200
         self.assertWireMismatch("h3.transport_parameters.max_udp_payload_size")
@@ -136,7 +144,8 @@ class WireComparisonTests(unittest.TestCase):
 
     def test_authority_map_does_not_hide_missing_wrong_or_swap_values(self):
         for header, wrong in ((":authority", "127.0.0.1:54321"), ("alt-used", "localhost:54322"),
-                              ("referer", "https://localhost:54321/bad-path"), ("referer", "https://localhost:54322/boot")):
+                              (":authority", "localhost:<PORT>"), ("referer", "https://localhost:54321/bad-path"),
+                              ("referer", "https://localhost:54322/boot")):
             with self.subTest(header=header, wrong=wrong):
                 self.observed = wire(54321)
                 row = next(row for row in self.observed["h3"]["headers"] if row[0] == header)
@@ -186,6 +195,16 @@ class WireComparisonTests(unittest.TestCase):
         with self.assertRaisesRegex(WireError, "pre_shared_key must be last"):
             stable_wire(self.observed)
 
+    def test_initial_envelope_stays_exact_after_observed_dcid_and_pn_width(self):
+        initial = self.observed["h3"]["initial"]
+        initial.update(dcid_length=11, packet_number_length=2, packet_bytes=999)
+        self.assertEqual(diff(self.expected, stable_wire(self.observed)), {})
+        initial["packet_bytes"] += 1
+        self.assertWireMismatch("h3.initial.packet_bytes_without_dcid_and_pn")
+        initial["packet_number_length"] = 3
+        with self.assertRaisesRegex(WireError, "PN width"):
+            stable_wire(self.observed)
+
     def test_first_initial_version_and_advertised_order_are_separate(self):
         self.observed["h3"]["initial"]["version"] = 1
         self.assertWireMismatch("h3.initial.version")
@@ -217,6 +236,7 @@ class WireReferenceTests(unittest.TestCase):
                 ("Mozilla pin mismatch for url", lambda record: record["captures"]["161"].update(url=record["captures"]["160"]["url"])),
                 ("Mozilla pin mismatch for sha256", lambda record: record["captures"]["161"].update(sha256="1" * 64)),
                 ("Mozilla pin mismatch for build_id", lambda record: record["captures"]["161"].update(build_id="00000000000000")),
+                ("does not match verified executable", lambda record: record["captures"]["161"]["samples"][0]["h3"]["process"].update(image_sha256="a" * 64)),
                 ("default same-origin Fetch", lambda record: record["captures"]["161"]["samples"][0]["h3"]["headers"].append(["sec-fetch-user", "?1"])),
                 ("fewer than two real browser samples", lambda record: record["captures"]["159"].update(samples=[])),
             ):

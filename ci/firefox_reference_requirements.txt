@@ -1,0 +1,16 @@
+# CPython observer dependencies; browser artifacts are fetched separately from Mozilla.
+aioquic==1.3.0
+attrs==26.1.0
+certifi==2026.11.20
+cffi==2.1.1
+cryptography==46.0.3
+h2==4.3.0
+hpack==4.2.0
+hyperframe==6.1.0
+pyasn1==0.6.5
+pyasn1_modules==0.4.2
+pycparser==3.11
+pylsqpack==0.3.24
+pyOpenSSL==26.2.0
+service-identity==24.2.0
+typing_extensions==4.16.0
