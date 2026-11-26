@@ -1,38 +1,57 @@
 # RuyiHttp
 
-RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 HTTP 客户端。每个会话可以选择 Firefox 100–161 的网络配置（默认仍为 159），使用真实的 HTTP/1.1、HTTP/2 或 HTTP/3 传输，无需启动浏览器。项目维护 Python API、原生库、构建来源与安装后的协议验收；浏览器 DOM 和页面生命周期属于其他组件。
+RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 Python HTTP 客户端。它直接使用 HTTP/1.1、HTTP/2 或 HTTP/3，无需启动浏览器。会话可选择 Firefox 100–161 的网络配置，默认是 **159**。
 
-## 上游与本仓的关系
+**当前稳定版：[RuyiHttp v0.9.3](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.3)** · [五平台合集](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-release-bundle.zip) · [SHA-256 校验清单](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/SHA256SUMS) · [逐平台验收报告](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/qualification.json)
 
-本仓是 [PyPI `ruyihttp`](https://pypi.org/project/ruyihttp/) 的**独立维护分支**，起点是上游 [0.9.0 发行包](https://pypi.org/project/ruyihttp/0.9.0/)中的 Python 源码和 Windows x64 原生库。上游署名 **LoseNine**，PyPI 列出的项目仓库为 [charlesval/ruyiHttp](https://github.com/charlesval/ruyiHttp)（核对时公开访问返回 404，发行文件以 PyPI 为准）。[ff-ruyijs](https://github.com/cutetailbud/ff-ruyijs) 和 [Mozilla Firefox](https://github.com/mozilla-firefox/firefox) 是本仓 POSIX 原生组件的源码来源，与 Python 项目上游是两层关系。
-
-| | 上游 PyPI 发行 | 本仓 `Facetomyself/ruyihttp` |
-| --- | --- | --- |
-| 版本（2026-11-26 核对） | [0.11.0](https://pypi.org/project/ruyihttp/0.11.0/)，默认 Firefox 161，范围 100–161 | **0.9.3**，默认 Firefox 159，范围 100–161；独立版本线 |
-| 原生运行时（NSS / Neqo） | Windows：3.133 / 0.34.0 | 五平台均为 3.133 / 0.34.0；Windows 原样导入，Linux/macOS 从源码构建 |
-| 该版本的 wheel | PyPI 仅列 Windows x64 | Windows x64、Linux x86_64 / ARM64、macOS Intel / Apple Silicon；见[逐平台验收](docs/platform-support.md)与[Wheels 工作流](https://github.com/Facetomyself/ruyihttp/actions/workflows/wheels.yml) |
-
-**安装时请区分来源：** 两条线的包名和导入名都是 `ruyihttp`。从公共 PyPI 执行 `pip install -U ruyihttp` 会按平台解析**上游**发行包；要使用本仓，请在独立虚拟环境安装本仓 CI 的对应 wheel，或按下文从本仓源码安装。已发布的版本见 [GitHub Releases](https://github.com/Facetomyself/ruyihttp/releases)。这里的 `0.9.3` 并非上游 `0.11.0` 的五平台重打包。
-
-0.9.3 沿用 0.9.2 已核验的 118 张 Mozilla TLS 服务端受信根与公共后缀列表。`Session(firefox="160")`、`Session(firefox="161")` 可显式选择新配置，未指定时继续用 159。参见[上游差异与选择性同步记录](docs/upstream.md)和[与 Mozilla 实际浏览器的线路对照](docs/firefox-profile-wire.md)，其中区分已观测字段、兼容差异及未测范围。[传输策略与性能趋势](docs/performance.md)说明本仓的连接复用、H2 背压与 H3 数据接口。
-
-## 网络配置的验收含义
-
-`firefox="161"` 的基准是相同操作系统和 CPU 架构的 **Mozilla 官方 en-US Firefox 161.0**，不是宿主 CPU 名称，也不是 PyPI 包的版本号。对 159/160/161，各平台均有[签名浏览器在目标机上的原始采样](docs/firefox-reference-collection.md)及独立的 [HTTP/2 首次请求帧采样](docs/firefox-h2-preface.md)。H1/H2 对照顶层导航，H3 对照从同源文档发起的普通 `fetch`。完整 UA、有序头、TLS 协商结构、H2/H3 SETTINGS、QUIC 初始/协商版本与已列的传输参数等稳定字段是安装后 wheel 的失败门禁。
-
-Linux ARM64 继续加载 ARM64 `.so`；从 Firefox 123 起，桌面默认 UA 输出官方约简后的 `X11; Linux x86_64`。0.9.3 还调整了 POSIX QUIC 桥的真实选项，并保留 Windows 发布方原来的 DLL 和配置格式。100–158 是按版本源规则维护的历史配置，不能据此宣称所有历史版本、重连、页面上下文或任意站点都已逐字段实测；这里也不涉及 DOM、Canvas、WebGL 指纹。
+本仓是 [PyPI `ruyihttp`](https://pypi.org/project/ruyihttp/) 的独立维护分支。要安装**本仓版本**，请使用下方 GitHub Release 的 wheel；`pip install -U ruyihttp` 从公共 PyPI 解析的是上游发行包。
 
 ## 平台矩阵
 
-| 平台 | 状态 | 原生来源 Firefox / NSS / Neqo | wheel tag | 原生库 |
-| --- | --- | --- | --- | --- |
-| `win_amd64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-win_amd64` | `native/win_amd64/*.dll` |
-| `darwin_arm64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-macosx_26_0_arm64` | `native/darwin_arm64/*.dylib` |
-| `linux_x86_64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-manylinux_2_39_x86_64` | `native/linux_x86_64/*.so` |
-| `darwin_x86_64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-macosx_15_0_x86_64` | `native/darwin_x86_64/*.dylib` |
-| `linux_aarch64` | ready | 161.0 / 3.133 / 0.34.0 | `py3-none-manylinux_2_39_aarch64` | `native/linux_aarch64/*.so` |
+使用 **64 位 Python 3.10+**。每一行都是用同一份 wheel 在目标平台的 CPython 3.10 和 3.14 上实际安装、验证过的工件。
 
-Intel Mac 的最低系统版本为 macOS 15.0，Apple Silicon 为 macOS 26.0；两个 Linux wheel 均要求 glibc 2.39 或更高。各平台的编译、安装与实际网络测试分别记录在[平台验收说明](docs/platform-support.md)。
+| 系统 | CPU 架构 | 运行环境 | 下载 v0.9.3 wheel |
+| --- | --- | --- | --- |
+| Windows | x86_64（AMD64） | Windows x64 | [ruyihttp-0.9.3-py3-none-win_amd64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-win_amd64.whl#sha256=fdb87ca830156aa48e792ab850c1aef307f3af74e7658a87c5ec278dc2e85dbf) |
+| Linux | x86_64 | glibc 2.39+ | [ruyihttp-0.9.3-py3-none-manylinux_2_39_x86_64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-manylinux_2_39_x86_64.whl#sha256=056729152736a3de16786cf466c290068c257a8e3771206db78314e468188b5b) |
+| Linux | ARM64（AArch64） | glibc 2.39+ | [ruyihttp-0.9.3-py3-none-manylinux_2_39_aarch64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-manylinux_2_39_aarch64.whl#sha256=e0c7bdd60435f5f88619630428f6aa972b6c30a1d56baaa1ee7326861c5ed946) |
+| macOS | Intel x86_64 | macOS 15.0+ | [ruyihttp-0.9.3-py3-none-macosx_15_0_x86_64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-macosx_15_0_x86_64.whl#sha256=74ef2cec8f1e54d0f039973a3fb7acb10093cc6fa17a38df909709421c81ab99) |
+| macOS | Apple Silicon arm64 | macOS 26.0+ | [ruyihttp-0.9.3-py3-none-macosx_26_0_arm64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-macosx_26_0_arm64.whl#sha256=d107f8c871ed52fc610b4434673a8df7e4b11242216e09c5ae2e94dfebf8ab6c) |
+
+### 快速安装
+
+先用 `python -m venv .venv` 创建虚拟环境。Windows PowerShell 执行 `.\.venv\Scripts\Activate.ps1` 激活，macOS/Linux 执行 `source .venv/bin/activate`。复制上表中适合本机的 wheel 链接交给 pip；链接附带 `#sha256=`，pip 会核对下载内容。以下为 **Windows x64** 示例：
+
+```sh
+python -m pip install --upgrade "https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-win_amd64.whl#sha256=fdb87ca830156aa48e792ab850c1aef307f3af74e7658a87c5ec278dc2e85dbf"
+python -m pip check
+python -c "import ruyihttp as r; print(r.__version__, r.DEFAULT_FIREFOX)"
+```
+
+最后一行预期输出 `0.9.3 159`。已经下载 wheel 的用户也可将 URL 换成本地文件路径。需要离线转存全部五个平台的工件时，下载[合集](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-release-bundle.zip)；解压目录内含校验清单、安装说明和验收记录。
+
+### 发起请求
+
+```python
+import ruyihttp
+
+with ruyihttp.Session(firefox="161") as session:
+    response = session.get("https://example.com/", timeout=10)
+    response.raise_for_status()
+    print(response.status_code, response.tls["alpn"])
+```
+
+## 上游与本仓的关系
+
+本仓从 LoseNine 发布的[上游 0.9.0](https://pypi.org/project/ruyihttp/0.9.0/) 的 Python 源码和 Windows 原生库起步。PyPI 元数据列出的项目仓库是 [charlesval/ruyiHttp](https://github.com/charlesval/ruyiHttp)；发行文件以 PyPI 版本页为准。当前分支选择性跟进[上游 0.11.0](https://pypi.org/project/ruyihttp/0.11.0/#files)，两个项目沿用相同的包名和导入名，但版本线独立。
+
+上游 0.11.0 默认选择 Firefox 161，PyPI 仅提供 Windows x64 wheel。本仓 v0.9.3 默认仍为 Firefox 159，覆盖上表五个目标。五个平台的原生运行时均为 NSS 3.133 / NSPR 4.40 / Neqo 0.34.0：Windows 原样导入上游六个 DLL，Linux 和 macOS 则使用固定的 [ff-ruyijs](https://github.com/cutetailbud/ff-ruyijs) 与 [Mozilla Firefox](https://github.com/mozilla-firefox/firefox) 源码在目标架构上构建。本版沿用 0.9.2 核验的 118 张 Mozilla TLS 服务端受信根和公共后缀列表。参见[上游差异](docs/upstream.md)、[构建来源](docs/build-native.md)和[更新日志](CHANGELOG.md)。
+
+## 网络配置的验收含义
+
+本版对照的是相同系统和 CPU 架构上的 **Mozilla 官方 en-US Firefox 159.0、160.0 和 161.0**。H1/H2 验证顶层导航，H3 验证同源文档发起的普通 `fetch`。完整 UA、有序请求头、TLS ClientHello 的稳定字段、H2 首帧和优先级、H3 SETTINGS、QUIC 初始与协商版本及选定传输参数都进入发布门禁。[五平台安装验收](https://github.com/Facetomyself/ruyihttp/actions/runs/45776283862)还覆盖从 0.9.0 基线、本仓 0.9.1 和 [v0.9.2 Release](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.2) 的正常升级。
+
+Linux ARM64 始终加载 ARM64 原生库；从 Firefox 123 配置起，对外发送官方约简后的 UA `X11; Linux x86_64`。100–158 的历史配置按版本源码规则维护，五平台实机对照的结论限于前述三个版本和请求场景。见[线路对照与边界](docs/firefox-profile-wire.md)、[签名浏览器采样](docs/firefox-reference-collection.md)和[H2 首帧证据](docs/firefox-h2-preface.md)。
 
 ## 目录
 
@@ -50,43 +69,24 @@ docs/                      平台支持、构建、传输策略和许可说明
 
 ## 安装与构建
 
-运行时用隔离解释器，避免和系统 Python 的 `requests`/`cryptography` 版本互相污染：
+日常使用优先安装 [Release wheel](#平台矩阵)。开发者可在本仓源码目录、已激活的虚拟环境中运行：
 
-```powershell
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install .
+```sh
+python -m pip install .
+python -m pip wheel --no-deps -w dist .
 ```
 
-macOS/Linux 把 `.venv\Scripts\python.exe` 换成 `.venv/bin/python`。
-
-`pip install -e .` 不会把 `native/<platform>/` 拷进包目录；要可编辑安装，请设置
-`NECKO_CORE_LIBRARY` 和 `NECKO_QUIC_LIBRARY` 指向对应平台的库。
-
-构建 wheel：
-
-```powershell
-python -m pip wheel --no-build-isolation --no-deps -w dist .
-```
-
-在 Windows 上会产出 `py3-none-win_amd64`；macOS arm64 产出
-`py3-none-macosx_26_0_arm64`；Ubuntu 24.04 产出
-`py3-none-manylinux_2_39_x86_64`。`setup.py` 会按平台把
-`native/<platform>/` 的库拷进包内。
-
-`RUYIHTTP_PLATFORM` 可以在单台主机上将已验收的二进制装进其他平台的 wheel；这不是跨操作系统编译或在目标机执行。原生源码重编与安装验收见[构建说明](docs/build-native.md)。
+`pip wheel` 会把目标平台已验收的原生库封装进 wheel。`RUYIHTTP_PLATFORM` 可用于在一台主机上打包另一平台的已有二进制；这与重新编译原生库、在目标机上运行验收是三件事。使用 `pip install -e .` 时需设置 `NECKO_CORE_LIBRARY` 和 `NECKO_QUIC_LIBRARY` 指向该平台的库。详见[构建说明](docs/build-native.md)。
 
 ## 测试
 
-```powershell
+```sh
 python -m unittest discover -s tests -v
 python tools/build_native.py --check
 python tools/verify_runtime.py
 ```
 
-`tests/test_runtime.py` 覆盖平台文件名、profile 选择、NSS 版本矩阵、manifest、
-wheel 装配和 Windows/macOS/Linux 原生布局。真正发请求的 smoke 建议放在目标平台
-上跑，不要只依赖契约测试。
+上述命令检查源码契约、清单和原生导出。发行版另在目标机上安装 wheel，并用真实 TLS、H2、UDP/H3 对端验证行为；测试入口和版本记录见[平台说明](docs/platform-support.md)，回环性能的测量方法见[性能基准](docs/performance.md)。
 
 ## 运行时来源
 
