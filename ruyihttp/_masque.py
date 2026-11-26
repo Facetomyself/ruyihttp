@@ -53,6 +53,8 @@ _MAX_PENDING = 64
 _MAX_H3_BUFFER = 32768
 _MAX_H3_FIELDS = 16384
 _MAX_STREAMS = 32
+_MAX_PEER_CHAIN = 32
+_SSL_SERVER_PURPOSE = 2  # OpenSSL's X509_PURPOSE_SSL_SERVER.
 _DNS_SLOTS = threading.BoundedSemaphore(8)
 # aioquic logs peer-provided close reasons, which may echo request headers.
 # Use a detached logger for this transport; public errors use only local text/codes.
@@ -202,7 +204,9 @@ def _aioquic():
     # proxy route. They are qualified against aioquic 1.3.0, not a QUIC backend
     # substitution for direct or tunneled origin traffic.
     try:
+        import certifi
         import pylsqpack
+        from OpenSSL import crypto
         from aioquic.buffer import Buffer, BufferReadError
         from aioquic.h3 import connection as h3
         from aioquic.h3 import events as http
@@ -244,9 +248,9 @@ def _aioquic():
                 self.peer_udp_size = params.max_udp_payload_size
 
         def check_server_certificate_usage(self):
-            # aioquic's TLS verifier authenticates the name and chain, but its
-            # OpenSSL store context has no declared leaf purpose. Enforce any
-            # restrictions on the authenticated leaf before sending a request.
+            # aioquic 1.3 authenticates the name and chain, but its OpenSSL
+            # store does not set a verification purpose. Require a TLS 1.3
+            # signing leaf and verify the actual chain for SSL_SERVER as well.
             cert = self.tls._peer_certificate
             if cert is None:
                 raise SSLError("MASQUE proxy TLS did not authenticate a certificate")
@@ -264,6 +268,25 @@ def _aioquic():
             else:
                 if ExtendedKeyUsageOID.SERVER_AUTH not in usage:
                     raise SSLError("MASQUE proxy certificate disallows TLS server authentication")
+            chain = self.tls._peer_certificate_chain
+            if len(chain) > _MAX_PEER_CHAIN:
+                raise SSLError("MASQUE proxy certificate chain exceeds the local limit")
+            try:
+                store = crypto.X509Store()
+                # Exactly the same trust anchors as aioquic's verified TLS
+                # handshake. An explicit bundle replaces the certifi default.
+                store.load_locations(self.configuration.cafile or certifi.where())
+                if crypto._lib.X509_STORE_set_purpose(store._store, _SSL_SERVER_PURPOSE) != 1:
+                    raise SSLError("MASQUE proxy TLS server certificate purpose is unavailable")
+                context = crypto.X509StoreContext(
+                    store, crypto.X509.from_cryptography(cert),
+                    [crypto.X509.from_cryptography(intermediate) for intermediate in chain],
+                )
+                context.verify_certificate()
+            except (crypto.Error, crypto.X509StoreContextError, OSError, ValueError):
+                raise SSLError("MASQUE proxy certificate chain failed TLS server authentication") from None
+            except AttributeError:
+                raise SSLError("MASQUE proxy TLS server certificate purpose is unavailable") from None
 
         def start_probe(self, uid, size):
             # Each generation has its own private PING UID; it is not sent on wire.

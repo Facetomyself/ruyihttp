@@ -155,31 +155,46 @@ def test_mtu_search_ignores_stale_small_and_unrelated_pings():
         search.advance(now=20, pto=0.04)
 
 
-def _tls_files(directory, *, loopback, right_name=True, server_usage=True):
+def _tls_files(directory, *, loopback, right_name, server_usage, issuer_usage):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-    private = ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "fixed loopback MASQUE test peer")])
     now = datetime.now(timezone.utc)
-    cert = (
-        x509.CertificateBuilder().subject_name(name).issuer_name(name)
-        .public_key(private.public_key()).serial_number(x509.random_serial_number())
-        .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=1))
-        .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
-        .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address(
-            loopback if right_name else "127.0.0.2"))]), critical=False)
-        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH if server_usage
-                                             else ExtendedKeyUsageOID.CLIENT_AUTH]), critical=True)
-        .sign(private, hashes.SHA256())
-    )
-    certfile, keyfile = directory / "proxy.pem", directory / "proxy.key"
-    certfile.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+
+    def issue(label, path_len, *, parent=None, usage=None):
+        private = ec.generate_private_key(ec.SECP256R1())
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, label)])
+        issuer, signer = (name, private) if parent is None else (parent[0].subject, parent[1])
+        ca = path_len is not None
+        cert = (
+            x509.CertificateBuilder().subject_name(name).issuer_name(issuer)
+            .public_key(private.public_key()).serial_number(x509.random_serial_number())
+            .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=1))
+            .add_extension(x509.BasicConstraints(ca=ca, path_length=path_len), critical=True)
+            .add_extension(x509.SubjectKeyIdentifier.from_public_key(private.public_key()), critical=False)
+            .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(signer.public_key()), critical=False)
+            .add_extension(x509.KeyUsage(not ca, False, False, False, False, ca, ca, False, False), critical=True)
+        )
+        if usage is not None:
+            cert = cert.add_extension(x509.ExtendedKeyUsage([
+                ExtendedKeyUsageOID.SERVER_AUTH if usage else ExtendedKeyUsageOID.CLIENT_AUTH,
+            ]), critical=True)
+        if not ca:
+            cert = cert.add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address(
+                loopback if right_name else "127.0.0.2"))]), critical=False)
+        return cert.sign(signer, hashes.SHA256()), private
+
+    root = issue("fixed loopback MASQUE test CA", 1)
+    issuer = issue("fixed loopback MASQUE test issuer", 0, parent=root, usage=issuer_usage)
+    cert, private = issue("fixed loopback MASQUE test peer", None, parent=issuer, usage=server_usage)
+    cafile, certfile, keyfile = directory / "root.pem", directory / "proxy.pem", directory / "proxy.key"
+    cafile.write_bytes(root[0].public_bytes(serialization.Encoding.PEM))
+    certfile.write_bytes(cert.public_bytes(serialization.Encoding.PEM) + issuer[0].public_bytes(serialization.Encoding.PEM))
     keyfile.write_bytes(private.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
                                               serialization.NoEncryption()))
-    return certfile, keyfile
+    return cafile, certfile, keyfile
 
 
 def _wire_test(tmp_path, mode):
@@ -201,7 +216,10 @@ def _wire_test(tmp_path, mode):
                 probe.bind((loopback, 0))
         except OSError:
             pytest.skip("IPv6 UDP loopback is unavailable")
-    certfile, keyfile = _tls_files(tmp_path, loopback=loopback, right_name=mode != "name", server_usage=mode != "eku")
+    cafile, certfile, keyfile = _tls_files(
+        tmp_path, loopback=loopback, right_name=mode != "name", server_usage=mode != "eku",
+        issuer_usage=mode != "intermediate-eku",
+    )
     wire_ceiling = {"mtu-1330": 1330, "mtu-1300": 1300, "mtu-blackhole": 1297}.get(mode, 1400)
     advertised_ceiling = {"peer-udp": 1308, "peer-udp-small": 1297}.get(mode)
     config = QuicConfiguration(
@@ -306,7 +324,7 @@ def _wire_test(tmp_path, mode):
         port = server._transport.get_extra_info("sockname")[1]
         task = asyncio.create_task(asyncio.to_thread(
             open_tunnel, f"masque://unit:p%40ss@{authority_host}:{port}", "unresolved-target.invalid", 443,
-            proxy_verify=True if mode == "untrusted" else certfile, timeout=3, on_error=woke.set,
+            proxy_verify=True if mode == "untrusted" else cafile, timeout=3, on_error=woke.set,
         ))
         try:
             if mode == "interim":
@@ -321,6 +339,7 @@ def _wire_test(tmp_path, mode):
                 "small-datagram": (MasqueError, "1252-byte"),
                 "invalid-connect": (MasqueError, "0x109"), "name": (SSLError, "certificate"),
                 "untrusted": (SSLError, "certificate"), "eku": (SSLError, "server authentication"),
+                "intermediate-eku": (SSLError, "chain failed TLS server authentication"),
                 "alpn": (SSLError, "TLS handshake"), "cipher": (SSLError, "TLS handshake"),
                 "goaway": (MasqueError, "GOAWAY"),
                 "peer-udp-small": (MasqueError, "1252-byte"),
@@ -383,7 +402,8 @@ def _wire_test(tmp_path, mode):
 
 @pytest.mark.parametrize("mode", [
     "ok", "coalesced", "interim", "bad-capsule", "deny", "invalid-status", "forbidden-content",
-    "no-connect", "no-datagram", "small-datagram", "invalid-connect", "name", "untrusted", "eku", "alpn", "cipher",
+    "no-connect", "no-datagram", "small-datagram", "invalid-connect", "name", "untrusted", "eku",
+    "intermediate-eku", "alpn", "cipher",
     "goaway", "ipv6", "mtu-1330", "mtu-1300", "mtu-blackhole", "peer-udp", "peer-udp-small",
 ])
 def test_real_loopback_outer_h3(mode, tmp_path):
