@@ -87,3 +87,34 @@ fi
 if [[ $endpoint == 3.14 || $endpoint == all ]]; then
   qualify 3.14 "$cp314" /opt/cpython/bin/python3.14
 fi
+
+# The release job uploads these same bytes, not a second build. Bind both
+# endpoint receipts to the exact wheel still present in the upload directory.
+if [[ $endpoint == all && $mode != probe ]]; then
+  python3 -I - "$wheelhouse" "$evidence" "$slot" "$mode" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+wheelhouse, evidence, slot, mode = sys.argv[1:]
+(wheel,) = Path(wheelhouse).glob('*.whl')
+root = Path(evidence)
+sha = hashlib.sha256(wheel.read_bytes()).hexdigest()
+receipts = {}
+native = None
+for endpoint in ('3.10', '3.14'):
+    data = (root / endpoint / 'summary.json').read_bytes()
+    receipt = json.loads(data)
+    if (receipt['slot'] != slot or receipt['mode'] != mode or receipt['glibc'] != 'glibc 2.31'
+            or receipt['container']['endpoint'] != endpoint or receipt['wheel']['filename'] != wheel.name
+            or receipt['wheel']['sha256'] != sha or (mode == 'release' and receipt['masque_status'] != 'wire-passed')):
+        raise SystemExit('endpoint receipt differs from the exact wheel being uploaded')
+    if native is not None and native != receipt['native_sha256']:
+        raise SystemExit('endpoint native file hashes differ')
+    native = receipt['native_sha256']
+    receipts[endpoint] = hashlib.sha256(data).hexdigest()
+summary = {'slot': slot, 'mode': mode, 'filename': wheel.name, 'sha256': sha,
+           'glibc': '2.31', 'cpython_runtime_endpoints': list(receipts), 'endpoint_receipt_sha256': receipts,
+           'native_sha256': native}
+(root / 'both-endpoints.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+print(f'glibc 2.31 both-endpoint wheel SHA256: {sha}')
+PY
+fi
