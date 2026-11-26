@@ -67,7 +67,10 @@ class Session(RequestsSession):
             "Cookie" not in (request.headers or {}) and "Cookie" not in self.headers
         )
         _firefox.apply_headers(
-            prepared, self.context, self.document_url, self.user_activation,
+            prepared,
+            self.context,
+            self.document_url,
+            self.user_activation,
             self.firefox,
         )
         _firefox.apply_cookies(prepared, self.context, self.document_url)
@@ -83,61 +86,102 @@ class Session(RequestsSession):
         explicit = select_proxy(url, declared)
         if is_masque_proxy(explicit):
             target = urlsplit(url)
-            configured[f'{target.scheme}://{target.hostname}'] = explicit
+            configured[f"{target.scheme}://{target.hostname}"] = explicit
         if not is_masque_proxy(select_proxy(url, configured)):
-            return super().merge_environment_settings(url, declared, stream, verify, cert)
+            return super().merge_environment_settings(
+                url, declared, stream, verify, cert
+            )
         # In particular do not ask a platform PAC/bypass implementation to
         # resolve the origin before discarding its answer. Explicit trust wins.
         origin_verify = merge_setting(verify, self.verify)
         if self.trust_env and origin_verify is True:
-            origin_verify = os.environ.get('REQUESTS_CA_BUNDLE') or os.environ.get('CURL_CA_BUNDLE') or True
-        return {'proxies': configured, 'stream': merge_setting(stream, self.stream),
-                'verify': origin_verify, 'cert': merge_setting(cert, self.cert)}
+            origin_verify = (
+                os.environ.get("REQUESTS_CA_BUNDLE")
+                or os.environ.get("CURL_CA_BUNDLE")
+                or True
+            )
+        return {
+            "proxies": configured,
+            "stream": merge_setting(stream, self.stream),
+            "verify": origin_verify,
+            "cert": merge_setting(cert, self.cert),
+        }
+
+    def rebuild_method(self, prepared_request, response):
+        super().rebuild_method(prepared_request, response)
+        route = getattr(response, "_ruyi_masque_route", None)
+        if route is not None:
+            # This hook runs before Requests consults platform bypass/PAC.
+            # Mark even a downgrade that we will reject only if it is sent.
+            prepared_request._ruyi_masque_route = route
 
     def rebuild_proxies(self, prepared_request, proxies):
-        if is_masque_proxy(select_proxy(prepared_request.url, proxies or {})):
-            prepared_request.headers.pop('Proxy-Authorization', None)
-            return dict(proxies)
+        if getattr(
+            prepared_request, "_ruyi_masque_route", None
+        ) is not None or is_masque_proxy(
+            select_proxy(prepared_request.url, proxies or {})
+        ):
+            prepared_request.headers.pop("Proxy-Authorization", None)
+            return dict(proxies or {})
         return super().rebuild_proxies(prepared_request, proxies)
 
     def rebuild_auth(self, prepared_request, response):
         super().rebuild_auth(prepared_request, response)
         previous = response.request
-        route = getattr(response, '_ruyi_masque_route', None)
+        route = getattr(response, "_ruyi_masque_route", None)
         if route is not None:
             # Requests may prepare a next request even when allow_redirects=False.
             # Mark it now; enforce the same route only if/when it is sent.
             prepared_request._ruyi_masque_route = route
-            prepared_request.headers.pop('Proxy-Authorization', None)
+            prepared_request.headers.pop("Proxy-Authorization", None)
         prepared_request._firefox_explicit = getattr(
             previous, "_firefox_explicit", set()
         )
         prepared_request._firefox_cookie_header = True
         _firefox.apply_headers(
-            prepared_request, self.context, self.document_url, self.user_activation,
+            prepared_request,
+            self.context,
+            self.document_url,
+            self.user_activation,
             self.firefox,
         )
         _firefox.apply_cookies(prepared_request, self.context, self.document_url)
 
     def send(self, request, **kwargs):
-        if 'proxies' not in kwargs:
-            kwargs['proxies'] = (dict(self.proxies) if is_masque_proxy(select_proxy(request.url, self.proxies))
-                                 else resolve_proxies(request, self.proxies, self.trust_env))
-        selected = select_proxy(request.url, kwargs['proxies'] or {})
-        required = getattr(request, '_ruyi_masque_route', None)
+        required = getattr(request, "_ruyi_masque_route", None)
+        if "proxies" not in kwargs:
+            kwargs["proxies"] = (
+                dict(self.proxies)
+                if required is not None
+                or is_masque_proxy(select_proxy(request.url, self.proxies))
+                else resolve_proxies(request, self.proxies, self.trust_env)
+            )
+        selected = select_proxy(request.url, kwargs["proxies"] or {})
         masque = is_masque_proxy(selected)
-        proxy_verify = kwargs.pop('proxy_verify', getattr(self, 'proxy_verify', True))
-        template = kwargs.pop('masque_path_template', getattr(self, 'masque_path_template', None))
-        if required is not None and (not masque or urlsplit(request.url).scheme != 'https' or
-                                     masque_route_id(selected, proxy_verify, template) != required):
-            raise ProxyError('Redirect would leave the authenticated MASQUE route', request=request)
+        proxy_verify = kwargs.pop("proxy_verify", getattr(self, "proxy_verify", True))
+        template = kwargs.pop(
+            "masque_path_template", getattr(self, "masque_path_template", None)
+        )
+        if required is not None and (
+            not masque
+            or urlsplit(request.url).scheme != "https"
+            or masque_route_id(selected, proxy_verify, template) != required
+        ):
+            raise ProxyError(
+                "Redirect would leave the authenticated MASQUE route", request=request
+            )
         if masque:
             if not isinstance(self.get_adapter(request.url), HTTPAdapter):
-                raise ProxyError('Selected adapter does not implement MASQUE', request=request)
-            kwargs['proxy_verify'] = proxy_verify
-            kwargs['masque_path_template'] = template
+                raise ProxyError(
+                    "Selected adapter does not implement MASQUE", request=request
+                )
+            kwargs["proxy_verify"] = proxy_verify
+            kwargs["masque_path_template"] = template
         _firefox.apply_headers(
-            request, self.context, self.document_url, self.user_activation,
+            request,
+            self.context,
+            self.document_url,
+            self.user_activation,
             self.firefox,
         )
         _firefox.apply_cookies(request, self.context, self.document_url)

@@ -5,8 +5,14 @@
 from . import sessions
 
 
-def request(method, url, firefox=None, *, proxy_verify=True, masque_path_template=None, **kwargs):
-    with sessions.Session(firefox=firefox, proxy_verify=proxy_verify, masque_path_template=masque_path_template) as session:
+def request(
+    method, url, firefox=None, *, proxy_verify=True, masque_path_template=None, **kwargs
+):
+    with sessions.Session(
+        firefox=firefox,
+        proxy_verify=proxy_verify,
+        masque_path_template=masque_path_template,
+    ) as session:
         return session.request(method=method, url=url, **kwargs)
 
 

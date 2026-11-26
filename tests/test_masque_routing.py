@@ -136,6 +136,40 @@ class MasqueRouteTests(unittest.TestCase):
             self.assertEqual(dial.call_args.kwargs["masque_path_template"], tpl)
             self.assertEqual(dial.call_args.kwargs["proxy_verify"], "proxy-root.pem")
 
+    def test_manual_downgrade_redirect_skips_system_proxy_discovery(self):
+        proxy = "masque://relay.invalid"
+
+        def redirect(request, **_):
+            response = Response()
+            response.status_code, response._content = 302, b""
+            response.url, response.request = request.url, request
+            response.headers["Location"] = "http://off-route.invalid/nope"
+            response._ruyi_masque_route = masque_route_id(proxy)
+            return response
+
+        with (
+            Session() as s,
+            patch(
+                "requests.sessions.resolve_proxies",
+                side_effect=AssertionError("redirect called PAC"),
+            ),
+            patch(
+                "ruyihttp.sessions.resolve_proxies",
+                side_effect=AssertionError("manual send called PAC"),
+            ),
+            patch.object(HTTPAdapter, "send", side_effect=redirect) as outbound,
+        ):
+            response = s.get(
+                "https://origin.invalid/",
+                proxies={"https": proxy},
+                allow_redirects=False,
+            )
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.next.url, "http://off-route.invalid/nope")
+            with self.assertRaisesRegex(ProxyError, "leave"):
+                s.send(response.next)
+            self.assertEqual(outbound.call_count, 1)
+
     def test_unrelated_custom_adapter_does_not_receive_masque_keywords(self):
         class Custom(BaseAdapter):
             def send(
