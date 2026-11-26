@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "receipts": {
+    "linux_x86_64": {
+      "slot": "linux_x86_64",
+      "run_id": 45765150473,
+      "run_attempt": 1,
+      "run_head_sha": "fa15143ce1cc51b5a974c3db1b1fba8a36b0bc79",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45765150473",
+      "job_id": 139724194520,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45765150473/job/139724194520",
+      "artifact_id": 15091154455,
+      "artifact_digest": "sha256:8ba6c79bcbcee8ab821aeaa80bd5ffec6d85af03ee50edd25349ac8f9cc2392b",
+      "artifact_member_digest": "sha256:ec2394413c40687ea7b4765ed38ac0bb05de4ccfe82f7ec74445f8382639cb97",
+      "fixture_digest": "sha256:ec2394413c40687ea7b4765ed38ac0bb05de4ccfe82f7ec74445f8382639cb97"
+    },
+    "linux_aarch64": {
+      "slot": "linux_aarch64",
+      "run_id": 45765150473,
+      "run_attempt": 1,
+      "run_head_sha": "fa15143ce1cc51b5a974c3db1b1fba8a36b0bc79",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45765150473",
+      "job_id": 139724194560,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45765150473/job/139724194560",
+      "artifact_id": 15091835973,
+      "artifact_digest": "sha256:99769033eded5f9717d677216366740625c7fbdbb8ef922b78c20695ed232612",
+      "artifact_member_digest": "sha256:bd645638826b9b05c5668404de3383f5214d0d9369981006f2b30280f3f8d55e",
+      "fixture_digest": "sha256:bd645638826b9b05c5668404de3383f5214d0d9369981006f2b30280f3f8d55e"
+    },
+    "win_amd64": {
+      "slot": "win_amd64",
+      "run_id": 45765150473,
+      "run_attempt": 1,
+      "run_head_sha": "fa15143ce1cc51b5a974c3db1b1fba8a36b0bc79",
+      "run_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45765150473",
+      "job_id": 139724194636,
+      "job_url": "https://github.com/Facetomyself/ruyihttp/actions/runs/45765150473/job/139724194636",
+      "artifact_id": 15091253919,
+      "artifact_digest": "sha256:e79dcf3e9aae3312d4b2ed2a4c4840f7373f6252a355e9323fc5fbcdf66dea20",
+      "artifact_member_digest": "sha256:9d9ff8062fb503b3c50c440d0e623acc7a113f7be6184574f53270164311a831",
+      "fixture_digest": "sha256:755bffac2b105508d6b24da2a9967764264e08a6dbc1423b4b74e7051650cac7"
+    }
+  }
+}
