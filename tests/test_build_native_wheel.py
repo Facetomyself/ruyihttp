@@ -1,4 +1,5 @@
 """Verify wheel inventory guards without importing a reference runtime."""
+import json
 from pathlib import Path
 import stat
 import sys
@@ -51,6 +52,23 @@ class NativeWheelTests(unittest.TestCase):
         with patch.object(tool,'NATIVE',self.root/'new-native'),patch.object(tool,'MANIFEST',self.root/'manifest.json'):
             with self.assertRaisesRegex(ValueError,'x86_64 ELF shared library'):tool.import_wheel(self.wheel,arch)
         self.assertFalse((self.root/'new-native').exists());self.assertFalse((self.root/'manifest.json').exists())
+
+    def test_renaming_a_historical_wheel_does_not_change_its_floor(self):
+        slot, version = 'linux_x86_64', '0.9.4'
+        old_tag, new_tag = 'manylinux_2_39_x86_64', 'manylinux_2_31_x86_64'
+        self.wheel = self.root / f'ruyihttp-{version}-py3-none-{new_tag}.whl'
+        entry = {'wheel_platform_tag': old_tag}
+        provenance = {'wheel_platform_tag': old_tag}
+        self.wheel_with([(f'ruyihttp/{name}', ELF) for name in tool.PLATFORM_FILES[slot]] + [
+            (f'ruyihttp-{version}.dist-info/WHEEL', f'Root-Is-Purelib: false\nTag: py3-none-{old_tag}\n'),
+            ('ruyihttp/runtime-manifest.json', json.dumps({'version': version, 'platforms': {slot: entry}})),
+            ('ruyihttp/native-provenance.json', json.dumps(provenance)),
+        ])
+        with self.assertRaisesRegex(ValueError, 'lacks a measured candidate or admitted policy'):
+            tool.verify_linux_baseline_wheel(self.wheel, slot, entry, provenance)
+        with patch('linux_baseline.validate_policy_records', return_value={'candidate_tag': new_tag}):
+            with self.assertRaisesRegex(ValueError, 'internal tag differs'):
+                tool.verify_linux_baseline_wheel(self.wheel, slot, entry, provenance)
 
     def test_bad_central_directory_is_rejected_before_zipfile_allocation(self):
         self.wheel_with([('native/libwanted.so',ELF)])
