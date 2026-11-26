@@ -1,0 +1,97 @@
+diff --git a/tools/build_neqo_linux.py b/tools/build_neqo_linux.py
+--- a/tools/build_neqo_linux.py
++++ b/tools/build_neqo_linux.py
+@@ -124,7 +124,7 @@
+     write_if_changed(config, '[source.crates-io]\nreplace-with="firefox"\n[source.firefox]\ndirectory=' +
+         json.dumps(str(firefox / "third_party/rust")) + '\n')
+     records = build / "neqo-upstream.json"
+-    write_if_changed(records, json.dumps({"firefox": "160.0", "neqo": "0.33.0", "nss-rs": "0.16.1",
++    write_if_changed(records, json.dumps({"firefox": "161.0", "neqo": "0.34.0", "nss-rs": "0.16.2",
+         "sha256": inventory}, indent=2) + '\n')
+     sdk = root / "build/necko/source/dist"
+     if not sdk.exists():
+diff --git a/tools/build_necko_linux.py b/tools/build_necko_linux.py
+--- a/tools/build_necko_linux.py
++++ b/tools/build_necko_linux.py
+@@ -8,7 +8,7 @@
+   verified by SHA-256 and extracted unchanged except for the Linux patches
+   below, with src/resource_network/necko_oneshot.py as ruyijs_necko/oneshot.py
+   (tools/build.py installs the same file on Windows and macOS);
+-- NSS 3.132 and NSPR 4.40 built from the Firefox source tree;
++- NSS 3.133 and NSPR 4.40 built from the Firefox source tree;
+ - libnecko_core.so, the Linux implementation of the adapter's native ABI
+   (native/necko_posix/src), and with --http3 libnecko_quic.so
+   (tools/build_neqo_linux.py).
+@@ -177,16 +177,20 @@
+          *sorted((vendor / "src").glob("*.cpp")), *decoder, "-L" + str(target),
+          "-Wl,-rpath,$ORIGIN", "-Wl,-z,defs", "-lssl3", "-lnss3", "-lnssutil3", "-lnspr4",
+          "-o", target / "libnecko_core.so"])
+-    run([python, "-I", "-B", "-c", "from necko._transport import _load_library; "
+-         "n=_load_library(); print('NSS', n.necko_tls_nss_version().decode(), "
+-         "'NSPR', n.necko_tls_nspr_version().decode())"])
++    # Verify the linked C++ bridge directly. The donor's auxiliary Python
++    # package was frozen against a different native runtime and is not shipped.
++    run([python, "-I", "-B", "-c", "import ctypes as c, sys; n=c.CDLL(sys.argv[1]); "
++         "a=n.necko_tls_nss_version; b=n.necko_tls_nspr_version; "
++         "a.restype=b.restype=c.c_char_p; print('NSS', a(), 'NSPR', b()); "
++         "assert (a(), b()) == (b'3.133', b'4.40')", target / "libnecko_core.so"],
++         env=dict(env, LD_LIBRARY_PATH=str(target)))
+     if args.http3:
+         run([sys.executable, "-B", root / "tools/build_neqo_linux.py",
+              "--firefox-source", args.firefox_source, "--jobs", min(args.jobs, 4),
+              "--output", target])
+     http3 = (target / "libnecko_quic.so").is_file()
+     (runtime / "backend.json").write_text(json.dumps({"backend": "standalone-necko+nss",
+-        "nss": "3.132", "http": ["http/1.1", "h2"] + (["h3"] if http3 else []), "http3": http3,
++        "nss": "3.133", "http": ["http/1.1", "h2"] + (["h3"] if http3 else []), "http3": http3,
+         "python": sys.version.split()[0]}, indent=2) + "\n", encoding="utf-8")
+ 
+ 
+diff --git a/native/necko_posix/quic/Cargo.lock b/native/necko_posix/quic/Cargo.lock
+--- a/native/necko_posix/quic/Cargo.lock
++++ b/native/necko_posix/quic/Cargo.lock
+@@ -316,7 +316,7 @@
+ 
+ [[package]]
+ name = "neqo-common"
+-version = "0.33.0"
++version = "0.34.0"
+ dependencies = [
+  "enum-map",
+  "env_logger",
+@@ -330,7 +330,7 @@
+ 
+ [[package]]
+ name = "neqo-http3"
+-version = "0.33.0"
++version = "0.34.0"
+ dependencies = [
+  "enumset",
+  "http",
+@@ -349,7 +349,7 @@
+ 
+ [[package]]
+ name = "neqo-qpack"
+-version = "0.33.0"
++version = "0.34.0"
+ dependencies = [
+  "log",
+  "neqo-common",
+@@ -361,7 +361,7 @@
+ 
+ [[package]]
+ name = "neqo-transport"
+-version = "0.33.0"
++version = "0.34.0"
+ dependencies = [
+  "enum-map",
+  "enumset",
+@@ -392,7 +392,7 @@
+ 
+ [[package]]
+ name = "nss-rs"
+-version = "0.16.1"
++version = "0.16.2"
+ dependencies = [
+  "bindgen 0.72.999",
+  "derive_more",

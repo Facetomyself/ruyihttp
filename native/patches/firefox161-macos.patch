@@ -1,0 +1,135 @@
+diff --git a/tools/build_necko_quic.py b/tools/build_necko_quic.py
+--- a/tools/build_necko_quic.py
++++ b/tools/build_necko_quic.py
+@@ -1,4 +1,4 @@
+-"""Build libnecko_quic.dylib from the Firefox 160 Neqo 0.33.0 crates.
++"""Build libnecko_quic.dylib from the Firefox 161 Neqo 0.34.0 crates.
+ 
+ Cargo stays offline. Git dependencies inside the donor Neqo crates are
+ rewritten in a temporary overlay so resolution does not try to clone
+@@ -15,6 +15,8 @@
+ 
+ import os
+ import re
++import tomllib
++import json
+ import shutil
+ import subprocess
+ import sys
+@@ -135,14 +137,24 @@
+ 
+ 
+ def _patches(root: Path) -> str:
+-    text = (root / "native" / "necko_quic" / "Cargo.toml").read_text(encoding="utf-8")
+-    start = text.find("[patch.crates-io]")
+-    if start < 0:
+-        raise SystemExit("crate patch table is missing")
+-    end = text.find('\n[patch."', start + 1)
+-    section = text[start:] if end < 0 else text[start:end]
+-    firefox = firefox_source(root).resolve().as_posix()
+-    return section.replace("../../../firefox-159", firefox).rstrip() + "\n"
++    firefox = firefox_source(root).resolve()
++    patches = tomllib.loads((firefox / "Cargo.toml").read_text(encoding="utf-8"))["patch"]["crates-io"]
++    lines = ["[patch.crates-io]"]
++    for name, spec in patches.items():
++        # Resolve only in-tree overrides from the actual release. Remote patches
++        # are for the full Gecko workspace, not this offline standalone build.
++        if "path" not in spec:
++            continue
++        path = (firefox / spec["path"]).resolve(strict=True)
++        if not path.is_relative_to(firefox):
++            raise ValueError(f"crate lives outside Firefox: {name}")
++        fields = dict(spec, path=path.as_posix())
++        lines.append(f"{name} = {{" + ", ".join(f"{k} = {json.dumps(v)}" for k, v in fields.items()) + "}")
++    return "\n".join(lines) + "\n"
++
++
++def _neqo_version(donor_rust: Path) -> str:
++    return tomllib.loads((donor_rust / "neqo-transport/Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
+ 
+ 
+ def _strip_dev_dependencies(text: str) -> str:
+@@ -313,6 +325,7 @@
+     env["CARGO_TARGET_DIR"] = "/tmp/necko-quic-target"
+     env["NSS_DIR"] = str(nss_dir)
+     env["NSS_PREBUILT"] = "1"
++    env["RUYIJS_VENDORED_NEQO_VERSION"] = _neqo_version(donor_rust)
+     libclang = _libclang()
+     if libclang:
+         env["LIBCLANG_PATH"] = libclang
+@@ -689,6 +702,7 @@
+     env["CARGO_TARGET_DIR"] = "/tmp/necko-quic-target"
+     env["NSS_DIR"] = str(nss_dir)
+     env["NSS_PREBUILT"] = "1"
++    env["RUYIJS_VENDORED_NEQO_VERSION"] = _neqo_version(donor_rust)
+     libclang = _libclang()
+     if libclang:
+         env["LIBCLANG_PATH"] = libclang
+diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
+--- a/native/necko_quic/src/lib.rs
++++ b/native/necko_quic/src/lib.rs
+@@ -1,4 +1,4 @@
+-//! JSON bridge in front of the Firefox 160 Neqo 0.33.0 crates.
++//! JSON bridge in front of the Firefox 161 Neqo 0.34.0 crates.
+ //!
+ //! Python owns the UDP socket and certificate decision. This library does not
+ //! start a socket process and does not link neqo_glue. Profile numbers are
+@@ -32,7 +32,8 @@
+ use nss::cert::CertificateCompressor;
+ use serde_json::{Value, json};
+ 
+-const VERSION_OK: &str = "neqo-0.33.0/nss-3.132";
++const NEQO_VERSION: &str = env!("RUYIJS_VENDORED_NEQO_VERSION");
++const EXPECTED_NSS: &str = "3.133";
+ const COMMAND_LIMIT: usize = 0x200001;
+ const CANCEL_DEFAULT: AppError = 0x10c;
+ 
+@@ -69,14 +70,12 @@
+     }
+ }
+ 
+-fn version_label() -> &'static str {
+-    let ok = NSS_OK.with(|slot| *slot.borrow());
+-    if ok {
+-        VERSION_OK
+-    } else if nss_text().contains("3.132") {
+-        VERSION_OK
++fn version_label() -> String {
++    let nss = nss_text();
++    if nss == EXPECTED_NSS {
++        format!("neqo-{NEQO_VERSION}/nss-{nss}")
+     } else {
+-        "neqo-0.33.0/nss-mismatch"
++        format!("neqo-{NEQO_VERSION}/nss-mismatch")
+     }
+ }
+ 
+@@ -962,14 +961,14 @@
+         NSS_OK.with(|slot| *slot.borrow_mut() = false);
+         return 1;
+     }
+-    let ok = nss_text().contains("3.132");
++    let ok = nss_text() == EXPECTED_NSS;
+     NSS_OK.with(|slot| *slot.borrow_mut() = ok);
+     if ok { 0 } else { 1 }
+ }
+ 
+ #[unsafe(no_mangle)]
+ pub extern "C" fn necko_quic_version() -> *const c_char {
+-    store_reply(version_label().to_string())
++    store_reply(version_label())
+ }
+ 
+ #[unsafe(no_mangle)]
+diff --git a/tools/build.py b/tools/build.py
+--- a/tools/build.py
++++ b/tools/build.py
+@@ -116,7 +116,7 @@
+     command = [
+         "clang", "-dynamiclib", "-O2", "-Wall", "-Wextra", "-fvisibility=hidden",
+         "-DXP_DARWIN", "-DXP_UNIX", "-D__APPLE__",
+-        "-arch", "arm64",
++        "-arch", os.uname().machine,
+         "-I", str(include / "nss"),
+         "-I", str(include / "nspr"),
+         "-I", str(nspr_source),

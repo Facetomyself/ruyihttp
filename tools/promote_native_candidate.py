@@ -12,8 +12,9 @@ import json
 import re
 from pathlib import Path
 
-from build_native import (NATIVE, PLATFORM_FILES, ROOT, inspect_stable_wheel,
+from build_native import (NATIVE, PLATFORM_FILES, inspect_stable_wheel,
                           load_manifest, sha256, wheel_members, write_manifest)
+from posix_firefox161 import validate_candidate
 from stage_native_candidate import TARGETS
 
 
@@ -74,17 +75,28 @@ def promote(args):
         require(source_wheel['platform'] == slot and source_wheel['files'] == files,
                 'Replay differs from original native file inventory')
     require(entry['h3_tls'] == 'nss' and entry['h3_body_abi'] == 1, 'Required H3 capabilities missing')
-    expected_patches = ['h3-body-abi-v1.patch']
-    if slot.startswith('darwin_'):
-        expected_patches.insert(0, 'macos-necko-quic-tls-info.patch')
-        expected_patches.append('macos-h3-global-handles.patch')
-    require([p['path'] for p in provenance['source_patches']] ==
-            [f'native/patches/{name}' for name in expected_patches], 'Unexpected set of applied source patches')
-    for patch in provenance['source_patches']:
-        require(sha256(ROOT / patch['path']) == patch['sha256'], f'Patch bytes differ: {patch["path"]}')
+    validate_candidate(slot, entry, provenance)
+    source = read(evidence / 'source.json')
+    require(source['donor'].split()[0] == provenance['ff_ruyijs_commit'] and
+            source['donor_firefox_gitlink'] == provenance['ff_ruyijs_firefox_gitlink'] and
+            source['firefox'].split()[0] == provenance['firefox_source_commit'] and
+            source['firefox_release_tag'] == provenance['firefox_source_tag'] and
+            source['neqo_commit'] == provenance['neqo_source_commit'] and
+            source['nss_rs_commit'] == provenance['nss_rs_source_commit'], 'Unmatched source receipt')
+    lock = read(evidence / 'standalone-lock.json')
+    require(re.fullmatch(r'[0-9a-f]{64}', lock['sha256']) and
+            lock['packages'] == source['mozilla_cargo_lock']['packages'], 'Standalone vendor lock does not match Firefox sources')
+    if slot.startswith('linux_'):
+        require(provenance['highest_glibc_dynamic_requirement'] == entry['highest_glibc_dynamic_requirement'] and
+                'following platform tag:' in (evidence / 'auditwheel.txt').read_text(encoding='utf-8'),
+                'Missing Linux candidate policy evidence')
+    else:
+        require(provenance['macho_minimum_macos'] == entry['macho_minimum_macos'] and
+                provenance['minimum_macos'] == entry['minimum_macos'], 'Missing Mach-O deployment evidence')
     for endpoint in ('3.10', '3.14'):
-        for name, needle in {'native-transactions': 'H3 binary body ABI: 1', 'full-h3': 'Ran 6 tests',
-                             'test_h3_body_abi': 'h3 body binary-v1: bytes=1048579'}.items():
+        for name, needle in {'http1': '', 'native-transactions': 'H3 binary body ABI: 1', 'full-h3': 'Ran 6 tests',
+                             'test_h3_body_abi': 'h3 body binary-v1: bytes=1048579',
+                             'upgrade-0.9.0': 'PASS: in-place 0.9.0 -> '}.items():
             report = (evidence / endpoint / f'{name}.txt').read_text(encoding='utf-8')
             require(report.endswith('Exit status: 0\n') and needle in report,
                     f'Native qualification witness missing at CPython {endpoint}: {name}')
@@ -95,9 +107,6 @@ def promote(args):
                 require(re.search(r'test_native_body_argument_bounds_and_thread_owner[^\n]*\.\.\. ok', report),
                         f'H3 ABI owner-thread proof missing at CPython {endpoint}')
     manifest = load_manifest()
-    original = manifest['platforms'][slot]
-    require(all(original[key] == entry[key] for key in ('firefox', 'nss', 'nspr', 'neqo', 'h3_version_export')),
-            'Unexpected change to baseline runtime expectations')
     target = NATIVE / slot
     require(target.resolve(strict=True) == target and target.is_dir(), 'Unexpected promotion destination')
     for name in PLATFORM_FILES[slot]:
@@ -109,6 +118,7 @@ def promote(args):
         'source_build_run': repo_url + str(source_id), 'source_build_attempt': source_attempt,
         'source_build_commit': source_sha,
         'cpython_runtime_endpoints': ['3.10', '3.14'], 'tested_http': ['http/1.1', 'h2', 'h3'], 'h3_body_abi': 1,
+        'in_place_upgrade_from': '0.9.0',
     }
     for name, data in actual_files.items():
         (target / name).write_bytes(data)
