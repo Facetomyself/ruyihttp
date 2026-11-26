@@ -14,22 +14,28 @@ CI = Path(__file__).resolve().parent
 FORK_PIN = CI / "baselines/fork-0.9.2.json"
 UPSTREAM_PIN = CI.parent / "native/win_amd64/provenance.json"
 OLD_COMMIT = "656655d3cc6b2027eb0d8c148a855e97f817db53"
+PREVIOUS_COMMIT = "e8f8b02703239a18a75760d791c15936af632c40"
 UPSTREAM_SHA = "79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332"
 
 
 def asset_spec(line, slot):
-    if line == "fork-0.9.2":
-        pin = json.loads(FORK_PIN.read_text(encoding="utf-8"))
+    if line in ("fork-0.9.2", "fork-0.9.3"):
+        tag, commit, path = (
+            ("v0.9.2", OLD_COMMIT, FORK_PIN)
+            if line == "fork-0.9.2"
+            else ("v0.9.3", PREVIOUS_COMMIT, CI / "baselines/fork-0.9.3.json")
+        )
+        pin = json.loads(path.read_text(encoding="utf-8"))
         if (pin["repo"], pin["tag"], pin["commit"]) != (
             "Facetomyself/ruyihttp",
-            "v0.9.2",
-            OLD_COMMIT,
+            tag,
+            commit,
         ):
             raise ValueError("Unexpected previous fork release")
         item = pin["wheels"][slot]
         return dict(
             item,
-            url="https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.2/"
+            url=f"https://github.com/Facetomyself/ruyihttp/releases/download/{tag}/"
             + item["name"],
         )
     if line != "upstream-0.11.0" or slot != "win_amd64":
@@ -79,7 +85,7 @@ def fetch(line, slot, directory):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("line", choices=("fork-0.9.2", "upstream-0.11.0"))
+    ap.add_argument("line", choices=("fork-0.9.2", "fork-0.9.3", "upstream-0.11.0"))
     ap.add_argument("slot")
     ap.add_argument("directory", type=Path)
     args = ap.parse_args()

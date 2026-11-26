@@ -58,7 +58,7 @@ def main():
     def python(name, *args, **kwargs):
         run(name, [sys.executable, '-X', 'utf8', '-X', 'faulthandler', *map(str, args)], **kwargs)
 
-    python("install", "-m", "pip", "install", f"{wheel}[socks]", "aioquic==1.3.0", required=True)
+    python("install", "-m", "pip", "install", f"{wheel}[masque,socks]", "aioquic==1.3.0", "pytest>=8.4.2,<10", required=True)
     python("pip-check", "-m", "pip", "check")
     python("installed-identity", "-I", ROOT / "ci/verify_installed.py", slot, wheel)
     python("upstream-trust-data", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_upstream_trust_data.py", "-v")
@@ -81,6 +81,12 @@ def main():
             print(f'::error::Required native ABI wire tests are missing: {module}', flush=True)
             failed.append(module)
     python("proxy", ROOT / "ci/smoke_proxy_chain.py")
+    python('masque-controls', '-I', '-m', 'pytest', '-q', '--import-mode=importlib',
+           ROOT / 'tests/test_masque_codec.py', ROOT / 'tests/test_masque_transport.py', ROOT / 'tests/test_masque_routing.py')
+    python('masque-rfc9298', '-I', ROOT / 'ci/smoke_masque.py', '--json-output', evidence / 'masque-wire.json')
+    if env.get('RUYIHTTP_MASQUE_GO_FIXTURE'):
+        python('masque-go-interop', '-I', ROOT / 'ci/smoke_masque_go.py', env['RUYIHTTP_MASQUE_GO_FIXTURE'],
+               '--json-output', evidence / 'masque-go.json')
     python("h2-eof", ROOT / "ci/smoke_h2_close.py")
     bash = Path(os.environ['ProgramFiles']) / 'Git/bin/bash.exe' if os.name == 'nt' else 'bash'
     run("request-boundaries", [str(bash), str(ROOT / "ci/verify_request_boundaries.sh")])
@@ -91,6 +97,8 @@ def main():
     if env.get('RUYIHTTP_RELEASE_092_DIR'):
         env['RUYIHTTP_UPGRADE_WIRE_EVIDENCE'] = str(evidence)
         python('upgrade-release-0.9.2', '-I', ROOT / 'ci/upgrade_from_090.py', wheel, slot, '--from-fork-092')
+    if env.get('RUYIHTTP_RELEASE_093_DIR'):
+        python('upgrade-release-0.9.3', '-I', ROOT / 'ci/upgrade_from_090.py', wheel, slot, '--from-fork-093')
     if failed:
         raise SystemExit("Failed runtime gates: " + ", ".join(failed))
 

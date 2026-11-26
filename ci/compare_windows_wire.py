@@ -60,10 +60,9 @@ def main():
     if sys.platform != "win32" or platform.machine().lower() not in ("amd64", "x86_64"):
         ap.error("the upstream 0.11.0 Windows binary requires native Windows x64")
     candidate = args.candidate_wheel.resolve(strict=True)
-    if not candidate.name.startswith("ruyihttp-0.9.3-") or not candidate.name.endswith(
-        "-win_amd64.whl"
-    ):
-        ap.error("expected the fork 0.9.3 Windows release-format candidate")
+    expected = json.loads((CI.parent / "ruyihttp/runtime-manifest.json").read_text(encoding="utf-8"))["version"]
+    if candidate.name != f"ruyihttp-{expected}-py3-none-win_amd64.whl":
+        ap.error(f"expected the fork {expected} Windows release-format candidate")
     args.evidence = args.evidence.resolve()
     args.evidence.mkdir(exist_ok=True, parents=True)
     env = dict(

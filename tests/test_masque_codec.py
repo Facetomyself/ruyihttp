@@ -2,7 +2,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import pytest
+try:
+    import pytest
+except ModuleNotFoundError:
+    import unittest
+    raise unittest.SkipTest('MASQUE codec tests use pytest; wheel qualification installs it')
 
 from ruyihttp._masque_codec import (
     CapsuleDecoder, CapsuleError, connect_headers, parse_proxy, target_path, udp_payload,

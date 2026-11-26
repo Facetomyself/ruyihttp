@@ -10,7 +10,11 @@ from collections import deque
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-import pytest
+try:
+    import pytest
+except ModuleNotFoundError:
+    import unittest
+    raise unittest.SkipTest('MASQUE fixture tests use pytest; wheel qualification installs it')
 
 from ruyihttp._masque import (
     _MAX_PENDING, MasqueError, Tunnel, _MtuSearch, _Relay, _resolve, _sending_limit,

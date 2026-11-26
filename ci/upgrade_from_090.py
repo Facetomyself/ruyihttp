@@ -25,18 +25,23 @@ def main():
         (): "0.9.0",
         ("--from-fork-091",): "0.9.1",
         ("--from-fork-092",): "0.9.2",
+        ("--from-fork-093",): "0.9.3",
     }[mode]
     fork_baseline = old_version == "0.9.1"
     assert candidate_version != old_version
     with tempfile.TemporaryDirectory(prefix="ruyihttp-upgrade-") as directory:
         root = Path(directory)
-        if old_version == "0.9.2":
+        if old_version in ("0.9.2", "0.9.3"):
             sys.path.insert(0, str(CI))
-            from release_inputs import OLD_COMMIT, asset_spec
+            from release_inputs import OLD_COMMIT, PREVIOUS_COMMIT, asset_spec
 
-            spec = asset_spec("fork-0.9.2", slot)
+            spec = asset_spec("fork-" + old_version, slot)
             baseline = (
-                Path(os.environ["RUYIHTTP_RELEASE_092_DIR"]).resolve(strict=True)
+                Path(
+                    os.environ[
+                        "RUYIHTTP_RELEASE_" + old_version.replace(".", "") + "_DIR"
+                    ]
+                ).resolve(strict=True)
                 / spec["name"]
             )
             assert (
@@ -47,7 +52,7 @@ def main():
                 manifest = json.loads(archive.read("ruyihttp/runtime-manifest.json"))
             assert manifest["version"] == old_version
             hashes = manifest["platforms"][slot]["files"]
-            source = f"public GitHub Release v0.9.2 at {OLD_COMMIT}"
+            source = f"public GitHub Release v{old_version} at {OLD_COMMIT if old_version == '0.9.2' else PREVIOUS_COMMIT}"
         elif slot == "win_amd64" and not fork_baseline:
             provenance = json.loads(PROVENANCE.read_text(encoding="utf-8"))
             baseline = root / provenance["wheel"]
