@@ -81,16 +81,54 @@ def parameter_metadata(data):
 class QuicInitialObservation:
     def __init__(self, connection):
         self._first = self._peer = self._error = None
+        self._first_in_call = None
+        self._pn_width = None
         receive = connection.receive_datagram
         parse = connection._parse_transport_parameters
+        initialize = connection._initialize
+
+        def initialize_observed(*args, **kwargs):
+            result = initialize(*args, **kwargs)
+            # The server creates its Initial packet readers during its first
+            # receive. Inspect only the width in an already validated header;
+            # no extra decryption, raw key, packet number or plaintext is kept.
+            for pair in connection._cryptos_initial.values():
+                original = pair.decrypt_packet
+
+                def observed(
+                    packet, encrypted_offset, expected_packet_number, _original=original
+                ):
+                    decoded = _original(
+                        packet, encrypted_offset, expected_packet_number
+                    )
+                    if (
+                        self._first_in_call is not None
+                        and self._first_in_call == packet
+                    ):
+                        header = decoded[0]
+                        width = len(header) - encrypted_offset
+                        if 1 <= width <= 4 and width == (header[0] & 3) + 1:
+                            self._pn_width = width
+                        else:
+                            self._error = "inconsistent first Initial header width"
+                    return decoded
+
+                pair.decrypt_packet = observed
+            return result
 
         def receive_observed(data, addr, now):
             if self._first is None and self._error is None:
                 try:
                     self._first = initial_metadata(data)
+                    self._first_in_call = memoryview(data)[
+                        : self._first["packet_bytes"]
+                    ]
                 except ValueError as exc:
                     self._error = str(exc)
-            return receive(data, addr, now=now)
+            try:
+                return receive(data, addr, now=now)
+            finally:
+                self._first_in_call = None
 
         def parse_observed(data, from_session_ticket=False):
             if not from_session_ticket:
@@ -105,6 +143,7 @@ class QuicInitialObservation:
                     self._error = str(exc)
             return parse(data, from_session_ticket=from_session_ticket)
 
+        connection._initialize = initialize_observed
         connection.receive_datagram = receive_observed
         connection._parse_transport_parameters = parse_observed
 
@@ -114,4 +153,8 @@ class QuicInitialObservation:
                 self._error
                 or "missing first Initial or actual peer transport parameters"
             )
-        return dict(self._first, **self._peer)
+        if self._pn_width is None:
+            raise ValueError(
+                "first Initial was not parsed successfully by the endpoint"
+            )
+        return dict(self._first, packet_number_length=self._pn_width, **self._peer)

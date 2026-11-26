@@ -66,9 +66,27 @@ class InitialObservationTests(unittest.TestCase):
                 parameter_metadata(data)
         calls = []
 
+        class MockEndpointReader:
+            def decrypt_packet(self, packet, encrypted_offset, expected_packet_number):
+                # Only this test double invents a successful parse. Production
+                # observes the result of aioquic's ordinary endpoint processing.
+                return (
+                    b"\xc1" + bytes(encrypted_offset + 1),
+                    b"payload",
+                    expected_packet_number,
+                )
+
         class Connection:
+            def _initialize(self, _cid):
+                self._cryptos_initial = {V1: MockEndpointReader()}
+
             def receive_datagram(self, data, addr, now):
                 calls.append(("data", data, addr, now))
+                self._initialize("test")
+                _header, payload, pn = self._cryptos_initial[V1].decrypt_packet(
+                    data, 7, 12
+                )
+                return payload, pn
 
             def _parse_transport_parameters(self, data, from_session_ticket=False):
                 calls.append(("tp", data, from_session_ticket))
@@ -76,12 +94,16 @@ class InitialObservationTests(unittest.TestCase):
         conn = Connection()
         obs = QuicInitialObservation(conn)
         packet = self.header()
-        conn.receive_datagram(packet, "loopback", now=1)
+        self.assertEqual(
+            conn.receive_datagram(packet, "loopback", now=1), (b"payload", 12)
+        )
         conn._parse_transport_parameters(b"ignored", from_session_ticket=True)
         with self.assertRaisesRegex(ValueError, "missing"):
             obs.result()
         conn._parse_transport_parameters(encoded)
         self.assertEqual(obs.result()["version_information"]["available"], [V2, V1])
+        self.assertEqual(obs.result()["packet_number_length"], 2)
+        self.assertIsNone(obs._first_in_call)
         self.assertEqual(
             calls,
             [
