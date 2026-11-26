@@ -101,6 +101,7 @@ def promote(args):
         markers = {'http1': ['local smoke OK'],
                    'native-transactions': ['H3 binary body ABI: 1', 'h2 200 20', 'h3 200 30',
                                            f'NSS {entry["nss"]} NSPR {entry["nspr"]}'],
+                   'firefox-profile-wire': ['explicit 159/160/161 passed H1, H2 and UDP-only H3'],
                    'full-h3': ['Ran 6 tests'], 'test_h3_body_abi': ['h3 body binary-v1: bytes=1048579'],
                    'upgrade-0.9.0': ['PASS: in-place 0.9.0 -> ', 'one distribution, native hashes, HTTP before and after']}
         for name, needles in markers.items():
@@ -128,7 +129,7 @@ def promote(args):
         'source_build_run': repo_url + str(source_id), 'source_build_attempt': source_attempt,
         'source_build_commit': source_sha,
         'cpython_runtime_endpoints': ['3.10', '3.14'], 'tested_http': ['http/1.1', 'h2', 'h3'], 'h3_body_abi': 1,
-        'in_place_upgrade_from': '0.9.0',
+        'in_place_upgrade_from': '0.9.0', 'tested_firefox_profiles': ['159', '160', '161'],
     }
     for name, data in actual_files.items():
         (target / name).write_bytes(data)
