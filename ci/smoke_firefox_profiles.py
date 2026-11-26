@@ -50,6 +50,13 @@ from firefox_wire import (
 IP = "127.0.0.1"
 
 
+class CaptureFailure(WireError):
+    def __init__(self, root_cause, partial, responses):
+        super().__init__(f"{type(root_cause).__name__}: {root_cause}")
+        self.partial = partial
+        self.responses = responses
+
+
 class Vector:
     def __init__(self, data):
         self.data = memoryview(data)
@@ -249,7 +256,7 @@ class FirstH2Settings:
         self.buffer.clear()
 
 
-def h2_origin(tcp, context, *, boot_port=None, release=None):
+def h2_origin(tcp, context, *, complete, boot_port=None, retired=None):
     client, _ = tcp.accept()
     # In the bootstrap case, retire both the listener and the H2 connection so
     # a silent TCP fallback can never look like successful H3.
@@ -277,13 +284,22 @@ def h2_origin(tcp, context, *, boot_port=None, release=None):
                             response.append((b"alt-svc", f'h3=":{boot_port}"; ma=60'.encode()))
                         protocol.send_headers(stream, response)
                         protocol.send_data(stream, body, end_stream=True)
-                        protocol.close_connection(error_code=0, last_stream_id=stream)
                         tls.sendall(protocol.data_to_send())
-                        if release is not None:
-                            require(release.wait(20), "h2: client did not release the bootstrap")
-                        return {"protocol": tls.selected_alpn_protocol(), "settings": settings.settings,
-                                "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
-                                "headers": headers[stream]}
+                        # Deliver and let the public client consume END_STREAM
+                        # before GOAWAY/EOF. Older clients race peer shutdown
+                        # against the application read of a complete response.
+                        require(complete.wait(20), "h2: client did not consume the response")
+                        result = {"protocol": tls.selected_alpn_protocol(), "settings": settings.settings,
+                                  "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
+                                  "headers": headers[stream]}
+                        if retired is not None:
+                            protocol.close_connection(error_code=0, last_stream_id=stream)
+                            try:
+                                tls.sendall(protocol.data_to_send())
+                            finally:
+                                tls.close()
+                                retired.set()
+                        return result
                 tls.sendall(protocol.data_to_send())
     raise WireError("h2: observed no complete request")
 
@@ -350,8 +366,7 @@ def response_receipt(profile, response, protocol, body, entry):
     return {"status": response.status_code, "http_version": response.raw.version, "tls": info}
 
 
-def fetch(profile, roots, ports, entry):
-    result = {}
+def fetch(profile, roots, ports, entry, result, h2_complete, boot_complete, boot_retired):
     options = {"firefox": profile, "verify": str(roots), "timeout": 10}
     origin = f"https://localhost:{ports['h3']}"
     boot = origin + BOOT
@@ -360,7 +375,10 @@ def fetch(profile, roots, ports, entry):
         for protocol in ("h1", "h2"):
             url = f"https://localhost:{ports[protocol]}{PATH}"
             result[protocol] = response_receipt(profile, navigation.get(url), protocol, protocol.encode(), entry)
-        response_receipt(profile, navigation.get(boot), "h2", b"boot", entry)
+        h2_complete.set()
+        result["bootstrap"] = response_receipt(profile, navigation.get(boot), "h2", b"boot", entry)
+        boot_complete.set()
+        require(boot_retired.wait(5), "h3: TCP bootstrap was not retired")
         # Reuse the ordinary HTTPS adapter, which owns the authenticated
         # Alt-Svc state. The second Session supplies the real fetch defaults,
         # reference and cookie policy rather than hand-constructing headers.
@@ -382,15 +400,37 @@ async def capture(profile, entry, cert):
         quic.load_cert_chain(leaf, key)
         server = await serve(IP, ports["h3"], configuration=quic,
                              create_protocol=lambda *a, **k: H3Origin(*a, observed=observations, **k))
-        release = Event()
+        h2_complete, boot_complete, boot_retired = Event(), Event(), Event()
         h1 = executor.submit(h1_origin, tcp1, context_for(leaf, key, "http/1.1", hellos1))
-        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2))
-        boot = executor.submit(h2_origin, tcp3, context_for(leaf, key, "h2", hellos3), boot_port=ports["h3"], release=release)
+        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2), complete=h2_complete)
+        boot = executor.submit(h2_origin, tcp3, context_for(leaf, key, "h2", hellos3),
+                               complete=boot_complete, boot_port=ports["h3"], retired=boot_retired)
+        responses = {}
         try:
-            responses = await asyncio.to_thread(fetch, profile, roots, ports, entry)
+            await asyncio.to_thread(fetch, profile, roots, ports, entry, responses, h2_complete, boot_complete, boot_retired)
+        except Exception as exc:
+            failure = exc
+        else:
+            failure = None
         finally:
-            release.set()
+            h2_complete.set()
+            boot_complete.set()
             server.close()
+        if failure is not None:
+            partial = {}
+            for proto, pending, hellos in (("h1", h1, hellos1), ("h2", h2, hellos2), ("bootstrap", boot, hellos3)):
+                if not hellos:
+                    continue
+                try:
+                    case = pending.result(3)
+                    actual_proto = "h3" if proto == "bootstrap" else proto
+                    case.update(hello=hellos[0], client_hello_count=len(hellos), port=ports[actual_proto], mode="navigation")
+                    partial[proto] = case
+                except Exception as origin_exc:
+                    partial[proto] = {"client_hello_count": len(hellos), "origin_error": str(origin_exc)}
+            if observations:
+                partial["h3"] = {**observations, "port": ports["h3"], "mode": MODES["h3"]}
+            raise CaptureFailure(failure, partial, responses) from failure
         traces = quic_log.to_dict()["traces"]
         parameters = [event["data"] for trace in traces for event in trace["events"]
                       if event["name"] == "transport:parameters_set" and event["data"]["owner"] == "remote"]
@@ -462,6 +502,9 @@ def main():
                         record["differences"] = expected[firefox].compare(wire)
                         if record["differences"]:
                             failed.append(firefox)
+                except CaptureFailure as exc:
+                    record.update(capture_error=str(exc), partial_wire=exc.partial, responses=exc.responses)
+                    failed.append(firefox)
                 except Exception as exc:
                     record["capture_error"] = f"{type(exc).__name__}: {exc}"
                     failed.append(firefox)
