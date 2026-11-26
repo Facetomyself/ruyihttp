@@ -2,15 +2,43 @@
 
 RuyiHttp 是基于 Firefox Necko/NSS 的 Requests 风格 Python HTTP 客户端。它直接使用 HTTP/1.1、HTTP/2 或 HTTP/3，无需启动浏览器。会话可选择 Firefox 100–161 的网络配置，默认是 **159**。
 
-**已发布的 GitHub 稳定版：[RuyiHttp v0.9.3](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.3)** · [五平台合集](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-release-bundle.zip) · [SHA-256 校验清单](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/SHA256SUMS) · [逐平台验收报告](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/qualification.json)
+**当前稳定版：[RuyiHttp v0.9.4](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.4)** · [五平台合集](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-release-bundle.zip) · [附件 SHA-256](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/SHA256SUMS) · [逐平台验收报告](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/qualification.json)
 
 本仓是 [PyPI `ruyihttp`](https://pypi.org/project/ruyihttp/) 的独立维护分支。要安装**本仓版本**，请使用下方 GitHub Release 的 wheel；`pip install -U ruyihttp` 从公共 PyPI 解析的是上游发行包。
 
-## 当前维护版 0.9.4：MASQUE 与 Linux glibc 2.31
+## 平台矩阵
 
-从本仓 `0.9.4` 源码或对应的 [Wheels 工作流工件](https://github.com/Facetomyself/ruyihttp/actions/workflows/wheels.yml)安装。Linux x86_64 / ARM64 使用 `manylinux_2_31`；两个目标分别在原生 CPU 上按 Debian 11 基线重编，并用 glibc **2.31** 的 CPython 3.10 / 3.14 独立验证。这个下限属于 0.9.4 的新原生库，**不会改变已发布的 v0.9.3 wheel**。详见[最低系统、C++ 运行库和 pip 验收](docs/linux-glibc231-qualification.md)。
+使用 **64 位 Python 3.10+**。以下是正式 Release 中可单独下载的五份 wheel，链接附带 SHA-256，可直接交给 pip。
 
-要经代理访问原生 HTTP/3 源站，使用 **`masque://`** 并安装可选 `masque` 依赖。在本仓源码目录执行 `python -m pip install '.[masque]'`；有本地 wheel 时，例如 Linux x86_64，可执行 `python -m pip install './ruyihttp-0.9.4-py3-none-manylinux_2_31_x86_64.whl[masque]'`。普通直连或 TCP 代理无需此 extra。
+| 系统 | CPU 架构 | 运行环境 | v0.9.4 wheel |
+| --- | --- | --- | --- |
+| Windows | x86_64（AMD64） | Windows x64 | [ruyihttp-0.9.4-py3-none-win_amd64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-py3-none-win_amd64.whl#sha256=e6692f97d83eb8433640ad81a75d7a8aee7498729eae58f1f072591829d0f3c3) |
+| Linux | x86_64 | glibc 2.31+ | [ruyihttp-0.9.4-py3-none-manylinux_2_31_x86_64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-py3-none-manylinux_2_31_x86_64.whl#sha256=8f6e78ba29799625bd46adc2d73928e06fbbe4a06c541e9bb1f9f7f9b15854d3) |
+| Linux | ARM64（AArch64） | glibc 2.31+ | [ruyihttp-0.9.4-py3-none-manylinux_2_31_aarch64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-py3-none-manylinux_2_31_aarch64.whl#sha256=191552eeb0428961e77113f1022c84ac2ec7da7c9be7e1921dca772a6bc469ef) |
+| macOS | Intel x86_64 | macOS 15.0+ | [ruyihttp-0.9.4-py3-none-macosx_15_0_x86_64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-py3-none-macosx_15_0_x86_64.whl#sha256=cf038b0ceed31963c5cd810dbca0e9380802c057f92288c584ec7933b4baf616) |
+| macOS | Apple Silicon arm64 | macOS 26.0+ | [ruyihttp-0.9.4-py3-none-macosx_26_0_arm64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-py3-none-macosx_26_0_arm64.whl#sha256=a04671785eba6c61de45b93dd0d8fcc6bbc9778aa39f02e495aafd38c2100e68) |
+
+历史版本仍可从 [v0.9.3 Release](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.3) 获取；该版本的 Linux wheel 为 glibc 2.39+。
+
+### 安装 v0.9.4
+
+在虚拟环境中安装对应系统的链接或已下载的 wheel。以 Windows x64 为例：
+
+```sh
+python -m pip install --upgrade "https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-py3-none-win_amd64.whl#sha256=e6692f97d83eb8433640ad81a75d7a8aee7498729eae58f1f072591829d0f3c3"
+python -m pip check
+python -c "import ruyihttp as r; print(r.__version__, r.DEFAULT_FIREFOX)"
+```
+
+预期输出 `0.9.4 159`。需要离线保存这五份项目 wheel 和验收材料时，可下载[合集](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-release-bundle.zip)；首次安装所需的第三方依赖仍由 pip 单独解析。
+
+## HTTP/3 经 MASQUE 代理
+
+启用 `masque` extra 后，使用 `masque://` 指定支持 CONNECT-UDP 的代理。普通直连和 TCP 代理只需安装基本包。以下为 Linux x86_64 的正式 wheel 安装示例：
+
+```sh
+python -m pip install --upgrade "ruyihttp[masque] @ https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.4/ruyihttp-0.9.4-py3-none-manylinux_2_31_x86_64.whl#sha256=8f6e78ba29799625bd46adc2d73928e06fbbe4a06c541e9bb1f9f7f9b15854d3"
+```
 
 ```python
 import ruyihttp
@@ -26,31 +54,7 @@ with ruyihttp.Session(firefox="161", verify=True, proxy_verify=True, timeout=(8,
 
 内层由 NSS/Neqo 与源站握手；外层由 aioquic 验证代理、协商 H3 并承载 UDP。目标域名交由代理处理。强制 MASQUE 路由不会静默改走直连/TCP；`https://` 代理仍是普通 TCP CONNECT。参见[代理 CA、URI 模板、MTU 和互操作](docs/masque.md)。
 
-## 平台矩阵
-
-下表保留 **GitHub Release v0.9.3** 的原始下载及运行条件（64 位 Python 3.10+）。需要 CONNECT-UDP 或 Linux glibc 2.31 的用户请使用上方 0.9.4；不要把旧包改名安装。
-
-| 系统 | CPU 架构 | 运行环境 | 下载 v0.9.3 wheel |
-| --- | --- | --- | --- |
-| Windows | x86_64（AMD64） | Windows x64 | [ruyihttp-0.9.3-py3-none-win_amd64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-win_amd64.whl#sha256=fdb87ca830156aa48e792ab850c1aef307f3af74e7658a87c5ec278dc2e85dbf) |
-| Linux | x86_64 | glibc 2.39+ | [ruyihttp-0.9.3-py3-none-manylinux_2_39_x86_64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-manylinux_2_39_x86_64.whl#sha256=056729152736a3de16786cf466c290068c257a8e3771206db78314e468188b5b) |
-| Linux | ARM64（AArch64） | glibc 2.39+ | [ruyihttp-0.9.3-py3-none-manylinux_2_39_aarch64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-manylinux_2_39_aarch64.whl#sha256=e0c7bdd60435f5f88619630428f6aa972b6c30a1d56baaa1ee7326861c5ed946) |
-| macOS | Intel x86_64 | macOS 15.0+ | [ruyihttp-0.9.3-py3-none-macosx_15_0_x86_64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-macosx_15_0_x86_64.whl#sha256=74ef2cec8f1e54d0f039973a3fb7acb10093cc6fa17a38df909709421c81ab99) |
-| macOS | Apple Silicon arm64 | macOS 26.0+ | [ruyihttp-0.9.3-py3-none-macosx_26_0_arm64.whl](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-macosx_26_0_arm64.whl#sha256=d107f8c871ed52fc610b4434673a8df7e4b11242216e09c5ae2e94dfebf8ab6c) |
-
-### 安装已发布的 v0.9.3
-
-先用 `python -m venv .venv` 创建虚拟环境。Windows PowerShell 执行 `.\.venv\Scripts\Activate.ps1` 激活，macOS/Linux 执行 `source .venv/bin/activate`。复制上表中适合本机的 wheel 链接交给 pip；链接附带 `#sha256=`，pip 会核对下载内容。以下为 **Windows x64** 示例：
-
-```sh
-python -m pip install --upgrade "https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-py3-none-win_amd64.whl#sha256=fdb87ca830156aa48e792ab850c1aef307f3af74e7658a87c5ec278dc2e85dbf"
-python -m pip check
-python -c "import ruyihttp as r; print(r.__version__, r.DEFAULT_FIREFOX)"
-```
-
-最后一行预期输出 `0.9.3 159`。已经下载 wheel 的用户也可将 URL 换成本地文件路径。需要离线转存全部五个平台的工件时，下载[合集](https://github.com/Facetomyself/ruyihttp/releases/download/v0.9.3/ruyihttp-0.9.3-release-bundle.zip)；解压目录内含校验清单、安装说明和验收记录。
-
-### 发起请求
+## 直连示例
 
 ```python
 import ruyihttp
@@ -69,7 +73,7 @@ with ruyihttp.Session(firefox="161") as session:
 
 ## 网络配置的验收含义
 
-本版对照的是相同系统和 CPU 架构上的 **Mozilla 官方 en-US Firefox 159.0、160.0 和 161.0**。H1/H2 验证顶层导航，H3 验证同源文档发起的普通 `fetch`。完整 UA、有序请求头、TLS ClientHello 的稳定字段、H2 首帧和优先级、H3 SETTINGS、QUIC 初始与协商版本及选定传输参数都进入发布门禁。[五平台安装验收](https://github.com/Facetomyself/ruyihttp/actions/runs/45776283862)还覆盖从 0.9.0 基线、本仓 0.9.1 和 [v0.9.2 Release](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.2) 的正常升级。
+本版对照的是相同系统和 CPU 架构上的 **Mozilla 官方 en-US Firefox 159.0、160.0 和 161.0**。H1/H2 验证顶层导航，H3 验证同源文档发起的普通 `fetch`。完整 UA、有序请求头、TLS ClientHello 的稳定字段、H2 首帧和优先级、H3 SETTINGS、QUIC 初始与协商版本及选定传输参数都进入发布门禁。[0.9.4 五平台安装验收](https://github.com/Facetomyself/ruyihttp/actions/runs/45810139410)覆盖从 0.9.0 基线、本仓 0.9.1、0.9.2 和 0.9.3 的正常升级。两个 Linux 架构的最终 wheel 还分别在 Debian 11 / glibc 2.31 的 CPython 3.10 与 3.14 上原样安装并验证了经代理 H3，见[最低系统验收](docs/linux-glibc231-qualification.md)。
 
 Linux ARM64 始终加载 ARM64 原生库；从 Firefox 123 配置起，对外发送官方约简后的 UA `X11; Linux x86_64`。100–158 的历史配置按版本源码规则维护，五平台实机对照的结论限于前述三个版本和请求场景。见[线路对照与边界](docs/firefox-profile-wire.md)、[签名浏览器采样](docs/firefox-reference-collection.md)和[H2 首帧证据](docs/firefox-h2-preface.md)。
 
@@ -89,7 +93,7 @@ docs/                      平台支持、构建、传输策略和许可说明
 
 ## 安装与构建
 
-已发布版本见 [Release wheel](#平台矩阵)；新功能的安装方法见上方 0.9.4 说明。开发者可在本仓源码目录、已激活的虚拟环境中运行：
+正式版直接安装[平台矩阵](#平台矩阵)中对应的 Release wheel。开发者可在本仓源码目录、已激活的虚拟环境中运行：
 
 ```sh
 python -m pip install .
