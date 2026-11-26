@@ -1,9 +1,11 @@
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from ci import release_inputs
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ci"))
+import release_inputs
 
 
 class PublicBaselineTests(unittest.TestCase):
@@ -24,7 +26,7 @@ class PublicBaselineTests(unittest.TestCase):
             path = Path(tmp) / row["name"]
             path.write_bytes(b"changed fixture")
             with (
-                patch("ci.release_inputs.urlopen") as remote,
+                patch.object(release_inputs, "urlopen") as remote,
                 self.assertRaisesRegex(ValueError, "SHA-256"),
             ):
                 release_inputs.fetch("fork-0.9.2", "linux_aarch64", tmp)

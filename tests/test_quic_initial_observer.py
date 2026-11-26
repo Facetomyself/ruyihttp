@@ -1,5 +1,9 @@
+from pathlib import Path
+import sys
 import unittest
-from ci.firefox_quic_initial import (
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ci"))
+from firefox_quic_initial import (
     V1,
     V2,
     QuicInitialObservation,
