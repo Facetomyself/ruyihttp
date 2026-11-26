@@ -1,14 +1,44 @@
 {
   "platform": "darwin_x86_64",
-  "source": "Pinned native source build, independently qualified by an installed-wheel runner",
+  "source": "Native source build verified by an installed-wheel runner",
   "ff_ruyijs_commit": "f557fcd437aae5f18f313eb330bd3ef50f5fc7df",
-  "firefox_source_commit": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+  "ff_ruyijs_firefox_gitlink": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
+  "firefox_source_commit": "9c70d5d48c866afc2e581d6b7ff6de98a1371d99",
+  "firefox_source_tag": "FIREFOX_161_0_RELEASE",
+  "neqo_source_commit": "e302b43503f44e09f4257573dd320621516d1560",
+  "nss_rs_source_commit": "bb8ed19e82679e613a636f530d15ddc823f1b040",
   "wheel_platform_tag": "macosx_15_0_x86_64",
   "runtime_expected": {
-    "firefox": "159.0",
-    "nss": "3.132",
+    "firefox": "161.0",
+    "nss": "3.133",
     "nspr": "4.40",
-    "neqo": "0.33.0"
+    "neqo": "0.34.0"
+  },
+  "files": {
+    "libnecko_core.dylib": {
+      "size": 31752,
+      "sha256": "16257c1cf9cf44f90a96d52c3e069ae8f4f439723afbc8085b741adf257ac06c"
+    },
+    "libnecko_quic.dylib": {
+      "size": 2883392,
+      "sha256": "271ddc4159f149131a0c4c3d4bfd936be84601ec876a42274d1e003e9f37a235"
+    },
+    "libnss3.dylib": {
+      "size": 3385000,
+      "sha256": "ceab4ba049adc23dff033dfbf9ec6f3c3b78be77ebd5dc614ffc57668d42910c"
+    },
+    "libsoftokn3.dylib": {
+      "size": 409056,
+      "sha256": "bb2b4957f16ade4f49ce33e1b8f1bab57a808bcde71fe869eaaf94f50b8532d2"
+    },
+    "libfreebl3.dylib": {
+      "size": 1457592,
+      "sha256": "94718096805a3d1f9c4b6e3696c0c695e53f0ca375e4506818d5d35a4d8e4141"
+    },
+    "libmozglue.dylib": {
+      "size": 659200,
+      "sha256": "5bed7dfdd89813f14ea1f9953bd8f6aa5bdb05f39e10529f7e586873ece44727"
+    }
   },
   "source_patches": [
     {
@@ -22,6 +52,10 @@
     {
       "path": "native/patches/macos-h3-global-handles.patch",
       "sha256": "a48d77b35df26abc8418a4dafa2895593167d30d3ec473e709742c1064ec61c4"
+    },
+    {
+      "path": "native/patches/firefox161-macos.patch",
+      "sha256": "f7d3e3f56a0a7822e27e2d56f543f80366ba025f837e6ebfc227a6408bf9d657"
     }
   ],
   "h3_body_abi_expected": 1,
@@ -34,61 +68,30 @@
     "libfreebl3.dylib": "15.0.0",
     "libmozglue.dylib": "15.0.0"
   },
-  "files": {
-    "libfreebl3.dylib": {
-      "size": 1457592,
-      "sha256": "ee816e9dec66edc52ba44b67bdb6844a49839d838a84e9a3c2b0d8148475e502"
-    },
-    "libmozglue.dylib": {
-      "size": 659200,
-      "sha256": "52a7bb0803ec133312c7e895d0c5e33b23b8c1e8d2a8660f3d51d6b61c350cc8"
-    },
-    "libnecko_core.dylib": {
-      "size": 31752,
-      "sha256": "16257c1cf9cf44f90a96d52c3e069ae8f4f439723afbc8085b741adf257ac06c"
-    },
-    "libnecko_quic.dylib": {
-      "size": 3036632,
-      "sha256": "5dd0347c2f0d3e8f3b41466739726756c815a0e51d05b13329e5f7672c3cc00a"
-    },
-    "libnss3.dylib": {
-      "size": 3384840,
-      "sha256": "6def79bab867bb978044f668943e9b7fea9d727ebd45fc00f9078ae6c873ee56"
-    },
-    "libsoftokn3.dylib": {
-      "size": 408824,
-      "sha256": "e17b78deede206e5702108ca59106ff7f455523bf09908f2264bcc0dd5ec9bf0"
-    }
-  },
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657947543",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657947543/job/139359628552",
-    "ruyihttp_commit": "7269cec2f29b53b21b324becbd69c5bec9eec342",
-    "job_conclusion": "failure (evidence upload only, GitHub CreateArtifact timeout after five attempts)",
-    "qualification_step_conclusions": {
-      "CPython 3.10": "success",
-      "CPython 3.14": "success"
-    },
-    "diagnostic_wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45657947543/artifacts/15044654167",
-    "wheel_sha256": "c7e54c837f2243a7ce9b0ae4c26b009a8c1204a8e6673c2d3d46c9eed8e14515",
-    "job_log_sha256": "ccf2614ed7419e9e1c1aecba445a77acdc383ba67129cbb51f5d1441278483e6",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247/job/139645896716",
+    "ruyihttp_commit": "b649707042080129eae9f64e4cc8e1fdbb95eafa",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247/artifacts/15082118512",
+    "wheel_sha256": "0e56f919052c8d7966f0843c8a38107f0161546d1aa129f86f8ba2f024511855",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45741061247",
+    "source_build_attempt": 1,
+    "source_build_commit": "b649707042080129eae9f64e4cc8e1fdbb95eafa",
+    "cpython_runtime_endpoints": [
+      "3.10",
+      "3.14"
+    ],
     "tested_http": [
       "http/1.1",
       "h2",
       "h3"
     ],
     "h3_body_abi": 1,
-    "independent_verification": {
-      "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45664298228",
-      "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45664298228/job/139382144562",
-      "commit": "99ff36c5de282b98019b8f03cb0bf4d4fb831ad3",
-      "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45664298228/artifacts/15046188867",
-      "wheel_sha256": "ffed67f5080c7f3029cbba28427ca8459202a6c06cecac4184afe72d85be30e3",
-      "cpython_runtime_endpoints": [
-        "3.10",
-        "3.14"
-      ],
-      "exact_native_hash_match": true
-    }
+    "in_place_upgrade_from": "0.9.0",
+    "tested_firefox_profiles": [
+      "159",
+      "160",
+      "161"
+    ]
   }
 }
