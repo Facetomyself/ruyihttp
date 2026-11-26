@@ -10,9 +10,9 @@ on:
         options: [all, linux_aarch64, linux_x86_64, darwin_x86_64, darwin_arm64, win_amd64]
       mode:
         type: choice
-        description: Verify tracked libraries, rebuild POSIX, or requalify an exact source candidate
+        description: Verify tracked libraries, rebuild POSIX, requalify a candidate, or build native Linux on Bullseye
         default: verify
-        options: [verify, rebuild, requalify]
+        options: [verify, rebuild, requalify, baseline]
       candidate_run:
         type: string
         description: Source rebuild run ID for requalify mode
@@ -40,13 +40,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        slot: ${{ fromJSON(inputs.platform != 'all' && format('["{0}"]', inputs.platform) || (inputs.mode != 'verify' && '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64"]' || '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64","win_amd64"]')) }}
+        slot: ${{ fromJSON(inputs.platform != 'all' && format('["{0}"]', inputs.platform) || (inputs.mode == 'baseline' && '["linux_aarch64","linux_x86_64"]' || (inputs.mode != 'verify' && '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64"]' || '["linux_aarch64","linux_x86_64","darwin_x86_64","darwin_arm64","win_amd64"]'))) }}
     env:
       TARGET_ARCH: ${{ fromJSON('{"linux_aarch64":"aarch64","linux_x86_64":"x86_64","darwin_x86_64":"x86_64","darwin_arm64":"arm64","win_amd64":"amd64"}')[matrix.slot] }}
       PYTHON_ARCH: ${{ (endsWith(matrix.slot, 'aarch64') || endsWith(matrix.slot, 'arm64')) && 'arm64' || 'x64' }}
       PYTHONUTF8: '1'
       SOURCE_RUN: ${{ inputs.candidate_run }}
       SOURCE_ATTEMPT: ${{ inputs.candidate_attempt }}
+      RUYIHTTP_BUILD_BASELINE_CANDIDATE: ${{ (inputs.mode == 'baseline' || inputs.mode == 'requalify') && '1' || '0' }}
       PIP_NO_CACHE_DIR: '1'
     defaults:
       run:
@@ -61,6 +62,7 @@ jobs:
           architecture: ${{ env.PYTHON_ARCH }}
       - name: Record target runner identity
         run: |
+          if [[ '${{ inputs.mode }}' == baseline ]]; then [[ '${{ matrix.slot }}' == linux_* ]]; fi
           mkdir -p "$RUNNER_TEMP/native-evidence"
           exec > >(tee "$RUNNER_TEMP/native-evidence/runner.txt") 2>&1
           git rev-parse HEAD
@@ -159,9 +161,11 @@ jobs:
             done
             return 128
           }
-          rustup toolchain install "$RUST_VERSION" --profile minimal
-          echo "RUSTUP_TOOLCHAIN=$RUST_VERSION" >> "$GITHUB_ENV"
-          rustc +"$RUST_VERSION" -vV | tee "$RUNNER_TEMP/native-evidence/standalone-rust.txt"
+          if [[ '${{ inputs.mode }}' != baseline ]]; then
+            rustup toolchain install "$RUST_VERSION" --profile minimal
+            echo "RUSTUP_TOOLCHAIN=$RUST_VERSION" >> "$GITHUB_ENV"
+            rustc +"$RUST_VERSION" -vV | tee "$RUNNER_TEMP/native-evidence/standalone-rust.txt"
+          fi
           tagref="refs/tags/$FIREFOX_TAG"
           [[ "$(git -c http.version=HTTP/1.1 ls-remote --exit-code "$FIREFOX_REPO" "$tagref")" == "$FIREFOX_COMMIT"$'\t'"$tagref" ]]
           donor="$RUNNER_TEMP/ff-ruyijs"
@@ -189,7 +193,11 @@ jobs:
       - name: Compile native libraries
         if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
         run: |
-          ci/build_native_target.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
+          if [[ '${{ inputs.mode }}' == baseline ]]; then
+            bash ci/build_linux_baseline.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" "$RUNNER_TEMP/native-evidence" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
+          else
+            ci/build_native_target.sh "${{ matrix.slot }}" "$RUNNER_TEMP/ff-ruyijs" "$RUNNER_TEMP/native-libs" 2>&1 | tee "$RUNNER_TEMP/native-evidence/build.log"
+          fi
       - name: Stage locally compiled candidate
         if: steps.slot.outputs.ready == 'false' && inputs.mode != 'requalify'
         run: |
@@ -203,6 +211,9 @@ jobs:
           patches=$(python -B tools/posix_firefox161.py patches "${{ matrix.slot }}")
           patch_args=()
           while IFS= read -r patch; do patch_args+=(--source-patch "$patch"); done <<< "$patches"
+          if [[ '${{ inputs.mode }}' == baseline ]]; then
+            patch_args+=(--linux-baseline-evidence "$RUNNER_TEMP/native-evidence")
+          fi
           python -B tools/stage_native_candidate.py "${{ matrix.slot }}" "$RUNNER_TEMP/native-libs" \
             --donor "$DONOR_COMMIT" --firefox "$FIREFOX_COMMIT" "${patch_args[@]}" | tee "$RUNNER_TEMP/native-evidence/preflight.txt"
       - name: Stage exact replay libraries from the diagnostic artifact
@@ -236,16 +247,25 @@ jobs:
       - name: Check Linux manylinux policy
         if: runner.os == 'Linux'
         run: |
-          python -m pip install 'auditwheel>=6.4,<7'
+          eval "$(python -B tools/linux_baseline.py pins '${{ matrix.slot }}')"
+          python -m pip install "auditwheel==$BASELINE_AUDITWHEEL"
+          auditwheel --version | tee "$RUNNER_TEMP/native-evidence/auditwheel-version.txt"
           auditwheel show "$RUNNER_TEMP"/wheelhouse/*.whl | tee "$RUNNER_TEMP/native-evidence/auditwheel.txt"
-          python - "$RUNNER_TEMP/native-evidence/auditwheel.txt" "$TARGET_ARCH" <<'PY'
-          import re, sys
-          from pathlib import Path
-          report = Path(sys.argv[1]).read_text()
-          match = re.search(r'following platform tag:\s+"manylinux_2_(\d+)_' + sys.argv[2] + '"', report)
-          if not match or int(match[1]) > 39:
-              raise SystemExit('auditwheel did not establish a compatible target manylinux floor')
-          PY
+          python -B tools/linux_baseline.py audit '${{ matrix.slot }}' "$RUNNER_TEMP/native-evidence" > "$RUNNER_TEMP/native-evidence/linux-auditwheel.json"
+      - uses: actions/upload-artifact@v4
+        if: inputs.mode == 'baseline'
+        with:
+          name: source-native-wheel-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: inputs.mode == 'baseline'
+        with:
+          name: source-native-evidence-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-evidence/
+          if-no-files-found: error
+          retention-days: 14
       - name: Reconstruct exact POSIX 0.9.0 upgrade baseline
         if: inputs.mode != 'verify'
         env:

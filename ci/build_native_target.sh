@@ -18,8 +18,13 @@ while IFS= read -r patch; do apply_patch "$patch"; done <<< "$patches"
 case "$slot" in
   linux_aarch64|linux_x86_64)
     [[ $(uname -sm) == "Linux ${slot#linux_}" ]]
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq --no-install-recommends clang libclang-dev ninja-build patchelf
+    if [[ ${RUYIHTTP_BULLSEYE_BUILD:-0} == 1 ]]; then
+      [[ $(getconf GNU_LIBC_VERSION) == 'glibc 2.31' ]]
+      command -v clang clang++ ninja patchelf >/dev/null
+    else
+      sudo apt-get update -qq
+      sudo apt-get install -y -qq --no-install-recommends clang libclang-dev ninja-build patchelf
+    fi
     python -B tools/build_necko_linux.py --firefox-source "$donor/firefox" --jobs 3 --http3
     input=$(compgen -G "$donor/vendor/necko-derived/python/lib/python*/site-packages/necko")
     ;;

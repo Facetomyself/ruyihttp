@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
 import sys
@@ -14,8 +15,8 @@ from wheel.bdist_wheel import bdist_wheel
 
 ROOT = Path(__file__).resolve().parent
 
-# Windows retains the 0.9.0 native set; Linux uses the glibc 2.39 policy.
-# macOS tags come from the measured deployment floor of the native set.
+# The historical Linux default stays 2.39 until exact bytes have a measured
+# and admitted lower floor. macOS tags use measured Mach-O deployment targets.
 PLATFORMS = {
     "win_amd64": ("py3", "none", "win_amd64"),
     "linux_x86_64": ("py3", "none", "manylinux_2_39_x86_64"),
@@ -56,18 +57,42 @@ def host_platform():
 
 
 def platform_machine():
-    return os.environ.get("RUYIHTTP_MACHINE") or __import__("platform").machine().lower()
+    return os.environ.get("RUYIHTTP_MACHINE") or platform.machine().lower()
 
 
 def linux_tag(name):
     arch = "aarch64" if name == "linux_aarch64" else "x86_64"
-    # Bundling prebuilt libraries does not change their compatibility floor.
-    # The builder's libc may even be on a completely different architecture.
-    version = os.environ.get("RUYIHTTP_GLIBC", "2.39")
-    match = re.fullmatch(r"(\d+)\.(\d+)", version)
+    entry = source_entry(name)
+    source = ROOT / 'native' / name
+    provenance = json.loads((source / 'provenance.json').read_text(encoding='utf-8'))
+    # The build runs outside the package and never imports or loads these DSOs.
+    sys.path.insert(0, str(ROOT / 'tools'))
+    try:
+        from linux_baseline import FLOOR, validate_policy_records
+        measured = validate_policy_records(name, entry, provenance, source)
+    except (KeyError, OSError, TypeError, ValueError) as error:
+        raise SystemExit(f'{name}: {error}') from error
+    finally:
+        sys.path.pop(0)
+    if measured is not None:
+        actual = os.confstr('CS_GNU_LIBC_VERSION') if sys.platform == 'linux' else ''
+        libc = re.fullmatch(r'glibc (\d+)\.(\d+)', actual or '')
+        if platform.machine() != arch or not libc or tuple(map(int, libc.groups())) < (2, 31):
+            raise SystemExit(f'{name}: measured Linux wheels require a native glibc {FLOOR}+ build host')
+        if os.environ.get('RUYIHTTP_GLIBC', FLOOR) != FLOOR:
+            raise SystemExit(f'RUYIHTTP_GLIBC must equal the measured floor {FLOOR}')
+        if 'linux_baseline_candidate' in entry:
+            manifest = json.loads((ROOT / 'ruyihttp/runtime-manifest.json').read_text(encoding='utf-8'))
+            if (os.environ.get('RUYIHTTP_BUILD_BASELINE_CANDIDATE') != '1' or
+                    not re.fullmatch(r'\d+\.\d+\.\d+\.dev[1-9]\d*\+gha\.[1-9]\d*', manifest['version'])):
+                raise SystemExit(f'{name}: measured but unadmitted baseline requires a stamped diagnostic build')
+        return measured['candidate_tag']
+    # Historical bytes may keep their original floor or be tagged more narrowly.
+    version = os.environ.get('RUYIHTTP_GLIBC', '2.39')
+    match = re.fullmatch(r'(\d+)\.(\d+)', version)
     if not match or tuple(map(int, match.groups())) < (2, 39):
-        raise SystemExit(f"RUYIHTTP_GLIBC must be major.minor >= 2.39, got {version!r}")
-    return f"manylinux_{match[1]}_{match[2]}_{arch}"
+        raise SystemExit(f'RUYIHTTP_GLIBC must be major.minor >= 2.39, got {version!r}')
+    return f'manylinux_{match[1]}_{match[2]}_{arch}'
 
 
 PROFILE_DATA = {'firefox-profile.json', 'firefox-root-constraints.json', 'firefox-roots.pem', 'firefox-suffixes.dat'}
@@ -145,15 +170,13 @@ class PlatformWheel(bdist_wheel):
 
     def get_tag(self):
         name = host_platform()
+        if name.startswith('linux_'):
+            return 'py3', 'none', linux_tag(name)
         if name in SOURCE_SLOTS:
-            tag = source_entry(name).get("wheel_platform_tag", "")
-            valid = (tag == "manylinux_2_39_aarch64" if name == "linux_aarch64" else
-                     bool(re.fullmatch(r"macosx_\d+_\d+_" + name.removeprefix('darwin_'), tag)))
-            if not valid:
-                raise SystemExit(f"missing or invalid measured wheel platform tag: {name}")
-            return "py3", "none", linux_tag(name) if name == "linux_aarch64" else tag
-        if name.startswith("linux"):
-            return "py3", "none", linux_tag(name)
+            tag = source_entry(name).get('wheel_platform_tag', '')
+            if not re.fullmatch(r'macosx_\d+_\d+_' + name.removeprefix('darwin_'), tag):
+                raise SystemExit(f'missing or invalid measured wheel platform tag: {name}')
+            return 'py3', 'none', tag
         return PLATFORMS[name]
 
 
