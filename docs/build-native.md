@@ -1,6 +1,6 @@
 # Building and importing native runtimes
 
-RuyiHttp 0.9.1 keeps the original Windows x64 DLLs. Both Linux architectures and both macOS architectures are compiled on their target CPU from pinned upstream sources. The runtime manifest and each slot’s provenance identify its actual patches, hashes and loader policy. Packaging tracked libraries is separate from recompiling them.
+RuyiHttp 0.9.2 imports exactly the six Windows x64 DLLs from upstream PyPI 0.11.0; `python -B tools/sync_windows_native.py --check-slot` verifies the selected bank. This is not a Windows source-build claim. Both Linux architectures and both macOS architectures are compiled on their target CPU from pinned upstream sources. The runtime manifest and each slot’s provenance identify its actual patches, hashes and loader policy. Packaging tracked libraries is separate from recompiling them.
 
 ## Historical import example (a disposable checkout only)
 
@@ -16,7 +16,7 @@ python tools/build_native.py \
   --platform darwin_arm64
 ```
 
-These examples describe the original 0.9.0 donor sets, not a substitute for qualifying 0.9.1: the script copies the platform libraries into `native/<platform>/`, writes
+These examples describe the original 0.9.0 donor sets, not a substitute for qualifying 0.9.2: the script copies the platform libraries into `native/<platform>/`, writes
 `provenance.json` and `SHA256SUMS`, and updates
 `ruyihttp/runtime-manifest.json`.
 
@@ -41,7 +41,7 @@ markers.
 
 ## Source-built targets: Linux and macOS on x86_64 and ARM64
 
-The [native workflow](../.github/workflows/native-arm64-intel.yml) records the host architecture, upstream Git revisions and file inventory. It calls [the native build script](../ci/build_native_target.sh) on `ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15-intel` or `macos-26`. Both the donor commit `f557fcd437aae5f18f313eb330bd3ef50f5fc7df` and its Firefox gitlink `2887d9de1f69c0e9776413da80e7ba0d1225dd9b` are pinned; the runtime source version and the client-selected Firefox profile are distinct. Per-slot provenance is the authority for any additional patches.
+The [native workflow](../.github/workflows/native-arm64-intel.yml) records the host architecture, upstream Git revisions and file inventory. It calls [the native build script](../ci/build_native_target.sh) on `ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15-intel` or `macos-26`. The donor commit `f557fcd437aae5f18f313eb330bd3ef50f5fc7df` still has its original Firefox 160 gitlink `2887d9de1f69c0e9776413da80e7ba0d1225dd9b`. The [0.9.2 recipe](../tools/posix_firefox161.py) verifies that gitlink, then deliberately uses the independent official `FIREFOX_161_0_RELEASE` commit `9c70d5d48c866afc2e581d6b7ff6de98a1371d99`. The embedded Mozilla/Neqo/NSS inputs, dependency lock and ordered adapter patches are verified before promotion. Native source version and per-session Firefox selection are distinct. Per-slot provenance is the authority for any additional patches.
 
 1. Compile on the target CPU. For Linux, inspect the entire ELF set, exported ABI, dependencies and `$ORIGIN` search paths. For macOS, check each Mach-O architecture, deployment load command and sibling install names. Derive the wheel minimum from the binaries, rather than the SDK version or the runner label.
 2. Build a candidate wheel, check its hashes against its manifest and inspect its members. Check Linux platform policy with `auditwheel show`. Linux packaging never lowers the 2.39 compatibility floor to match an older build machine.
@@ -52,7 +52,7 @@ The [native workflow](../.github/workflows/native-arm64-intel.yml) records the h
 
 The POSIX source targets apply `native/patches/h3-body-abi-v1.patch`; macOS also applies the negotiated TLS reporting and global session handle patches. The versioned data ABI bounds buffers and byte counts; it runs only on the owning connection thread and never keeps a caller’s buffer. Artifacts from a failed source job remain diagnostic until independent target verification ties the exact hashes to a successful install and wire test. A matching build receipt alone is not release qualification.
 
-The per-platform `native-provenance.json` shipped in the installed wheel describes native sources and patches; its file inventory must agree with `runtime-manifest.json`. The four profile/root inputs are checked against their exact byte hashes at build time and after installing, including on Windows. A release upgrade uses ordinary pip version comparison, not `--force-reinstall`: Windows starts from the pinned original PyPI 0.9.0 wheel; other platforms reconstruct the prior five-platform distribution at `ea44f8f`.
+The per-platform `native-provenance.json` shipped in the installed wheel describes native sources and patches; its file inventory must agree with `runtime-manifest.json`. The four profile/root inputs are checked against their exact byte hashes at build time and after installing, including on Windows. A release upgrade uses ordinary pip version comparison, not `--force-reinstall`: Windows starts from the pinned original PyPI 0.9.0 wheel; other platforms reconstruct the prior five-platform distribution at `ea44f8f`. All five wheel jobs additionally reconstruct this fork at `fae13b0` (0.9.1), then verify ordinary upgrade, wire requests, installed identity, and the three removed roots against a retained positive control.
 
 ## Historical rebuild path for imported libraries
 
@@ -81,11 +81,7 @@ Imported wheel pins:
 
 ## Version rules
 
-| Platform | NSS | NSPR | Neqo | Firefox profile |
-| --- | --- | --- | --- | --- |
-| Windows x64 | 3.131 | 4.40 | 0.32.0 | 159.0 |
-| macOS arm64 / x86_64 | 3.132 | 4.40 | 0.33.0 | 159.0 |
-| Linux x86_64 / aarch64 | 3.132 | 4.40 | 0.33.0 | 159.0 |
+See the [current per-platform matrix](platform-support.md) for the shipped NSS / NSPR / Neqo versions. The default synthetic profile remains 159; 160 and 161 are opt-in.
 
 `ruyihttp/_nss.py` reads `ruyihttp/runtime-manifest.json` and rejects a library
 whose `necko_tls_nss_version()` does not match the platform entry.

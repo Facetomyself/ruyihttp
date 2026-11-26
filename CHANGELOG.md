@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.2 — selective upstream data, profiles and native runtimes (2026-11-26)
+
+- Update the packaged TLS server roots (121 → 118), one unchanged issuance cutoff, and the public suffix list (+70 / −5 rules) against both the official Mozilla 161 release and upstream PyPI 0.11.0. Test same-/cross-site Strict cookies and compare retired roots against a retained trust control.
+- Add explicit Firefox 160/161 selections; keep 159 as the default. Capture H1/H2/H3 with all three selections, and compare bounded fields to official Mozilla browser observations. See [wire reference and differences](docs/firefox-profile-wire.md).
+- Import the six verified Windows 0.11.0 DLLs, preserving the existing JSON body ABI. Rebuild POSIX slots on their native runners against pinned Firefox 161 sources when their gates pass. The [platform matrix](docs/platform-support.md) and packaged provenance, not the selected profile name, identify the actual native library revisions.
+- Keep the fork's POST replay guard, bounded fallback, TLS trust rotation, H2 flow control and H3 STOP/optional binary body ABI. Requalify ordinary upgrades from both preceding baselines. This version is an independent fork release, not the upstream 0.11.0 package.
+
 ## 0.9.1 — transport performance and native qualification (2026-11-26)
 
 - Honor H3 upload stop without losing the final response; share a healthy TCP fallback for an unusable Alt-Svc route and bound retry/caching costs. Preserve TLS verification and all request replay controls.

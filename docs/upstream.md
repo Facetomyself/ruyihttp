@@ -1,6 +1,6 @@
-# 上游 `ruyihttp` 0.11.0：差异与跟进计划
+# 上游 `ruyihttp` 0.11.0：差异与选择性同步
 
-核对日期：2026-11-26。本仓基线是 [`0.9.1` 对应的提交 `fae13b0`](https://github.com/Facetomyself/ruyihttp/tree/fae13b0a9eabbafbcdbf5c59438875525fcc0d0b)，共同起点是上游 PyPI `0.9.0`。这里比较发布物，区分**上游新增内容、本仓已有实现、尚待验收的移植**。以下建议尚未改变本仓的代码、默认版本或原生库。
+核对日期：2026-11-26。本仓基线是 [`0.9.1` 对应的提交 `fae13b0`](https://github.com/Facetomyself/ruyihttp/tree/fae13b0a9eabbafbcdbf5c59438875525fcc0d0b)，共同起点是上游 PyPI `0.9.0`。这里比较发布物，区分**上游新增内容、本仓已有实现、尚待验收的移植**。下面的比较和原始计划以 0.9.1 为基线；实施结果单列于下，默认配置仍为 159。
 
 ## 比较依据
 
@@ -12,9 +12,15 @@
 | [0.10.0](https://pypi.org/project/ruyihttp/0.10.0/#files) | 2026-11-14 | Windows x64、`manylinux_2_31_x86_64` | 160 | 3.132 / 4.40 / 0.33.0 |
 | [0.11.0](https://pypi.org/project/ruyihttp/0.11.0/#files) | 2026-11-25 | **仅 Windows x64** | 161 | **3.133 / 4.40 / 0.34.0** |
 
-三版 Windows wheel 均核对了 PyPI SHA-256 和逐文件 `RECORD`。0.11.0 的 wheel SHA-256 为 `79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332`。本仓 Windows 仍使用上游 0.9.0 的六个 DLL；四个 POSIX 目标则使用固定 ff-ruyijs / Firefox 源码构建的 NSS 3.132 / NSPR 4.40 / Neqo 0.33.0。**包版本、可选 Firefox 配置和实际加载的原生库版本是三个不同的值。**
+三版 Windows wheel 均核对了 PyPI SHA-256 和逐文件 `RECORD`。0.11.0 的 wheel SHA-256 为 `79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332`。比较基线 0.9.1 的 Windows 使用上游 0.9.0 的六个 DLL；四个 POSIX 目标则使用固定 ff-ruyijs / Firefox 源码构建的 NSS 3.132 / NSPR 4.40 / Neqo 0.33.0。**包版本、可选 Firefox 配置和实际加载的原生库版本是三个不同的值。**
 
-## 优先跟进什么
+## 0.9.2 实施记录
+
+- **先同步信任数据。** [输入来源与 SHA-256](upstream-0.11.0-data.json)给出精确 wheel 和 Mozilla 源文件。维护者用 `python tools/sync_trust_data.py --wheel WHEEL --certdata CERTDATA --psl PSL` 离线复查；默认只读，`--apply` 仅写入三份受限数据和对应哈希。118 张证书逐一匹配 Mozilla TLS server trusted delegator；仅一条签发截止约束，未变。测试中三张移出的自签根在原包受信、新包不受信；ISRG Root X1 在两包均受信。保留的 `firefox-profile.json` 是 Firefox 159 历史参考，不是当前根列表或运行时清单。
+- **随后适配配置与平台运行时。** `firefox="160"` 和 `firefox="161"` 均为显式选择，保留 `159` 默认。本仓未接纳上游 Python 传输实现。[配置参考及真实观察](firefox-profile-wire.md)列出与官方浏览器的匹配字段和已知差异；Windows 整组 DLL 的输入哈希、POSIX 的锁定源码及补丁、各平台门禁分别见[构建说明](build-native.md)和[平台验收](platform-support.md)。
+- **保留 fork 身份。** 采用独立版本 `0.9.2`；按 wheel 校验 46 个原生文件（五目标合计）、四份数据与来源记录，并在目标平台验证从公开 0.9.0 / 旧 fork 和直接前序 fork 0.9.1 的普通 pip 升级。PyPI 发布与本仓交付是两件事。
+
+## 基于 0.9.1 的原始差异和跟进顺序
 
 ### 1. 先同步信任数据与公共后缀列表
 
