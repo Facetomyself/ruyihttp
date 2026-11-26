@@ -9,8 +9,10 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+from tempfile import TemporaryDirectory
 
-from build_native import NATIVE, inspect_stable_wheel, load_manifest, wheel_members, write_manifest
+from build_native import (NATIVE, inspect_stable_wheel, load_manifest, verify_linux_baseline_wheel,
+                          wheel_members, write_manifest)
 from posix_firefox161 import validate_candidate
 
 
@@ -32,9 +34,11 @@ def main():
     source_suffix = f'.dev{source_run}+gha.{source_attempt}'
     assert candidate['version'].endswith(source_suffix)
     original = load_manifest()
-    # Accept only the policy-generation build; current patch bytes are verified below.
-    assert candidate['version'].removesuffix(source_suffix) == '0.9.3'
     entry = candidate['platforms'][slot]
+    source_version = candidate['version'].removesuffix(source_suffix)
+    measured = 'linux_baseline_candidate' in entry
+    # Allow a prior historical policy-generation wheel only for historical replay.
+    assert (source_version == original['version'] if measured else source_version in ('0.9.3', original['version']))
     assert entry['status'] == 'ready' and entry['h3_body_abi'] == 1
     assert entry['files'] == {name: information['sha256'] for name, information in actual.items()}
     baseline = original['platforms'][slot]
@@ -42,6 +46,17 @@ def main():
     provenance = read(evidence / 'provenance.json')
     assert provenance['platform'] == slot and provenance['files'] == actual
     validate_candidate(slot, entry, provenance)
+    if measured:
+        from linux_baseline import audit_record, verify_built_candidate
+
+        verify_linux_baseline_wheel(wheel, slot, entry, provenance)
+        assert audit_record(slot, evidence) == read(evidence / 'linux-auditwheel.json')
+        with TemporaryDirectory(prefix='ruyi-linux-baseline-replay-') as scratch:
+            verified = Path(scratch)
+            for name, data in files.items():
+                (verified / name).write_bytes(data)
+            assert verify_built_candidate(slot, verified, evidence) == (
+                entry['linux_baseline_candidate'], provenance['linux_baseline_build'], provenance['linux_elf_preflight'])
     target = NATIVE / slot
     assert target.resolve(strict=True) == target and target.is_dir()
     assert not any((target / name).exists() or (target / name).is_symlink() for name in files)

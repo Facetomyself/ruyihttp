@@ -223,6 +223,10 @@ jobs:
           for item in sources.txt source.json standalone-Cargo.lock standalone-lock.json standalone-rust.txt; do
             cp "$RUNNER_TEMP/source-evidence/$item" "$RUNNER_TEMP/native-evidence/"
           done
+          if [[ -f "$RUNNER_TEMP/source-evidence/baseline-build.json" ]]; then
+            from="$RUNNER_TEMP/source-evidence"
+            cp "$from"/{baseline-build.json,baseline-elf.json,builder-image.json,builder-dpkg.tsv,builder-toolchain.txt,builder-glibc-headers.txt} "$RUNNER_TEMP/native-evidence/"
+          fi
           cp "$RUNNER_TEMP/source-evidence/runner.txt" "$RUNNER_TEMP/native-evidence/source-runner.txt"
           cp "$RUNNER_TEMP/source-evidence/wheel.json" "$RUNNER_TEMP/native-evidence/source-wheel.json"
           printf '%s %s\n' "$SOURCE_RUN" "$SOURCE_ATTEMPT" > "$RUNNER_TEMP/native-evidence/source-run.txt"

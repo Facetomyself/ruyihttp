@@ -15,10 +15,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import stat
 import struct
 import sys
 import zipfile
+from email.parser import Parser
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -179,12 +181,52 @@ def inspect_stable_wheel(wheel: Path, platform: str) -> tuple[dict[str, bytes], 
     return members, before
 
 
+def verify_linux_baseline_wheel(wheel, slot, entry, provenance):
+    """Require a single measured tag and exact canonical native members."""
+    from linux_baseline import POLICY, validate_policy_records
+
+    measured = validate_policy_records(slot, entry, provenance)
+    if measured is None:
+        raise ValueError('Linux baseline wheel lacks a measured candidate or admitted policy')
+    expected_tag = f'py3-none-{measured["candidate_tag"]}'
+    name_pattern = r'ruyihttp-([A-Za-z0-9.+!_]+)-' + re.escape(expected_tag) + r'\.whl'
+    match = re.fullmatch(name_pattern, wheel.name)
+    if not match:
+        raise ValueError(f'Linux baseline wheel filename must carry {expected_tag}')
+    dist_info = f'ruyihttp-{match[1]}.dist-info'
+    expected = {f'ruyihttp/{name}' for name in PLATFORM_FILES[slot]}
+    with wheel.open('rb') as stream:
+        bound_zip(stream)
+        with zipfile.ZipFile(stream) as archive:
+            native = [item.filename for item in archive.infolist() if re.search(r'\.so(?:\.|$)', item.filename)]
+            if len(native) != len(expected) or set(native) != expected:
+                raise ValueError('Unexpected or non-canonical Linux native wheel members')
+            metadata = selected_members(archive, wheel.name, ['WHEEL', 'runtime-manifest.json', 'native-provenance.json'])
+            if not all(path in archive.namelist() for path in (f'{dist_info}/WHEEL', 'ruyihttp/runtime-manifest.json',
+                                                               'ruyihttp/native-provenance.json')):
+                raise ValueError('Unexpected path for Linux wheel metadata')
+    parsed = Parser().parsestr(metadata['WHEEL'].decode('utf-8'))
+    if parsed.get_all('Tag') != [expected_tag] or parsed.get_all('Root-Is-Purelib') != ['false']:
+        raise ValueError('Linux WHEEL internal tag differs from its measured native policy')
+    runtime = json.loads(metadata['runtime-manifest.json'])
+    if (runtime['version'] != match[1] or runtime['platforms'][slot] != entry or
+            json.loads(metadata['native-provenance.json']) != provenance or not expected_tag.startswith(f'py3-none-{POLICY}_')):
+        raise ValueError('Linux wheel manifest or provenance differs from candidate evidence')
+    return expected_tag
+
+
 def import_wheel(wheel: Path, platform: str) -> None:
     if platform == 'win_amd64':
         raise ValueError('win_amd64: use the pinned sync_windows_native.py importer')
     if platform not in DEFAULT_RUNTIME:
         raise ValueError(f'{platform}: use stage_native_candidate.py on the target host')
     members, wheel_sha256 = inspect_stable_wheel(wheel, platform)
+    manifest = load_manifest()
+    if platform.startswith('linux_'):
+        entry = manifest['platforms'][platform]
+        if ('linux_baseline' in entry or 'linux_baseline_candidate' in entry or
+                '-manylinux_2_31_' in wheel.name):
+            raise ValueError('Measured Linux banks require native candidate staging and admission')
     expected = PLATFORM_FILES[platform]
 
     destination = NATIVE / platform
@@ -219,7 +261,6 @@ def import_wheel(wheel: Path, platform: str) -> None:
         newline="\n",
     )
 
-    manifest = load_manifest()
     entry = manifest.setdefault("platforms", {}).setdefault(platform, {})
     entry.update(runtime)
     entry["status"] = "ready"
@@ -246,6 +287,14 @@ def check() -> int:
             print(f"{platform}: missing directory {directory}")
             failed += 1
             continue
+        if platform.startswith('linux_'):
+            from linux_baseline import validate_policy_records
+            try:
+                provenance = json.loads((directory / 'provenance.json').read_text(encoding='utf-8'))
+                validate_policy_records(platform, entry, provenance, directory if sys.platform == 'linux' else None)
+            except (KeyError, OSError, TypeError, ValueError) as error:
+                print(f'{platform}: {error}')
+                failed += 1
         for name, expected in entry.get("files", {}).items():
             path = directory / name
             if not path.is_file():
@@ -277,13 +326,23 @@ def main() -> int:
     try:
         if args.inspect_wheel:
             members, digest = inspect_stable_wheel(args.inspect_wheel, args.platform)
-            print(json.dumps(dict(scope='read-only wheel members',platform=args.platform,wheel_sha256=digest,
-                                  files={name:dict(size=len(data),sha256=hashlib.sha256(data).hexdigest())
-                                         for name,data in sorted(members.items())}),indent=2))
+            report = dict(scope='read-only wheel members',platform=args.platform,wheel_sha256=digest,
+                          files={name:dict(size=len(data),sha256=hashlib.sha256(data).hexdigest())
+                                 for name,data in sorted(members.items())})
+            if args.platform.startswith('linux_') and '-manylinux_2_31_' in args.inspect_wheel.name:
+                metadata = wheel_members(args.inspect_wheel, ['runtime-manifest.json', 'native-provenance.json'])
+                entry = json.loads(metadata['runtime-manifest.json'])['platforms'][args.platform]
+                provenance = json.loads(metadata['native-provenance.json'])
+                if report['files'] != provenance['files']:
+                    raise ValueError('Linux native members differ from wheel provenance')
+                report['tag'] = verify_linux_baseline_wheel(args.inspect_wheel, args.platform, entry, provenance)
+                if sha256(args.inspect_wheel) != digest:
+                    raise ValueError('wheel bytes changed during inspection')
+            print(json.dumps(report,indent=2))
             return 0
         import_wheel(args.wheel, args.platform)
         return check()
-    except (OSError,ValueError,zipfile.BadZipFile) as exc:
+    except (KeyError, OSError, TypeError, ValueError, zipfile.BadZipFile) as exc:
         parser.error(str(exc))
 
 

@@ -12,9 +12,11 @@ import json
 import re
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from zipfile import BadZipFile
 
-from build_native import (NATIVE, PLATFORM_FILES, inspect_stable_wheel,
-                          load_manifest, sha256, wheel_members, write_manifest)
+from build_native import (NATIVE, PLATFORM_FILES, inspect_stable_wheel, load_manifest, sha256,
+                          verify_linux_baseline_wheel, wheel_members, write_manifest)
 from posix_firefox161 import GECKO_H3_SOURCES, H3_PROTOCOL_POLICY, validate_candidate
 from stage_native_candidate import TARGETS
 
@@ -42,7 +44,7 @@ def verify_wire_receipts(report, receipt_path, slot, package_version, entry):
     require(sha256(reference_path) == reference_sha256, 'Official reference changed during verification')
     platform, arch, _ = SLOTS[slot]
     version_numbers = {'h1': 11, 'h2': 20, 'h3': 30}
-    receipts = receipt_path.read_bytes()
+    receipts = receipt_path if isinstance(receipt_path, bytes) else receipt_path.read_bytes()
     lines = receipts.decode('utf-8').splitlines()
     require(lines == [line for line in report.splitlines() if line.startswith('{')],
             'Machine-readable wire receipts differ from the hosted qualification log')
@@ -126,9 +128,13 @@ def promote(args):
     require(provenance['platform'] == slot and entry['status'] == 'ready', 'Unexpected candidate slot')
     manifest = load_manifest()
     version = manifest['version']
+    measured = entry.get('linux_baseline_candidate')
+    if measured is None and 'linux_baseline' in manifest['platforms'][slot]:
+        raise ValueError('Historical source candidates must preserve the admitted Linux baseline')
+    tag = measured['candidate_tag'] if measured else entry['wheel_platform_tag']
     require(re.fullmatch(r'\d+\.\d+\.\d+', version) and
             candidate['version'] == f'{version}.dev{run_id}+gha.{attempt}' and
-            wheel.name == f'ruyihttp-{candidate["version"]}-py3-none-{entry["wheel_platform_tag"]}.whl',
+            wheel.name == f'ruyihttp-{candidate["version"]}-py3-none-{tag}.whl',
             'Candidate wheel version or platform does not match the qualifying run')
     actual_files, wheel_digest = inspect_stable_wheel(wheel, slot)
     wheel_index = read(evidence / 'wheel.json')
@@ -158,13 +164,46 @@ def promote(args):
     require(lock['sha256'] == sha256(evidence / 'standalone-Cargo.lock') and
             lock['packages'] == source['mozilla_cargo_lock']['packages'],
             'Standalone vendor lock does not match Firefox sources')
+    floor_proof = None
+    audit = None
     if slot.startswith('linux_'):
         arch = TARGETS[slot][1]
-        audit = (evidence / 'auditwheel.txt').read_text(encoding='utf-8')
-        floor = re.search(r'following platform tag:\s+"manylinux_2_(\d+)_' + arch + r'"', audit)
-        require(provenance['highest_glibc_dynamic_requirement'] == entry['highest_glibc_dynamic_requirement'] and
-                floor and int(floor[1]) <= 39 and entry['wheel_platform_tag'] == f'manylinux_2_39_{arch}',
-                'Missing Linux candidate policy evidence')
+        if measured:
+            from linux_baseline import audit_record, verify_built_candidate
+            from verify_linux_floor import (validate_evidence_archive, validate_wheel_archive, verify_floor)
+
+            require(all((args.floor_run, args.floor_jobs, args.floor_artifacts, args.floor_cp310_zip,
+                         args.floor_cp314_zip, args.native_evidence_zip, args.native_wheel_zip)),
+                    'Linux baseline admission requires hosted modern and independent Bullseye artifact receipts')
+            validate_evidence_archive(args.native_evidence_zip, evidence_artifact, evidence)
+            validate_wheel_archive(args.native_wheel_zip, artifact, wheel)
+            verify_linux_baseline_wheel(wheel, slot, entry, provenance)
+            with TemporaryDirectory(prefix='ruyi-linux-promotion-') as scratch:
+                native_bytes = Path(scratch)
+                for name, data in actual_files.items():
+                    (native_bytes / name).write_bytes(data)
+                require(verify_built_candidate(slot, native_bytes, evidence) ==
+                        (measured, provenance['linux_baseline_build'], provenance['linux_elf_preflight']),
+                        'Staged source provenance differs from pinned Bullseye build evidence')
+            audit = audit_record(slot, evidence)
+            require(audit == read(evidence / 'linux-auditwheel.json') and audit['wheel_sha256'] == wheel_digest,
+                    'auditwheel receipt differs from the measured candidate wheel')
+            if source_id == run_id:
+                floor_wheel = {'filename': wheel.name, 'version': candidate['version'], 'sha256': wheel_digest}
+            else:
+                source_version = f'{version}.dev{source_id}+gha.{source_attempt}'
+                floor_wheel = {'filename': f'ruyihttp-{source_version}-py3-none-{tag}.whl', 'version': source_version,
+                               'sha256': source_wheel['wheel_sha256']}
+            floor_proof = verify_floor(*map(read, (args.floor_run, args.floor_jobs, args.floor_artifacts)),
+                                       (args.floor_cp310_zip, args.floor_cp314_zip), slot,
+                                       {'run': source_id, 'attempt': source_attempt}, floor_wheel,
+                                       entry, verify_wire_receipts)
+        else:
+            report = (evidence / 'auditwheel.txt').read_text(encoding='utf-8')
+            floor = re.search(r'following platform tag:\s+"manylinux_2_(\d+)_' + arch + r'"', report)
+            require(provenance['highest_glibc_dynamic_requirement'] == entry['highest_glibc_dynamic_requirement'] and
+                    floor and int(floor[1]) <= 39 and entry['wheel_platform_tag'] == f'manylinux_2_39_{arch}',
+                    'Missing Linux candidate policy evidence')
     else:
         require(provenance['macho_minimum_macos'] == entry['macho_minimum_macos'] and
                 provenance['minimum_macos'] == entry['minimum_macos'], 'Missing Mach-O deployment evidence')
@@ -200,14 +239,16 @@ def promote(args):
     require(len(reference_hashes) == 1, 'Official reference changed during verification')
     reference_sha256, = reference_hashes
     require(load_manifest() == manifest, 'Local manifest changed during promotion verification')
-    if args.check_only:
-        print(f'Accepted proof for {slot} from {job["html_url"]}: {wheel.name}, SHA-256 {wheel_digest}')
-        return
-    target = NATIVE / slot
-    require(target.resolve(strict=True) == target and target.is_dir(), 'Unexpected promotion destination')
-    for name in PLATFORM_FILES[slot]:
-        require(not (target / name).is_symlink(), f'Symlink prevented promotion: {name}')
-    provenance['source'] = 'Native source build verified by an installed-wheel runner'
+    if floor_proof is not None:
+        require(all(info['reference_sha256'] == reference_sha256 for info in floor_proof['endpoints'].values()),
+                'Modern and Bullseye proofs used different official references')
+        for record in (entry, provenance):
+            record['linux_baseline'] = record.pop('linux_baseline_candidate')
+            record['wheel_platform_tag'] = tag
+        provenance.update(linux_floor_verification=floor_proof, linux_auditwheel=audit)
+        provenance['source'] = 'Native Bullseye source build verified by independent installed-wheel runners'
+    else:
+        provenance['source'] = 'Native source build verified by an installed-wheel runner'
     provenance['native_verification'] = {
         'run': run['html_url'], 'job': job['html_url'], 'ruyihttp_commit': run['head_sha'],
         'wheel_artifact': f'{run["html_url"]}/artifacts/{artifact["id"]}', 'wheel_sha256': wheel_digest,
@@ -221,6 +262,16 @@ def promote(args):
         'same_slot_firefox_wire_receipt_sha256': wire_receipts,
         'tested_quic_policy_profiles': ['144', '145', '154', '155', '159', '160', '161'],
     }
+    validate_candidate(slot, entry, provenance)
+    if args.check_only:
+        print(f'Accepted proof for {slot} from {job["html_url"]}: {wheel.name}, SHA-256 {wheel_digest}')
+        if floor_proof:
+            print(f'Independent glibc {floor_proof["glibc"]} proof: {floor_proof["run"]}')
+        return
+    target = NATIVE / slot
+    require(target.resolve(strict=True) == target and target.is_dir(), 'Unexpected promotion destination')
+    for name in PLATFORM_FILES[slot]:
+        require(not (target / name).is_symlink(), f'Symlink prevented promotion: {name}')
     for name, data in actual_files.items():
         (target / name).write_bytes(data)
     (target / 'SHA256SUMS').write_text(''.join(f'{sha}  {name}\n' for name, sha in entry['files'].items()), encoding='utf-8')
@@ -236,7 +287,10 @@ if __name__ == '__main__':
     parser.add_argument('--check-only', action='store_true', help='validate the proof without changing the native slot')
     for name in ('wheel', 'evidence', 'run', 'jobs', 'artifacts'):
         parser.add_argument(name, type=Path)
+    for name in ('native-evidence-zip', 'native-wheel-zip', 'floor-run', 'floor-jobs', 'floor-artifacts',
+                 'floor-cp310-zip', 'floor-cp314-zip'):
+        parser.add_argument(f'--{name}', type=Path, help='original hosted receipt (required only for Linux 2.31)')
     try:
         promote(parser.parse_args())
-    except (KeyError, OSError, TypeError, ValueError) as error:
+    except (BadZipFile, KeyError, OSError, TypeError, ValueError) as error:
         parser.error(str(error))

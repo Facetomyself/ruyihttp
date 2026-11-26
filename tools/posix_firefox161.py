@@ -73,6 +73,9 @@ def validate_candidate(slot, entry, provenance):
     need(all(type(record.get('h3_protocol_policy')) is int and
              record['h3_protocol_policy'] == H3_PROTOCOL_POLICY for record in (entry, provenance)),
          'Missing or invalid POSIX HTTP/3 policy generation')
+    if slot.startswith('linux_'):
+        from linux_baseline import validate_policy_records
+        validate_policy_records(slot, entry, provenance)
 
 
 def versions_in_lock(path, *, mozilla):

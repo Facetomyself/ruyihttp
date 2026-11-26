@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from build_native import PLATFORM_FILES
+from build_native import PLATFORM_FILES, sha256
 
 ELF_MACHINE={'x86_64':62,'aarch64':183}
 LOADER={'x86_64':'ld-linux-x86-64.so.2','aarch64':'ld-linux-aarch64.so.1'}
@@ -169,8 +169,7 @@ def check(root, arch, *, reference=False, baseline=False, host_providers=False):
                 if host_providers and provider not in definitions:
                     path = host_provider(arch, provider)
                     definitions[provider] = provided_versions(path)
-                    system_providers[provider] = dict(sha256=hashlib.file_digest(path.open('rb'), 'sha256').hexdigest(),
-                                                      versions=sorted(definitions[provider]))
+                    system_providers[provider] = dict(sha256=sha256(path), versions=sorted(definitions[provider]))
                 if provider in definitions and set(versions) - definitions[provider]:
                     raise ValueError(f'{name}: {provider} lacks required versions {sorted(set(versions) - definitions[provider])}')
         result['system_dt_needed'] = sorted({p for item in report.values() for p in item['needed']} - files)
