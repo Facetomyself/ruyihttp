@@ -64,6 +64,18 @@ async def h2_get(port, path, root):
         await writer.wait_closed()
 
 
+async def h1_get(port, path, root):
+    reader, writer = await asyncio.open_connection(IP, port, ssl=verified(root, 'http/1.1'), server_hostname='localhost')
+    try:
+        writer.write(f'GET {path} HTTP/1.1\r\nHost: localhost:{port}\r\n\r\n'.encode())
+        await writer.drain()
+        first_line = await reader.readline()
+        return int(first_line.split()[1])
+    finally:
+        writer.close()
+        await writer.wait_closed()
+
+
 class ClientH3(QuicConnectionProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -112,8 +124,8 @@ class CaptureObserverTest(unittest.IsolatedAsyncioTestCase):
         with TemporaryDirectory() as directory:
             leaf, key, root = certificate(Path(directory))
             async with Origin('h3', leaf, key) as fixture:
-                self.assertEqual(await h2_get(fixture.port, BOOT, root), 200)
-                self.assertEqual(await h2_get(fixture.port, PATH, root), 503)
+                self.assertEqual(await h1_get(fixture.port, BOOT, root), 200)
+                self.assertEqual(await h1_get(fixture.port, PATH, root), 503)
                 conf = QuicConfiguration(is_client=True, alpn_protocols=['h3'], server_name='localhost',
                                          cadata=ssl.DER_cert_to_PEM_cert(root.read_bytes()).encode())
                 async with connect(IP, fixture.port, configuration=conf, create_protocol=ClientH3) as client:

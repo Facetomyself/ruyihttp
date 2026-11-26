@@ -186,7 +186,7 @@ def write_profile(browser, directory, root, case):
     return profile
 
 
-def launch(browser, arch, profile, url, directory):
+def launch(browser, arch, profile, url, directory, case):
     argv = [str(browser), '-headless', '-no-remote', '-new-instance', '-profile', str(profile), url]
     if sys.platform == 'darwin':
         seatbelt = ('(version 1) (allow default) (deny network-outbound '
@@ -200,6 +200,8 @@ def launch(browser, arch, profile, url, directory):
     env = {k: v for k, v in env.items() if not k.upper().startswith(reserved)}
     (directory / 'home').mkdir()
     env.update(HOME=str(directory / 'home'), MOZ_CRASHREPORTER_DISABLE='1', MOZ_NO_REMOTE='1', MOZ_HEADLESS='1')
+    if case == 'h3':
+        env['MOZ_LOG'] = 'neqo_http3:3,neqo_transport:3,pipnss:3,certverifier:3'
     if sys.platform == 'win32':
         for key in ('LOCALAPPDATA', 'APPDATA', 'USERPROFILE'):
             isolated = directory / key.lower()
@@ -293,8 +295,10 @@ async def collect(slot, release, browser, images, case, diagnostic):
         directory = Path(temp)
         leaf, key, root = certificate(directory)
         profile = write_profile(browser, directory, root, case)
-        async with Origin(case, leaf, key) as origin:
-            process = launch(browser, SLOTS[slot][1], profile, origin.url, directory)
+        bootstrap_protocol = os.getenv('FIREFOX_REFERENCE_BOOTSTRAP', 'h1')
+        expect(bootstrap_protocol in ('h1', 'h2'), 'invalid H3 bootstrap protocol')
+        async with Origin(case, leaf, key, bootstrap_protocol) as origin:
+            process = launch(browser, SLOTS[slot][1], profile, origin.url, directory, case)
             try:
                 arch = SLOTS[slot][1]
                 process_record = {'native': arch}
