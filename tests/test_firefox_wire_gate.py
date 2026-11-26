@@ -190,6 +190,17 @@ class WireComparisonTests(unittest.TestCase):
         self.observed["h3"]["grease_settings"] = []
         self.assertEqual(set(gate.compare(self.observed)), {"h3.settings_grease_count"})
 
+    def test_frozen_outer_tls_extension_order_fails_qualification(self):
+        alternate = wire(22222)
+        alternate["h3"]["hello"]["extensions"].reverse()
+        gate = Reference([self.expected, stable_wire(alternate)], "official shuffled extensions")
+        self.assertEqual(gate.compare(self.observed), {})  # A single look is insufficient.
+        repeats = [{"wire": wire(33333)}, {"wire": wire(44444)}]
+        self.assertEqual(set(gate.compare_receipt(self.observed, repeats)), {"repeat_proof"})
+        self.assertEqual(gate.compare_receipt(self.observed, [{"wire": alternate}]), {})
+        alternate["h3"]["headers"].append(["unexpected", "true"])
+        self.assertEqual(set(gate.compare_receipt(self.observed, [{"wire": alternate}])), {"repeat[1].h3.headers"})
+
     def test_tls_psk_extension_must_remain_last(self):
         self.observed["h2"]["hello"]["extensions"].insert(0, 41)
         with self.assertRaisesRegex(WireError, "pre_shared_key must be last"):

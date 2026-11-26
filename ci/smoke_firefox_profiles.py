@@ -43,7 +43,7 @@ import ruyihttp
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from firefox_quic_initial import QuicInitialObservation
 from firefox_wire import (
-    BOOT, MODES, PATH, QUIC_PARAMETERS, REFERENCE_DIR, RELEASES, SCHEMA_VERSION,
+    BOOT, MODES, PATH, QUIC_PARAMETERS, REFERENCE_DIR, RELEASES, REPEAT_LIMIT, SCHEMA_VERSION,
     SLOTS, WireError, grease_settings, load_reference, require, stable_wire,
 )
 
@@ -469,10 +469,12 @@ def main():
     parser.add_argument("--references", type=Path, default=REFERENCE_DIR)
     parser.add_argument("--collect", action="store_true", help="measure an installed wheel without qualifying it")
     parser.add_argument("--release", choices=RELEASES, help="collect only one release; strict gate always checks all three")
+    parser.add_argument("--repeats", type=int, choices=range(1, REPEAT_LIMIT + 1),
+                        help="total fresh observations per release for capture-only replay (default: one)")
     parser.add_argument("--output", type=Path, help="also write JSONL receipts to this file")
     args = parser.parse_args()
-    if args.release and not args.collect:
-        parser.error("--release requires --collect")
+    if (args.release or args.repeats) and not args.collect:
+        parser.error("--release and --repeats require --collect")
     try:
         expected = None if args.collect else load_reference(args.references, args.slot)
         entry = installed_product(args.slot, args.collect)
@@ -491,16 +493,33 @@ def main():
                 if entry is not None:
                     record.update(native_source=entry["firefox"], nss=entry["nss"], neqo=entry["neqo"])
                 try:
-                    wire, responses = asyncio.run(capture(firefox, entry, cert))
-                    record.update(wire=wire, responses=responses)
-                    if expected is None:
-                        stable_wire(wire)  # Validate even capture-only data.
-                    else:
-                        record["differences"] = expected[firefox].compare(wire)
+                    policy = None if expected is None else expected[firefox]
+                    wires, repeats = [], []
+                    record["repeats"] = repeats
+                    limit = REPEAT_LIMIT if policy is not None else (args.repeats or 1)
+                    for index in range(limit):
+                        wire, responses = asyncio.run(capture(firefox, entry, cert))
+                        wires.append(wire)
+                        sample = {"wire": wire, "responses": responses}
+                        if index:
+                            repeats.append(sample)
+                        else:
+                            record.update(sample)
+                        if policy is None:
+                            stable_wire(wire)  # Validate even capture-only data.
+                        elif policy.compare(wire) or policy.repeat_proof(wires)["complete"]:
+                            break
+                    if policy is not None:
+                        record["repeat_proof"] = policy.repeat_proof(wires)
+                        record["differences"] = policy.compare_receipt(wires[0], repeats)
                         if record["differences"]:
                             failed.append(firefox)
                 except CaptureFailure as exc:
-                    record.update(capture_error=str(exc), partial_wire=exc.partial, responses=exc.responses)
+                    snapshot = {"capture_error": str(exc), "partial_wire": exc.partial, "responses": exc.responses}
+                    if "wire" in record:
+                        record["repeat_capture_error"] = snapshot
+                    else:
+                        record.update(snapshot)
                     failed.append(firefox)
                 except Exception as exc:
                     record["capture_error"] = f"{type(exc).__name__}: {exc}"
