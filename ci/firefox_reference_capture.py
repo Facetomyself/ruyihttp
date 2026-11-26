@@ -189,8 +189,8 @@ def write_profile(browser, directory, root, case):
 def launch(browser, arch, profile, url, directory):
     argv = [str(browser), '-headless', '-no-remote', '-new-instance', '-profile', str(profile), url]
     if sys.platform == 'darwin':
-        seatbelt = ('(version 1) (allow default) (deny network-outbound (remote ip "*:*")) '
-                    '(allow network-outbound (remote ip "127.0.0.1:*") (remote ip "localhost:*"))')
+        seatbelt = ('(version 1) (allow default) (deny network-outbound '
+                    '(require-all (remote ip "*:*" ) (require-not (remote ip "localhost:*"))))')
         argv[:0] = ['/usr/bin/sandbox-exec', '-p', seatbelt, '/usr/bin/arch', '-' + arch]
     if sys.platform == 'win32':
         argv.insert(1, '-wait-for-browser')
@@ -241,11 +241,13 @@ def darwin_process(pid, browser, arch):
     return {'launch_arch': f'/usr/bin/arch -{arch}', 'cpu_type': result[0], 'cpu_subtype': result[1]}
 
 
-def stop(process):
+def stop(process, browser):
     if sys.platform == 'win32':
-        if process.poll() is None:
-            subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], check=False,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+        env = {**os.environ, 'RUYI_FF_FIXTURE_EXE': str(browser)}
+        subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                        'Get-Process -Name firefox -ErrorAction SilentlyContinue | '
+                        'Where-Object { $_.Path -ieq $env:RUYI_FF_FIXTURE_EXE } | Stop-Process -Force'],
+                       env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12)
     else:
         try:
             os.killpg(process.pid, signal.SIGTERM)
@@ -286,8 +288,8 @@ def validate(case, record, release):
     record['user_agent'] = ua
 
 
-async def collect(slot, release, browser, case, diagnostic):
-    with TemporaryDirectory(prefix='ff-reference-') as temp:
+async def collect(slot, release, browser, images, case, diagnostic):
+    with TemporaryDirectory(prefix='ff-reference-', ignore_cleanup_errors=sys.platform == 'win32') as temp:
         directory = Path(temp)
         leaf, key, root = certificate(directory)
         profile = write_profile(browser, directory, root, case)
@@ -307,13 +309,15 @@ async def collect(slot, release, browser, case, diagnostic):
                 if sys.platform == 'darwin':
                     process_record.update(darwin_process(process.pid, browser, arch))
                 elif sys.platform == 'linux':
-                    expect(Path(f'/proc/{process.pid}/exe').resolve(strict=True) == browser,
-                           'Linux did not launch the verified ELF executable')
+                    image = Path(f'/proc/{process.pid}/exe').resolve(strict=True)
+                    expect(image.parent == browser.parent and image.name in images and sha256(image) == images[image.name],
+                           f'Linux process image differs from verified package ({image.name})')
+                    process_record.update(image=image.name, image_sha256=images[image.name])
                 record['process'] = process_record
                 diagnostic.update(origin.diagnostics())
                 return record
             finally:
-                stop(process)
+                stop(process, browser)
 
 
 def identity(slot, record, work):
@@ -339,20 +343,25 @@ def capture(slot, release, work, out, samples):
            'captures': {release: {**acquisition, 'samples': []}}}
     row['ci'] = {k.lower().removeprefix('github_'): os.getenv(k) for k in
                  ('GITHUB_SHA', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'ImageOS', 'ImageVersion') if os.getenv(k)}
-    diagnostics = []
+    diagnostics, partial = [], []
     for attempt in range(samples):
         sample = {}
         for case in ('h1', 'h2', 'h3'):
             diagnostic = {'attempt': attempt, 'case': case}
             diagnostics.append(diagnostic)
             try:
-                sample[case] = asyncio.run(collect(slot, release, browser, case, diagnostic))
+                sample[case] = asyncio.run(collect(slot, release, browser, acquisition['packaged_executables'], case, diagnostic))
                 print(f'{slot} Firefox {release}.0 sample {attempt + 1} {case}: {sample[case]["user_agent"]}', flush=True)
             except Exception as exc:
                 diagnostic['failure'] = str(exc)
-                save_json(out / f'{slot}-{release}-partial.json', {**row, 'partial_sample': sample, 'diagnostics': diagnostics})
-                raise
-        row['captures'][release]['samples'].append(sample)
+                print(f'{slot} Firefox {release}.0 sample {attempt + 1} {case}: {exc}', flush=True)
+        if set(sample) == {'h1', 'h2', 'h3'}:
+            row['captures'][release]['samples'].append(sample)
+        else:
+            partial.append(sample)
+    if partial:
+        save_json(out / f'{slot}-{release}-partial.json', {**row, 'partial_samples': partial, 'diagnostics': diagnostics})
+        raise RuntimeError(f'{slot} Firefox {release}.0: {len(partial)} of {samples} samples incomplete')
     save_json(out / f'{slot}-{release}.json', row)
     save_json(out / f'{slot}-{release}-diagnostics.json', diagnostics)
 
