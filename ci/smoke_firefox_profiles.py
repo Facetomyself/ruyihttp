@@ -205,8 +205,10 @@ def decode_headers(headers):
     return [(key.decode("ascii"), value.decode("latin-1")) for key, value in headers]
 
 
-def h1_origin(tcp, context):
+def h1_origin(tcp, context, *, boot_port=None, complete=None, retired=None):
     client, _ = tcp.accept()
+    if boot_port is not None:
+        tcp.close()  # No second TCP connection can serve the target of the H3 case.
     with client:
         client.settimeout(10)
         with context.wrap_socket(client, server_side=True) as tls, tls.makefile("rb") as inbound:
@@ -221,10 +223,19 @@ def h1_origin(tcp, context):
                 # H1 delimiter whitespace is not part of the field value.
                 headers.append((name, value.strip(b" \t")))
             require(line == b"\r\n", "h1: missing end of headers")
-            tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nh1")
-            return {"protocol": tls.selected_alpn_protocol(), "request_line": first_line[:-2].decode("ascii"),
-                    "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
-                    "headers": decode_headers(headers)}
+            if boot_port is None:
+                tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nh1")
+            else:
+                require(first_line == f"GET {BOOT} HTTP/1.1\r\n".encode(), "h3: wrong TCP bootstrap target")
+                alternative = f'Alt-Svc: h3=":{boot_port}"; ma=60\r\n'.encode()
+                tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n" + alternative + b"\r\nboot")
+                require(complete.wait(20), "h3: client did not consume the bootstrap")
+            result = {"protocol": tls.selected_alpn_protocol(), "request_line": first_line[:-2].decode("ascii"),
+                      "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
+                      "headers": decode_headers(headers)}
+    if retired is not None:
+        retired.set()
+    return result
 
 
 class FirstH2Settings:
@@ -256,10 +267,8 @@ class FirstH2Settings:
         self.buffer.clear()
 
 
-def h2_origin(tcp, context, *, complete, boot_port=None, retired=None):
+def h2_origin(tcp, context, *, complete):
     client, _ = tcp.accept()
-    # In the bootstrap case, retire both the listener and the H2 connection so
-    # a silent TCP fallback can never look like successful H3.
     tcp.close()
     with client:
         client.settimeout(10)
@@ -277,13 +286,8 @@ def h2_origin(tcp, context, *, complete, boot_port=None, retired=None):
                         headers[event.stream_id] = decode_headers(event.headers)
                     if isinstance(event, StreamEnded):
                         stream = event.stream_id
-                        body = b"boot" if boot_port else b"h2"
-                        response = [(b":status", b"200"), (b"content-length", str(len(body)).encode())]
-                        if boot_port:
-                            require(dict(headers[stream]).get(":path") == BOOT, "h3: wrong TCP bootstrap target")
-                            response.append((b"alt-svc", f'h3=":{boot_port}"; ma=60'.encode()))
-                        protocol.send_headers(stream, response)
-                        protocol.send_data(stream, body, end_stream=True)
+                        protocol.send_headers(stream, [(b":status", b"200"), (b"content-length", b"2")])
+                        protocol.send_data(stream, b"h2", end_stream=True)
                         tls.sendall(protocol.data_to_send())
                         # Deliver and let the public client consume END_STREAM
                         # before GOAWAY/EOF. Older clients race peer shutdown
@@ -292,13 +296,6 @@ def h2_origin(tcp, context, *, complete, boot_port=None, retired=None):
                         result = {"protocol": tls.selected_alpn_protocol(), "settings": settings.settings,
                                   "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
                                   "headers": headers[stream]}
-                        if retired is not None:
-                            protocol.close_connection(error_code=0, last_stream_id=stream)
-                            try:
-                                tls.sendall(protocol.data_to_send())
-                            finally:
-                                tls.close()
-                                retired.set()
                         return result
                 tls.sendall(protocol.data_to_send())
     raise WireError("h2: observed no complete request")
@@ -376,7 +373,7 @@ def fetch(profile, roots, ports, entry, result, h2_complete, boot_complete, boot
             url = f"https://localhost:{ports[protocol]}{PATH}"
             result[protocol] = response_receipt(profile, navigation.get(url), protocol, protocol.encode(), entry)
         h2_complete.set()
-        result["bootstrap"] = response_receipt(profile, navigation.get(boot), "h2", b"boot", entry)
+        result["bootstrap"] = response_receipt(profile, navigation.get(boot), "h1", b"boot", entry)
         boot_complete.set()
         require(boot_retired.wait(5), "h3: TCP bootstrap was not retired")
         # Reuse the ordinary HTTPS adapter, which owns the authenticated
@@ -403,7 +400,7 @@ async def capture(profile, entry, cert):
         h2_complete, boot_complete, boot_retired = Event(), Event(), Event()
         h1 = executor.submit(h1_origin, tcp1, context_for(leaf, key, "http/1.1", hellos1))
         h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2), complete=h2_complete)
-        boot = executor.submit(h2_origin, tcp3, context_for(leaf, key, "h2", hellos3),
+        boot = executor.submit(h1_origin, tcp3, context_for(leaf, key, "http/1.1", hellos3),
                                complete=boot_complete, boot_port=ports["h3"], retired=boot_retired)
         responses = {}
         try:
@@ -439,7 +436,7 @@ async def capture(profile, entry, cert):
         observations["transport_parameters"] = {key: value for key, value in parameters[0].items() if key in QUIC_PARAMETERS}
         observed_bootstrap = boot.result(10)
         observed_bootstrap.update(port=ports["h3"], mode=MODES["h2"], hello=hellos3[0], client_hello_count=len(hellos3))
-        observations["bootstrap"] = [observed_bootstrap]
+        observations.update(bootstrap=[observed_bootstrap], bootstrap_protocol="h1")
         wire = {"h1": h1.result(10), "h2": h2.result(10), "h3": observations}
         wire["h1"].update(hello=hellos1[0], client_hello_count=len(hellos1))
         wire["h2"].update(hello=hellos2[0], client_hello_count=len(hellos2))
