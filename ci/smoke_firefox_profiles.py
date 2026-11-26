@@ -2,21 +2,22 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+"""Measure an installed RuyiHttp wheel at verified local TLS origins.
 
-"""Capture selected Firefox profiles at a loopback origin from an installed wheel.
-
-Run with the qualification interpreter: python -I ci/smoke_firefox_profiles.py <slot>.
-Only structured fields are compared: no randoms, key bytes, tickets, packet
-numbers or order of randomized TLS extensions are part of the fingerprint.
+`python -I ci/smoke_firefox_profiles.py <slot>` is the strict fork gate.
+Use `--collect` for an upstream/old wheel without fork runtime metadata.
 """
 
+import argparse
 import asyncio
 import json
-import runpy
+import platform
 import socket
 import ssl
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Event
@@ -27,43 +28,33 @@ from aioquic.h3.events import HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.events import HandshakeCompleted
 from aioquic.quic.logger import QuicLogger
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1, generate_private_key
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from h2.config import H2Configuration
 from h2.connection import H2Connection
-from h2.events import RemoteSettingsChanged, RequestReceived, StreamEnded
+from h2.events import RequestReceived, StreamEnded
 
+# Resolve the installed product before explicitly exposing these CI helpers to
+# the isolated qualification interpreter. Never add the product checkout.
 import ruyihttp
-from ruyihttp._firefox import runtime_platform
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from firefox_quic_initial import QuicInitialObservation
+from firefox_wire import (
+    BOOT, MODES, PATH, QUIC_PARAMETERS, REFERENCE_DIR, RELEASES, SCHEMA_VERSION,
+    SLOTS, WireError, grease_settings, load_reference, require, stable_wire,
+)
 
-SELECTIONS = ("159", "160", "161")
-PATH = "/profile-wire"
 IP = "127.0.0.1"
-UA_SYSTEM = {
-    "win_amd64": "Windows NT 10.0; Win64; x64",
-    "darwin_arm64": "Macintosh; Intel Mac OS X 10.15",
-    "darwin_x86_64": "Macintosh; Intel Mac OS X 10.15",
-    "linux_x86_64": "X11; Linux x86_64",
-    "linux_aarch64": "X11; Linux aarch64",
-}
-# Stable navigation fields shared by H1, H2 and H3, as seen by the server.
-NAV_HEADERS = {
-    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "accept-language": "en-US,en;q=0.9",
-    "accept-encoding": "gzip, deflate, br, zstd",
-    "upgrade-insecure-requests": "1",
-    "sec-fetch-dest": "document",
-    "sec-fetch-mode": "navigate",
-    "sec-fetch-site": "none",
-    "sec-fetch-user": "?1",
-    "priority": "u=0, i",
-}
-REFERENCE_PATH = Path(__file__).with_name("firefox_wire_reference.json")
-QUIC_PARAMETERS = {
-    "ack_delay_exponent", "active_connection_id_limit", "disable_active_migration",
-    "initial_max_data", "initial_max_stream_data_bidi_local", "initial_max_stream_data_bidi_remote",
-    "initial_max_stream_data_uni", "initial_max_streams_bidi", "initial_max_streams_uni",
-    "max_ack_delay", "max_datagram_frame_size", "max_idle_timeout", "max_udp_payload_size",
-}
+
+
+class CaptureFailure(WireError):
+    def __init__(self, root_cause, partial, responses):
+        super().__init__(f"{type(root_cause).__name__}: {root_cause}")
+        self.partial = partial
+        self.responses = responses
 
 
 class Vector:
@@ -90,62 +81,101 @@ class Vector:
     def integers(self, width):
         result = []
         while self:
-            number = self.uint(width)
-            # RFC 8701 GREASE values are uninformative and can vary by handshake.
-            if width != 2 or number not in range(0x0A0A, 0xFAFB, 0x1010):
-                result.append(number)
+            result.append(self.uint(width))
         return result
 
 
 def client_hello(message):
     handshake = Vector(message)
-    assert handshake.uint(1) == 1  # ClientHello
+    require(handshake.uint(1) == 1, "expected ClientHello")
     body = handshake.vector(3)
-    assert not handshake
+    require(not handshake, "unexpected trailing handshake bytes")
     legacy_version = body.uint(2)
     body.take(32)  # random
-    body.vector(1)  # session ID
+    session_id_length = len(body.vector(1).data)
     ciphers = body.vector(2).integers(2)
-    body.vector(1)  # compression methods
+    compression_methods = body.vector(1).integers(1)
     extensions = {}
     items = body.vector(2)
-    assert not body
+    require(not body, "unexpected trailing ClientHello bytes")
     while items:
         code = items.uint(2)
-        assert code not in extensions, code
+        require(code not in extensions, f"duplicate TLS extension {code}")
         extensions[code] = items.vector(2)
 
-    def numbers(code, length_width, number_width=2):
+    def payload(code, length_width):
         if code not in extensions:
-            return []
-        return extensions[code].vector(length_width).integers(number_width)
+            return Vector(b"")
+        extension = extensions[code]
+        vector = extension.vector(length_width)
+        require(not extension, f"trailing bytes in TLS extension {code}")
+        return vector
 
-    groups = numbers(10, 2)
-    signatures = numbers(13, 2)
-    compression = numbers(27, 1)
-    versions = numbers(43, 1)
+    groups = payload(10, 2).integers(2)
+    signatures = payload(13, 2).integers(2)
+    compression = payload(27, 1).integers(2)
+    versions = payload(43, 1).integers(2)
     share_groups = []
-    if 51 in extensions:
-        shares = extensions[51].vector(2)
-        while shares:
-            share_groups.append(shares.uint(2))
-            shares.vector(2)  # ephemeral public key bytes
+    shares = payload(51, 2)
+    while shares:
+        share_groups.append(shares.uint(2))
+        shares.vector(2)  # ephemeral public key bytes
     alpn = []
-    if 16 in extensions:
-        names = extensions[16].vector(2)
-        while names:
-            alpn.append(bytes(names.vector(1).data).decode("ascii"))
+    names = payload(16, 2)
+    while names:
+        alpn.append(bytes(names.vector(1).data).decode("ascii"))
+    server_names = []
+    names = payload(0, 2)
+    while names:
+        server_names.append([names.uint(1), bytes(names.vector(2).data).decode("ascii")])
     return {
         "legacy_version": legacy_version,
+        "session_id_length": session_id_length,
         "ciphers": ciphers,
-        "extensions": sorted(code for code in extensions if code not in range(0x0A0A, 0xFAFB, 0x1010)),
+        "compression_methods": compression_methods,
+        "extensions": list(extensions),
         "groups": groups,
         "signatures": signatures,
         "cert_compression": compression,
         "supported_versions": versions,
         "key_share_groups": share_groups,
         "offered_alpn": alpn,
+        "ec_point_formats": payload(11, 1).integers(1),
+        "psk_key_exchange_modes": payload(45, 1).integers(1),
+        "server_names": server_names,
     }
+
+
+def certificate(directory):
+    """Ephemeral private CA and localhost leaf; the client must verify both."""
+    ca_key = generate_private_key(SECP256R1())
+    server_key = generate_private_key(SECP256R1())
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Firefox profile wire test CA")])
+    server_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
+    now = datetime.now(timezone.utc)
+
+    def builder(subject, public_key, ca):
+        return (x509.CertificateBuilder().subject_name(subject).issuer_name(ca_name)
+                .public_key(public_key).serial_number(x509.random_serial_number())
+                .not_valid_before(now - timedelta(minutes=5)).not_valid_after(now + timedelta(days=1))
+                .add_extension(x509.BasicConstraints(ca=ca, path_length=None), critical=True)
+                .add_extension(x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False)
+                .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+                .add_extension(x509.KeyUsage(digital_signature=not ca, content_commitment=False,
+                    key_encipherment=False, data_encipherment=False, key_agreement=False, key_cert_sign=ca,
+                    crl_sign=False, encipher_only=False, decipher_only=False), critical=True))
+
+    ca = builder(ca_name, ca_key.public_key(), True).sign(ca_key, hashes.SHA256())
+    leaf = (builder(server_name, server_key.public_key(), False)
+            .add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost")]), critical=False)
+            .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+            .sign(ca_key, hashes.SHA256()))
+    leaf_path, key_path, ca_path = (directory / name for name in ("leaf.pem", "key.pem", "ca.pem"))
+    ca_path.write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+    leaf_path.write_bytes(leaf.public_bytes(serialization.Encoding.PEM))
+    key_path.write_bytes(server_key.private_bytes(serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+    return leaf_path, key_path, ca_path
 
 
 def context_for(leaf, key, alpn, hellos):
@@ -153,8 +183,8 @@ def context_for(leaf, key, alpn, hellos):
     context.set_alpn_protocols([alpn])
     context.load_cert_chain(leaf, key)
 
-    # Qualification is explicitly CPython. The SSL message callback yields the
-    # complete received handshake even if it spanned TCP segments or TLS records.
+    # The CPython callback delivers a complete handshake independently of TCP
+    # and TLS-record segmentation.
     def on_message(_socket, direction, _protocol, content_type, message_type, data):
         if direction == "read" and content_type == 22 and message_type == 1:
             hellos.append(client_hello(data))
@@ -175,242 +205,319 @@ def decode_headers(headers):
     return [(key.decode("ascii"), value.decode("latin-1")) for key, value in headers]
 
 
-def h1_origin(tcp, context):
+def h1_origin(tcp, context, *, boot_port=None, complete=None, retired=None):
     client, _ = tcp.accept()
+    if boot_port is not None:
+        tcp.close()  # No second TCP connection can serve the target of the H3 case.
     with client:
         client.settimeout(10)
         with context.wrap_socket(client, server_side=True) as tls, tls.makefile("rb") as inbound:
-            # Some native builds report empty ALPN for H1 even though a real
-            # H1 transaction follows; the raw request line is independently checked.
-            first_line = inbound.readline(65536).rstrip(b"\r\n")
+            first_line = inbound.readline(65536)
+            require(first_line.endswith(b"\r\n"), "h1: malformed request line")
             headers = []
             while line := inbound.readline(65536):
                 if line == b"\r\n":
                     break
-                name, value = line.rstrip(b"\r\n").split(b":", 1)
-                headers.append((name, value.strip()))
-            assert line == b"\r\n", "missing H1 end of headers"
-            tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nh1")
-            return {"protocol": tls.selected_alpn_protocol(), "request_line": first_line.decode("ascii"),
-                    "headers": decode_headers(headers)}
+                require(line.endswith(b"\r\n"), "h1: malformed header line")
+                name, value = line[:-2].split(b":", 1)
+                # H1 delimiter whitespace is not part of the field value.
+                headers.append((name, value.strip(b" \t")))
+            require(line == b"\r\n", "h1: missing end of headers")
+            if boot_port is None:
+                tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nh1")
+            else:
+                require(first_line == f"GET {BOOT} HTTP/1.1\r\n".encode(), "h3: wrong TCP bootstrap target")
+                alternative = f'Alt-Svc: h3=":{boot_port}"; ma=60\r\n'.encode()
+                tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n" + alternative + b"\r\nboot")
+                require(complete.wait(20), "h3: client did not consume the bootstrap")
+            result = {"protocol": tls.selected_alpn_protocol(), "request_line": first_line[:-2].decode("ascii"),
+                      "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
+                      "headers": decode_headers(headers)}
+    if retired is not None:
+        retired.set()
+    return result
 
 
-def h2_origin(tcp, context, port, release):
+class FirstH2Settings:
+    """Observe the actual frame, preserving order (unlike a SETTINGS dict)."""
+    PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+
+    def __init__(self):
+        self.buffer = bytearray()
+        self.settings = None
+
+    def feed(self, data):
+        if self.settings is not None:
+            return
+        self.buffer.extend(data)
+        offset = len(self.PREFACE)
+        if len(self.buffer) < offset + 9:
+            return
+        require(self.buffer[:offset] == self.PREFACE, "h2: wrong client connection preface")
+        frame = self.buffer[offset:offset + 9]
+        length = int.from_bytes(frame[:3], "big")
+        require(frame[3] == 4 and not frame[4] & 1 and frame[5:] == b"\0" * 4 and length % 6 == 0,
+                "h2: missing initial client SETTINGS frame")
+        offset += 9
+        if len(self.buffer) < offset + length:
+            return
+        self.settings = [(int.from_bytes(self.buffer[pos:pos + 2], "big"),
+                          int.from_bytes(self.buffer[pos + 2:pos + 6], "big"))
+                         for pos in range(offset, offset + length, 6)]
+        self.buffer.clear()
+
+
+def h2_origin(tcp, context, *, complete):
     client, _ = tcp.accept()
-    # Leave no fallback listener. Drain the warm H2 connection after one request.
     tcp.close()
     with client:
         client.settimeout(10)
         with context.wrap_socket(client, server_side=True) as tls:
-            assert tls.selected_alpn_protocol() == "h2"
+            require(tls.selected_alpn_protocol() == "h2", "h2: server did not negotiate h2")
             protocol = H2Connection(H2Configuration(client_side=False, normalize_inbound_headers=False))
             protocol.initiate_connection()
             tls.sendall(protocol.data_to_send())
-            settings = []
+            settings = FirstH2Settings()
             headers = {}
             while data := tls.recv(65536):
+                settings.feed(data)
                 for event in protocol.receive_data(data):
-                    if isinstance(event, RemoteSettingsChanged) and not settings:
-                        settings.extend((int(code), change.new_value) for code, change in event.changed_settings.items())
                     if isinstance(event, RequestReceived):
                         headers[event.stream_id] = decode_headers(event.headers)
                     if isinstance(event, StreamEnded):
                         stream = event.stream_id
-                        protocol.send_headers(stream, [(b":status", b"200"), (b"content-length", b"2"),
-                                                        (b"alt-svc", f'h3="127.0.0.1:{port}"; ma=60'.encode())])
+                        protocol.send_headers(stream, [(b":status", b"200"), (b"content-length", b"2")])
                         protocol.send_data(stream, b"h2", end_stream=True)
-                        protocol.close_connection(error_code=0, last_stream_id=stream)
                         tls.sendall(protocol.data_to_send())
-                        assert release.wait(20), "client did not release H2 bootstrap"
-                        return {"protocol": "h2", "settings": settings, "headers": headers[stream]}
+                        # Deliver and let the public client consume END_STREAM
+                        # before GOAWAY/EOF. Older clients race peer shutdown
+                        # against the application read of a complete response.
+                        require(complete.wait(20), "h2: client did not consume the response")
+                        result = {"protocol": tls.selected_alpn_protocol(), "settings": settings.settings,
+                                  "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
+                                  "headers": headers[stream]}
+                        return result
                 tls.sendall(protocol.data_to_send())
-    raise AssertionError("origin received no complete H2 request")
+    raise WireError("h2: observed no complete request")
 
 
 class H3Origin(QuicConnectionProtocol):
     def __init__(self, *args, observed, **kwargs):
         super().__init__(*args, **kwargs)
         self.http = H3Connection(self._quic)
+        self.initial = QuicInitialObservation(self._quic)
         self.observed = observed
+        initialize = self._quic._initialize
+
+        def tap_initialize(*args):
+            initialize(*args)
+            handler = self._quic.tls._server_handle_hello
+
+            def tap_hello(input_buf, *output_bufs):
+                require("hello" not in self.observed, "h3: unexpected second ClientHello")
+                payload = input_buf.data_slice(input_buf.tell(), input_buf.capacity)
+                self.observed["hello"] = client_hello(payload)
+                return handler(input_buf, *output_bufs)
+
+            self._quic.tls._server_handle_hello = tap_hello
+
+        self._quic._initialize = tap_initialize
 
     def quic_event_received(self, event):
         if isinstance(event, HandshakeCompleted):
+            require("protocol" not in self.observed, "h3: unexpected second handshake")
             self.observed["protocol"] = event.alpn_protocol
-            # The aioquic version is pinned by the wheel gate. This is the
-            # server's negotiated wire version, not the client's version label.
             self.observed["quic_version"] = int(self._quic._version)
         for message in self.http.handle_event(event):
             if isinstance(message, HeadersReceived):
-                assert "headers" not in self.observed, "unexpected additional H3 request"
+                require("headers" not in self.observed, "h3: unexpected additional request")
                 self.observed["headers"] = decode_headers(message.headers)
-                self.observed["settings"] = sorted(
-                    (int(code), value) for code, value in self.http.received_settings.items()
-                    if code < 0x21 or (code - 0x21) % 0x1F  # discard H3 GREASE identifiers
-                )
+                self.observed["initial"] = self.initial.result()
+                # aioquic's H3 parser rejects duplicates, then preserves control
+                # stream order in its dictionary. Save reserved IDs in raw data.
                 self.http.send_headers(message.stream_id, [(b":status", b"200"), (b"content-length", b"2")])
                 self.http.send_data(message.stream_id, b"h3", end_stream=True)
                 self.transmit()
+        if self.http.received_settings is not None:
+            self.observed["settings"] = [(int(code), value) for code, value in self.http.received_settings.items()]
+            self.observed["grease_settings"] = grease_settings(self.observed["settings"])
 
 
-def fetch(profile, roots, url1, url2, entry):
-    result = {}
-    with ruyihttp.Session(firefox=profile, verify=str(roots), timeout=10) as session:
-        session.trust_env = False
-        for protocol, url, version in (("h1", url1, 11), ("h2", url2, 20), ("h3", url2, 30)):
-            response = session.get(url)
-            assert (response.status_code, response.raw.version, response.content) == (200, version, protocol.encode()), response
-            info = response.tls
-            shape = entry["h3_tls"] if protocol == "h3" else "nss"
-            if shape == "null":
-                assert info is None, info
-            elif shape == "windows-legacy":
-                assert set(info) == {"backend", "alpn", "version", "cipher_suite", "resumed"}, info
-                assert info["backend"] == "NSS/Neqo" and info["alpn"] == "h3", info
-                assert info["version"] == 0x0304 and info["cipher_suite"] in (0x1301, 0x1302, 0x1303), info
-                assert not info["resumed"], info
-            else:
-                assert shape == "nss", shape
-                assert info["backend"] == "NSS" and info["nss"] == entry["nss"], info
-                assert info["profile"] == f"firefox-{profile}" and info["version"] == 0x0304, info
-                if protocol == "h1":
-                    assert info["alpn"] in ("", "http/1.1"), info
-                else:
-                    assert info["alpn"] == protocol, info
-            result[protocol] = {"status": response.status_code, "http_version": response.raw.version, "tls": info}
+def response_receipt(profile, response, protocol, body, entry):
+    version_number = {"h1": 11, "h2": 20, "h3": 30}[protocol]
+    require((response.status_code, response.raw.version, response.content) == (200, version_number, body),
+            f"{protocol}: unexpected status, version or body ({response.status_code}, {response.raw.version})")
+    info = getattr(response, "tls", None)
+    if entry is not None:
+        shape = entry["h3_tls"] if protocol == "h3" else "nss"
+        if shape == "null":
+            require(info is None, f"{protocol}: expected null TLS telemetry, got {info}")
+        elif shape == "windows-legacy":
+            require(set(info) == {"backend", "alpn", "version", "cipher_suite", "resumed"}
+                    and info["backend"] == "NSS/Neqo" and info["alpn"] == "h3" and info["version"] == 0x0304
+                    and info["cipher_suite"] in (0x1301, 0x1302, 0x1303) and not info["resumed"], f"h3: {info}")
+        else:
+            require(shape == "nss" and isinstance(info, dict) and info["backend"] == "NSS" and info["nss"] == entry["nss"]
+                    and info["profile"] == f"firefox-{profile}" and info["version"] == 0x0304
+                    and info["alpn"] in (("", "http/1.1") if protocol == "h1" else (protocol,)), f"{protocol}: {info}")
+    return {"status": response.status_code, "http_version": response.raw.version, "tls": info}
+
+
+def fetch(profile, roots, ports, entry, result, h2_complete, boot_complete, boot_retired):
+    options = {"firefox": profile, "verify": str(roots), "timeout": 10}
+    origin = f"https://localhost:{ports['h3']}"
+    boot = origin + BOOT
+    with ruyihttp.Session(**options) as navigation:
+        navigation.trust_env = False
+        for protocol in ("h1", "h2"):
+            url = f"https://localhost:{ports[protocol]}{PATH}"
+            result[protocol] = response_receipt(profile, navigation.get(url), protocol, protocol.encode(), entry)
+        h2_complete.set()
+        result["bootstrap"] = response_receipt(profile, navigation.get(boot), "h1", b"boot", entry)
+        boot_complete.set()
+        require(boot_retired.wait(5), "h3: TCP bootstrap was not retired")
+        # Reuse the ordinary HTTPS adapter, which owns the authenticated
+        # Alt-Svc state. The second Session supplies the real fetch defaults,
+        # reference and cookie policy rather than hand-constructing headers.
+        with ruyihttp.Session(context="fetch", document_url=boot, user_activation=False, **options) as browser_fetch:
+            browser_fetch.trust_env = False
+            browser_fetch.get_adapter(boot).close()
+            browser_fetch.mount("https://", navigation.get_adapter(boot))
+            result["h3"] = response_receipt(profile, browser_fetch.get(origin + PATH), "h3", b"h3", entry)
     return result
 
 
 async def capture(profile, entry, cert):
     leaf, key, roots = cert
-    with listener() as tcp1, listener() as tcp2, ThreadPoolExecutor(2) as executor:
-        observations, hellos1, hellos2 = {}, [], []
-        port1, port2 = tcp1.getsockname()[1], tcp2.getsockname()[1]
+    with listener() as tcp1, listener() as tcp2, listener() as tcp3, ThreadPoolExecutor(3) as executor:
+        observations, hellos1, hellos2, hellos3 = {}, [], [], []
+        ports = {protocol: listener.getsockname()[1] for protocol, listener in zip(MODES, (tcp1, tcp2, tcp3))}
         quic_log = QuicLogger()
         quic = QuicConfiguration(is_client=False, alpn_protocols=["h3"], quic_logger=quic_log)
         quic.load_cert_chain(leaf, key)
-        server = await serve(IP, port2, configuration=quic,
+        server = await serve(IP, ports["h3"], configuration=quic,
                              create_protocol=lambda *a, **k: H3Origin(*a, observed=observations, **k))
-        release = Event()
+        h2_complete, boot_complete, boot_retired = Event(), Event(), Event()
         h1 = executor.submit(h1_origin, tcp1, context_for(leaf, key, "http/1.1", hellos1))
-        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2), port2, release)
+        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2), complete=h2_complete)
+        boot = executor.submit(h1_origin, tcp3, context_for(leaf, key, "http/1.1", hellos3),
+                               complete=boot_complete, boot_port=ports["h3"], retired=boot_retired)
+        responses = {}
         try:
-            responses = await asyncio.to_thread(fetch, profile, roots, f"https://localhost:{port1}{PATH}",
-                                                f"https://localhost:{port2}{PATH}", entry)
+            await asyncio.to_thread(fetch, profile, roots, ports, entry, responses, h2_complete, boot_complete, boot_retired)
+        except Exception as exc:
+            failure = exc
+        else:
+            failure = None
         finally:
-            release.set()
+            h2_complete.set()
+            boot_complete.set()
             server.close()
+        if failure is not None:
+            partial = {}
+            for proto, pending, hellos in (("h1", h1, hellos1), ("h2", h2, hellos2), ("bootstrap", boot, hellos3)):
+                if not hellos:
+                    continue
+                try:
+                    case = pending.result(3)
+                    actual_proto = "h3" if proto == "bootstrap" else proto
+                    case.update(hello=hellos[0], client_hello_count=len(hellos), port=ports[actual_proto], mode="navigation")
+                    partial[proto] = case
+                except Exception as origin_exc:
+                    partial[proto] = {"client_hello_count": len(hellos), "origin_error": str(origin_exc)}
+            if observations:
+                partial["h3"] = {**observations, "port": ports["h3"], "mode": MODES["h3"]}
+            raise CaptureFailure(failure, partial, responses) from failure
         traces = quic_log.to_dict()["traces"]
         parameters = [event["data"] for trace in traces for event in trace["events"]
                       if event["name"] == "transport:parameters_set" and event["data"]["owner"] == "remote"]
-        assert len(hellos1) == len(hellos2) == len(parameters) == 1, (hellos1, hellos2, parameters)
-        observations["transport_parameters"] = {key: parameters[0][key] for key in sorted(QUIC_PARAMETERS & parameters[0].keys())}
+        require(len(hellos1) == len(hellos2) == len(hellos3) == len(parameters) == 1,
+                f"expected one handshake per origin: {list(map(len, (hellos1, hellos2, hellos3, parameters)))}")
+        observations["transport_parameters"] = {key: value for key, value in parameters[0].items() if key in QUIC_PARAMETERS}
+        observed_bootstrap = boot.result(10)
+        observed_bootstrap.update(port=ports["h3"], mode=MODES["h2"], hello=hellos3[0], client_hello_count=len(hellos3))
+        observations.update(bootstrap=[observed_bootstrap], bootstrap_protocol="h1")
         wire = {"h1": h1.result(10), "h2": h2.result(10), "h3": observations}
-        wire["h1"]["hello"], wire["h2"]["hello"] = hellos1[0], hellos2[0]
+        wire["h1"].update(hello=hellos1[0], client_hello_count=len(hellos1))
+        wire["h2"].update(hello=hellos2[0], client_hello_count=len(hellos2))
+        for protocol, case in wire.items():
+            case.update(port=ports[protocol], mode=MODES[protocol])
         return wire, responses
 
 
-def verify(profile, slot, wire):
-    expected_agent = f"Mozilla/5.0 ({UA_SYSTEM[slot]}; rv:{profile}.0) Gecko/20100101 Firefox/{profile}.0"
-    assert wire["h1"]["request_line"] == f"GET {PATH} HTTP/1.1", wire["h1"]
-    assert wire["h3"]["protocol"] == "h3" and wire["h3"]["quic_version"] in (1, 0x6B3343CF), wire["h3"]
-    assert wire["h3"]["settings"] and wire["h3"]["transport_parameters"], wire["h3"]
-    for protocol, observation in wire.items():
-        headers = [(name.lower(), value) for name, value in observation["headers"]]
-        fields = dict(headers)
-        assert len(headers) == len(fields), headers
-        assert fields["user-agent"] == expected_agent, headers
-        assert [(name, value) for name, value in headers if name in NAV_HEADERS] == list(NAV_HEADERS.items()), headers
-        if protocol != "h1":
-            assert (fields[":method"], fields[":scheme"], fields[":path"]) == ("GET", "https", PATH), headers
-        if protocol != "h3":
-            hello = observation["hello"]
-            assert hello["supported_versions"][0] == 0x0304, hello
-            assert hello["ciphers"][:3] == [0x1301, 0x1303, 0x1302], hello
-            assert hello["groups"][:2] == [0x11EC, 0x001D] and hello["key_share_groups"][:2] == [0x11EC, 0x001D], hello
-            assert ("h2" if protocol == "h2" else "http/1.1") in hello["offered_alpn"], hello
-
-
-def comparable(wire):
-    """Strip expected per-run differences while preserving field order and values."""
-    return {
-        protocol: {**observation, "headers": [
-            (name, "<version-specific>" if name.lower() == "user-agent" else
-             "<loopback-authority>" if name.lower() in ("host", ":authority", "alt-used") else value)
-            for name, value in observation["headers"]
-        ]}
-        for protocol, observation in wire.items()
-    }
-
-
-def reference_comparison(profile, wire, reference):
-    stable = comparable(wire)
-    report = {"source": reference["source"], "firefox": profile}
-    for protocol in ("h1", "h2"):
-        observed = stable[protocol]
-        expected = reference["observations"][protocol]
-        report[protocol] = {
-            "headers_match": [list(item) for item in observed["headers"]] == expected["headers"],
-            "client_hello_differences": {
-                field: {"reference": value, "wheel": observed["hello"][field]}
-                for field, value in reference["observations"]["client_hello"].items()
-                if observed["hello"][field] != value
-            },
-        }
-    actual_ua = next(value for key, value in wire["h1"]["headers"] if key.lower() == "user-agent")
-    expected_ua = reference["observations"]["user_agent_template"].replace("{major}", profile)
-    if actual_ua != expected_ua:
-        report["user_agent_difference"] = {"reference": expected_ua, "wheel": actual_ua}
-    report["h2"]["settings_match"] = (
-        [list(pair) for pair in stable["h2"]["settings"]] == reference["observations"]["h2"]["settings"]
-    )
-    h3 = stable["h3"]
-    ref_h3 = reference["observations"]["h3_fetch"]
-    actual_settings = set(h3["settings"])
-    expected_settings = set(map(tuple, ref_h3["settings"]))
-    report["h3"] = {
-        "reference_firefox": ref_h3["firefox"],
-        "headers_compared": False,  # Browser JS fetch vs. wheel navigation.
-        "quic_version_matches": h3["quic_version"] == ref_h3["quic_version"],
-        "transport_parameters_match": h3["transport_parameters"] == ref_h3["transport_parameters"],
-        "settings_reference_only": sorted(expected_settings - actual_settings),
-        "settings_wheel_only": sorted(actual_settings - expected_settings),
-    }
-    return report
-
-
-def main(slot):
-    assert runtime_platform() == slot, (runtime_platform(), slot)
+def installed_product(slot, collect):
+    actual = {"arm64": "aarch64", "amd64": "x86_64"}.get(platform.machine().lower(), platform.machine().lower())
+    target_platform, target_arch, _ = SLOTS[slot]
+    normalized_target = {"arm64": "aarch64", "amd64": "x86_64"}.get(target_arch, target_arch)
+    require(sys.platform == target_platform and actual == normalized_target,
+            f"{slot}: unexpected interpreter platform {sys.platform}/{platform.machine()}")
     root = Path(ruyihttp.__file__).resolve().parent
-    assert root.is_relative_to(Path(sys.prefix).resolve()), root
+    require(root.is_relative_to(Path(sys.prefix).resolve()), f"expected installed wheel within {sys.prefix}, got {root}")
+    if collect:
+        return None
+    # Keep import-time capture compatibility with unmodified upstream wheels.
+    from ruyihttp._firefox import runtime_platform
+
+    require(runtime_platform() == slot, f"manifest runtime slot {runtime_platform()!r} != {slot!r}")
     manifest = json.loads((root / "runtime-manifest.json").read_text(encoding="utf-8"))
-    entry = manifest["platforms"][slot]
-    reference = json.loads(REFERENCE_PATH.read_text(encoding="utf-8"))
-    assert tuple(reference["captures"]) == SELECTIONS
-    # Reuse the other installed-wheel gate's local CA fixture without making
-    # the source tree importable under the isolation required by this gate.
-    certificate = runpy.run_path(str(Path(__file__).with_name("smoke_native_target.py")))["certificate"]
-    with TemporaryDirectory() as directory:
-        cert = certificate(Path(directory))
-        baseline = None
-        for firefox in SELECTIONS:
-            wire, responses = asyncio.run(capture(firefox, entry, cert))
-            comparison = reference_comparison(firefox, wire, reference)
-            print(json.dumps({"slot": slot, "firefox": firefox, "native_source": entry["firefox"],
-                              "nss": entry["nss"], "neqo": entry["neqo"], "responses": responses,
-                              "wire": wire, "reference_comparison": comparison}), flush=True)
-            verify(firefox, slot, wire)
-            # H1/H2 navigation and initial SETTINGS must match the reference.
-            # Other TLS/QUIC deltas are recorded explicitly per native slot;
-            # the structural checks and the slot's own 159 control still apply.
-            assert comparison["h1"]["headers_match"] and comparison["h2"]["headers_match"], comparison
-            assert comparison["h2"]["settings_match"], comparison
-            stable = comparable(wire)
-            if baseline is None:
-                baseline = stable
-            else:
-                assert stable == baseline, f"Firefox {firefox} changed non-UA wire fields versus the 159 control"
-    print(f"{slot}: explicit 159/160/161 passed H1, H2 and UDP-only H3 with identical selected non-UA fields", flush=True)
+    return manifest["platforms"][slot]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("slot", choices=SLOTS)
+    parser.add_argument("--references", type=Path, default=REFERENCE_DIR)
+    parser.add_argument("--collect", action="store_true", help="measure an installed wheel without qualifying it")
+    parser.add_argument("--release", choices=RELEASES, help="collect only one release; strict gate always checks all three")
+    parser.add_argument("--output", type=Path, help="also write JSONL receipts to this file")
+    args = parser.parse_args()
+    if args.release and not args.collect:
+        parser.error("--release requires --collect")
+    try:
+        expected = None if args.collect else load_reference(args.references, args.slot)
+        entry = installed_product(args.slot, args.collect)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        parser.exit(1, f"firefox wire: {exc}\n")
+    target_platform, target_arch, _ = SLOTS[args.slot]
+    failed = []
+    releases = (args.release,) if args.release else RELEASES
+    output = args.output.open("w", encoding="utf-8") if args.output is not None else None
+    try:
+        with TemporaryDirectory() as directory:
+            cert = certificate(Path(directory))
+            for firefox in releases:
+                record = {"schema_version": SCHEMA_VERSION, "source": "installed-wheel", "package_version": version("ruyihttp"),
+                          "slot": args.slot, "platform": target_platform, "arch": target_arch, "firefox": firefox}
+                if entry is not None:
+                    record.update(native_source=entry["firefox"], nss=entry["nss"], neqo=entry["neqo"])
+                try:
+                    wire, responses = asyncio.run(capture(firefox, entry, cert))
+                    record.update(wire=wire, responses=responses)
+                    if expected is None:
+                        stable_wire(wire)  # Validate even capture-only data.
+                    else:
+                        record["differences"] = expected[firefox].compare(wire)
+                        if record["differences"]:
+                            failed.append(firefox)
+                except CaptureFailure as exc:
+                    record.update(capture_error=str(exc), partial_wire=exc.partial, responses=exc.responses)
+                    failed.append(firefox)
+                except Exception as exc:
+                    record["capture_error"] = f"{type(exc).__name__}: {exc}"
+                    failed.append(firefox)
+                line = json.dumps(record)
+                print(line, flush=True)
+                if output is not None:
+                    output.write(line + "\n")
+                    output.flush()
+    finally:
+        if output is not None:
+            output.close()
+    if failed:
+        parser.exit(1, f"{args.slot}: Firefox {', '.join(failed)} wire capture/comparison failed\n")
+    if not args.collect:
+        print(f"{args.slot}: explicit 159/160/161 passed H1, H2 and UDP-only H3 against same-slot official Firefox", flush=True)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main()

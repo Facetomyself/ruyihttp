@@ -233,8 +233,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("Windows NT 10.0; Win64; x64", windows)
         self.assertIn("Macintosh; Intel Mac OS X 10.15", mac)
         self.assertNotIn("Windows", mac)
-        # Linux UA 的架构部分随 RUYIHTTP_MACHINE / 真实机器变化（x86_64 或 aarch64）
-        self.assertRegex(linux, r"X11; Linux (x86_64|aarch64)")
+        self.assertIn("X11; Linux x86_64", linux)
         self.assertNotIn("Windows", linux)
         frozen = _firefox._user_agent(112, "darwin")
         self.assertIn("rv:109.0", frozen)
@@ -264,6 +263,19 @@ class RuntimeContractTests(unittest.TestCase):
         built = _nss.native_profile("159")
         self.assertEqual(built.cipher_count, len(_nss.TLS_PROFILES["159"].ciphers))
 
+    def test_linux_arm64_ua_freezes_at_123_without_changing_native_slot(self):
+        for machine, slot in (("aarch64", "linux_aarch64"), ("x86_64", "linux_x86_64")):
+            with driven_host("posix", "linux", machine):
+                self.assertEqual(_firefox.runtime_platform(), slot)
+                for major in (100, 119, 122, 123, 126, 127, 159, 160, 161):
+                    with self.subTest(machine=machine, major=major):
+                        cpu = machine if major < 123 else "x86_64"
+                        rv = 109 if 110 <= major <= 119 else major
+                        expected = f"Mozilla/5.0 (X11; Linux {cpu}; rv:{rv}.0) Gecko/20100101 Firefox/{major}.0"
+                        self.assertEqual(_firefox._user_agent(major), expected)
+                        for context in ("navigation", "fetch"):
+                            self.assertEqual(_firefox.default_headers(context, str(major))["User-Agent"], expected)
+
     def test_explicit_firefox_160_161_selection_and_platform_tokens(self):
         self.assertEqual(_firefox.DEFAULT_FIREFOX, "159")
         self.assertEqual(_firefox.FIREFOX_VERSIONS, tuple(map(str, range(100, 162))))
@@ -286,7 +298,7 @@ class RuntimeContractTests(unittest.TestCase):
             ("posix", "darwin", "arm64", "darwin", "Macintosh; Intel Mac OS X 10.15"),
             ("posix", "darwin", "x86_64", "darwin", "Macintosh; Intel Mac OS X 10.15"),
             ("posix", "linux", "x86_64", "linux", "X11; Linux x86_64"),
-            ("posix", "linux", "aarch64", "linux", "X11; Linux aarch64"),
+            ("posix", "linux", "aarch64", "linux", "X11; Linux x86_64"),
         )
         for version in ("160", "161"):
             config = _firefox.PROFILES[version]
@@ -304,7 +316,24 @@ class RuntimeContractTests(unittest.TestCase):
                     control = _nss.native_profile("159", platform=profile_platform)
                     self.assertEqual(candidate.cipher_count, control.cipher_count)
                     self.assertEqual(candidate.group_count, control.group_count)
-                    self.assertEqual(_firefox.quic_profile(version, profile_platform), baseline["quic"])
+                    expected_quic = dict(baseline["quic"])
+                    if profile_platform != "win_amd64":
+                        expected_quic.update(h3_connect=True, max_data=24 * 1024**2,
+                                             max_stream_data_bidi_local=12 * 1024**2)
+                    self.assertEqual(_firefox.quic_profile(version, profile_platform), expected_quic)
+
+    def test_posix_quic_preferences_do_not_change_upstream_windows_schema(self):
+        for major in (100, 144, 145, 154, 155, 161):
+            with self.subTest(major=major):
+                before = dict(_firefox.PROFILES[str(major)]["quic"])
+                for platform_name in ("darwin", "linux"):
+                    spec = _firefox.quic_profile(str(major), platform_name)
+                    self.assertEqual(spec["h3_connect"], major >= 145)
+                    self.assertEqual(spec["version2"], major >= 155)
+                    self.assertEqual((spec["max_data"], spec["max_stream_data_bidi_local"]),
+                                     (25165824, 12582912))
+                self.assertEqual(_firefox.quic_profile(str(major), "win_amd64"), before)
+                self.assertFalse({"h3_connect", "max_data", "max_stream_data_bidi_local"} & before.keys())
 
     def test_host_platform_matches_this_host(self):
         if os.name == "nt":

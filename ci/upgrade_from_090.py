@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a normal in-place upgrade from the original 0.9.0 or this fork's pinned 0.9.1."""
+"""Check normal in-place upgrades from the original line or either pinned fork release."""
 
 import hashlib
 import json
@@ -20,13 +20,35 @@ def main():
     candidate = Path(sys.argv[1]).resolve(strict=True)
     candidate_version = candidate.name.split("-")[1]
     slot = sys.argv[2] if len(sys.argv) > 2 else "win_amd64"
-    fork_baseline = sys.argv[3:] == ["--from-fork-091"]
-    assert len(sys.argv) <= 3 or fork_baseline
-    old_version = "0.9.1" if fork_baseline else "0.9.0"
+    mode = tuple(sys.argv[3:])
+    old_version = {
+        (): "0.9.0",
+        ("--from-fork-091",): "0.9.1",
+        ("--from-fork-092",): "0.9.2",
+    }[mode]
+    fork_baseline = old_version == "0.9.1"
     assert candidate_version != old_version
     with tempfile.TemporaryDirectory(prefix="ruyihttp-upgrade-") as directory:
         root = Path(directory)
-        if slot == "win_amd64" and not fork_baseline:
+        if old_version == "0.9.2":
+            sys.path.insert(0, str(CI))
+            from release_inputs import OLD_COMMIT, asset_spec
+
+            spec = asset_spec("fork-0.9.2", slot)
+            baseline = (
+                Path(os.environ["RUYIHTTP_RELEASE_092_DIR"]).resolve(strict=True)
+                / spec["name"]
+            )
+            assert (
+                baseline.is_file()
+                and hashlib.sha256(baseline.read_bytes()).hexdigest() == spec["sha256"]
+            )
+            with ZipFile(baseline) as archive:
+                manifest = json.loads(archive.read("ruyihttp/runtime-manifest.json"))
+            assert manifest["version"] == old_version
+            hashes = manifest["platforms"][slot]["files"]
+            source = f"public GitHub Release v0.9.2 at {OLD_COMMIT}"
+        elif slot == "win_amd64" and not fork_baseline:
             provenance = json.loads(PROVENANCE.read_text(encoding="utf-8"))
             baseline = root / provenance["wheel"]
             assert baseline.name == "ruyihttp-0.9.0-py3-none-win_amd64.whl"
@@ -94,9 +116,22 @@ print(f'installed {expected} with Python {sys.version.split()[0]} in {root}', fl
                 expected,
             )
 
-        call("-m", "pip", "install", str(baseline))
+        deps = ["aioquic==1.3.0"] if old_version == "0.9.2" else []
+        call("-m", "pip", "install", str(baseline), *deps)
         version(old_version)
         call(CI / "smoke_local.py")
+        if old_version == "0.9.2" and os.environ.get("RUYIHTTP_UPGRADE_WIRE_EVIDENCE"):
+            evidence = Path(os.environ["RUYIHTTP_UPGRADE_WIRE_EVIDENCE"]).resolve(
+                strict=True
+            )
+            raw = evidence / "release-0.9.2-wire.jsonl"
+            call(CI / "smoke_firefox_profiles.py", slot, "--collect", "--output", raw)
+            call(
+                CI / "compare_previous_wire.py",
+                slot,
+                raw,
+                evidence / "release-0.9.2-differences.json",
+            )
         call("-m", "pip", "install", "--upgrade", str(candidate))
         call("-m", "pip", "check")
         version(candidate_version)

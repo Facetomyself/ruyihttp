@@ -66,7 +66,9 @@ def main():
     python("native-transactions", "-I", ROOT / "ci/smoke_native_target.py", slot)
     if manifest['platforms'][slot].get('h3_protocol_policy') == 1:
         python('posix-quic-policy', '-I', ROOT / 'ci/smoke_posix_quic_policy.py', slot)
-    python("firefox-profile-wire", "-I", ROOT / "ci/smoke_firefox_profiles.py", slot)
+    python("firefox-wire-comparator", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_firefox_wire_gate.py", "-v")
+    python("firefox-profile-wire", "-I", ROOT / "ci/smoke_firefox_profiles.py", slot,
+           "--output", evidence / "firefox-profile-wire.jsonl")
     python("full-h3", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_http3_native.py", "-v")
     for module in ('test_h3_body_abi.py', 'test_alt_svc_native.py'):
         if (ROOT / 'tests' / module).is_file():
@@ -83,6 +85,9 @@ def main():
         python("upgrade-0.9.0", "-I", ROOT / "ci/upgrade_from_090.py", wheel, slot)
     if env.get('RUYIHTTP_FORK_091_BUILD'):
         python('upgrade-fork-0.9.1', '-I', ROOT / 'ci/upgrade_from_090.py', wheel, slot, '--from-fork-091')
+    if env.get('RUYIHTTP_RELEASE_092_DIR'):
+        env['RUYIHTTP_UPGRADE_WIRE_EVIDENCE'] = str(evidence)
+        python('upgrade-release-0.9.2', '-I', ROOT / 'ci/upgrade_from_090.py', wheel, slot, '--from-fork-092')
     if failed:
         raise SystemExit("Failed runtime gates: " + ", ".join(failed))
 
