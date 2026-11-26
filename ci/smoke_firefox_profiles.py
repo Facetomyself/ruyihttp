@@ -41,6 +41,7 @@ from h2.events import RequestReceived, StreamEnded
 import ruyihttp
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from firefox_h2_preface import FirstH2Flight
 from firefox_quic_initial import QuicInitialObservation
 from firefox_wire import (
     BOOT, MODES, PATH, QUIC_PARAMETERS, REFERENCE_DIR, RELEASES, REPEAT_LIMIT, SCHEMA_VERSION,
@@ -238,36 +239,7 @@ def h1_origin(tcp, context, *, boot_port=None, complete=None, retired=None):
     return result
 
 
-class FirstH2Settings:
-    """Observe the actual frame, preserving order (unlike a SETTINGS dict)."""
-    PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-
-    def __init__(self):
-        self.buffer = bytearray()
-        self.settings = None
-
-    def feed(self, data):
-        if self.settings is not None:
-            return
-        self.buffer.extend(data)
-        offset = len(self.PREFACE)
-        if len(self.buffer) < offset + 9:
-            return
-        require(self.buffer[:offset] == self.PREFACE, "h2: wrong client connection preface")
-        frame = self.buffer[offset:offset + 9]
-        length = int.from_bytes(frame[:3], "big")
-        require(frame[3] == 4 and not frame[4] & 1 and frame[5:] == b"\0" * 4 and length % 6 == 0,
-                "h2: missing initial client SETTINGS frame")
-        offset += 9
-        if len(self.buffer) < offset + length:
-            return
-        self.settings = [(int.from_bytes(self.buffer[pos:pos + 2], "big"),
-                          int.from_bytes(self.buffer[pos + 2:pos + 6], "big"))
-                         for pos in range(offset, offset + length, 6)]
-        self.buffer.clear()
-
-
-def h2_origin(tcp, context, *, complete):
+def h2_origin(tcp, context, *, complete, flight):
     client, _ = tcp.accept()
     tcp.close()
     with client:
@@ -277,10 +249,9 @@ def h2_origin(tcp, context, *, complete):
             protocol = H2Connection(H2Configuration(client_side=False, normalize_inbound_headers=False))
             protocol.initiate_connection()
             tls.sendall(protocol.data_to_send())
-            settings = FirstH2Settings()
             headers = {}
             while data := tls.recv(65536):
-                settings.feed(data)
+                flight.feed(data)
                 for event in protocol.receive_data(data):
                     if isinstance(event, RequestReceived):
                         headers[event.stream_id] = decode_headers(event.headers)
@@ -293,7 +264,7 @@ def h2_origin(tcp, context, *, complete):
                         # before GOAWAY/EOF. Older clients race peer shutdown
                         # against the application read of a complete response.
                         require(complete.wait(20), "h2: client did not consume the response")
-                        result = {"protocol": tls.selected_alpn_protocol(), "settings": settings.settings,
+                        result = {"protocol": tls.selected_alpn_protocol(), "settings": flight.result()["frames"][0]["values"],
                                   "negotiated_tls": {"version": tls.version(), "cipher": tls.cipher()[0]},
                                   "headers": headers[stream]}
                         return result
@@ -399,7 +370,8 @@ async def capture(profile, entry, cert):
                              create_protocol=lambda *a, **k: H3Origin(*a, observed=observations, **k))
         h2_complete, boot_complete, boot_retired = Event(), Event(), Event()
         h1 = executor.submit(h1_origin, tcp1, context_for(leaf, key, "http/1.1", hellos1))
-        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2), complete=h2_complete)
+        flight = FirstH2Flight()
+        h2 = executor.submit(h2_origin, tcp2, context_for(leaf, key, "h2", hellos2), complete=h2_complete, flight=flight)
         boot = executor.submit(h1_origin, tcp3, context_for(leaf, key, "http/1.1", hellos3),
                                complete=boot_complete, boot_port=ports["h3"], retired=boot_retired)
         responses = {}
@@ -438,6 +410,7 @@ async def capture(profile, entry, cert):
         observed_bootstrap.update(port=ports["h3"], mode=MODES["h2"], hello=hellos3[0], client_hello_count=len(hellos3))
         observations.update(bootstrap=[observed_bootstrap], bootstrap_protocol="h1")
         wire = {"h1": h1.result(10), "h2": h2.result(10), "h3": observations}
+        responses["h2"]["first_flight"] = flight.result()
         wire["h1"].update(hello=hellos1[0], client_hello_count=len(hellos1))
         wire["h2"].update(hello=hellos2[0], client_hello_count=len(hellos2))
         for protocol, case in wire.items():
