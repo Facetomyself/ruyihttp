@@ -10,8 +10,10 @@ arch=${slot#linux_}
 [[ $(uname -sm) == "Linux $arch" ]]
 
 if [[ ${5:-} != --inside ]]; then
-  [[ $(getconf GNU_LIBC_VERSION) != 'glibc 2.31' ]]
+  [[ ${GITHUB_ACTIONS:-} == true && ${RUNNER_ENVIRONMENT:-} == github-hosted ]]
+  [[ $(getconf GNU_LIBC_VERSION) != 'glibc 2.31' && $(docker info --format '{{.OSType}}/{{.Architecture}}') == "linux/$arch" ]]
   [[ $donor == "$RUNNER_TEMP/"* && $output == "$RUNNER_TEMP/"* && $evidence == "$RUNNER_TEMP/"* ]]
+  mkdir -p "$output" "$evidence"
   python -B "$root/tools/linux_baseline.py" pins "$slot" > "$evidence/builder-pins.env"
   . "$evidence/builder-pins.env"
   docker pull --platform "linux/$BASELINE_ARCH" "$BASELINE_IMAGE"
@@ -19,7 +21,9 @@ if [[ ${5:-} != --inside ]]; then
   docker image inspect "$BASELINE_IMAGE" > "$evidence/builder-image.json"
   docker run --rm --pull=never --platform "linux/$BASELINE_ARCH" \
     --mount "type=bind,src=$root,dst=$root,readonly" \
-    --mount "type=bind,src=$RUNNER_TEMP,dst=$RUNNER_TEMP" \
+    --mount "type=bind,src=$donor,dst=$donor" \
+    --mount "type=bind,src=$output,dst=$output" \
+    --mount "type=bind,src=$evidence,dst=$evidence" \
     --env-file "$evidence/builder-pins.env" --workdir "$root" "$BASELINE_IMAGE" \
     bash ci/build_linux_baseline.sh "$slot" "$donor" "$output" "$evidence" --inside
   exit

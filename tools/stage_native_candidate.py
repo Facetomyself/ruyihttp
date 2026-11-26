@@ -170,14 +170,15 @@ def main():
                   "wheel_platform_tag": tag, "runtime_expected": VERSIONS, "files": inventory,
                   "source_patches": patches, "h3_protocol_policy": H3_PROTOCOL_POLICY,
                   "h3_body_abi_expected": 1, **deployment, **build_metadata}
-    validate_candidate(args.platform, entry, provenance)
-    (dest / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
-    hashes = {name: item["sha256"] for name, item in inventory.items()}
-    (dest / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in hashes.items()))
+    hashes = {name: item['sha256'] for name, item in inventory.items()}
     entry.update(status='ready', wheel_platform_tag=tag, files=hashes,
                  h3_tls='nss', h3_body_abi=1, **deployment)
+    validate_candidate(args.platform, entry, provenance)
+    (dest / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
+    (dest / 'SHA256SUMS').write_text(''.join(f'{digest}  {name}\n' for name, digest in hashes.items()))
     write_manifest(manifest)
-    print(f"{args.platform} staged in disposable checkout, candidate tag {tag}")
+    proposed = deployment.get('linux_baseline_candidate', {}).get('candidate_tag', tag)
+    print(f'{args.platform} staged in disposable checkout, candidate tag {proposed}')
 
 
 if __name__ == "__main__":

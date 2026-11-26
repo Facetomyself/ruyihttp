@@ -501,7 +501,6 @@ class RuntimeContractTests(unittest.TestCase):
         with driven_host("posix", "linux", "x86_64"):
             selected = setup.host_platform()
         self.assertEqual(selected, "linux_x86_64")
-        self.assertEqual(setup.PLATFORMS[selected][2], "manylinux_2_39_x86_64")
         build_lib = self.root / selected
         command = _build_py(build_lib)
         command.bundle_native(selected)
@@ -526,13 +525,50 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertFalse((package / "libnecko_core.so").exists())
         self.assertTrue((package / "necko_core.dll").exists())
 
-    def test_linux_tag_respects_the_bundled_runtime_floor(self):
+    def test_linux_tag_preserves_the_historical_bundled_runtime_floor(self):
+        entries = {}
+        for slot in ('linux_x86_64', 'linux_aarch64'):
+            tag = f'manylinux_2_39_{slot.removeprefix("linux_")}'
+            src = self.root / 'native' / slot
+            src.mkdir(parents=True)
+            (src / 'provenance.json').write_text(json.dumps({'wheel_platform_tag': tag}))
+            entries[slot] = {'status': 'ready', 'files': {'fixture.so': 'ignored'}, 'wheel_platform_tag': tag}
+        package = self.root / 'ruyihttp'
+        package.mkdir()
+        (package / 'runtime-manifest.json').write_text(json.dumps({'platforms': entries}))
+        with patch.object(setup, 'ROOT', self.root):
+            with patch.dict(os.environ, clear=True):
+                self.assertEqual(setup.linux_tag('linux_aarch64'), 'manylinux_2_39_aarch64')
+            with _env(RUYIHTTP_GLIBC='2.31'), self.assertRaisesRegex(SystemExit, '>= 2.39'):
+                setup.linux_tag('linux_x86_64')
+            with _env(RUYIHTTP_GLIBC='2.40'):
+                self.assertEqual(setup.linux_tag('linux_x86_64'), 'manylinux_2_40_x86_64')
+            entries['linux_x86_64']['wheel_platform_tag'] = 'manylinux_2_31_x86_64'
+            (package / 'runtime-manifest.json').write_text(json.dumps({'platforms': entries}))
+            with self.assertRaisesRegex(SystemExit, 'without a native baseline measurement'):
+                setup.linux_tag('linux_x86_64')
+
+    @unittest.skipUnless(sys.platform == 'linux' and Path('/usr/bin/readelf').is_file(),
+                         'native Linux tooling required')
+    def test_native_linux_tag_matches_the_admitted_slot(self):
+        import platform
+
+        slot = f'linux_{platform.machine()}'
+        if slot not in ('linux_x86_64', 'linux_aarch64'):
+            self.skipTest('no Linux wheel for the running architecture')
+        entry = json.loads((ROOT / 'ruyihttp' / 'runtime-manifest.json').read_text())['platforms'][slot]
         with patch.dict(os.environ, clear=True):
-            self.assertEqual(setup.linux_tag('linux_aarch64'), 'manylinux_2_39_aarch64')
-        with _env(RUYIHTTP_GLIBC='2.31'), self.assertRaisesRegex(SystemExit, '>= 2.39'):
-            setup.linux_tag('linux_x86_64')
-        with _env(RUYIHTTP_GLIBC='2.40'):
-            self.assertEqual(setup.linux_tag('linux_x86_64'), 'manylinux_2_40_x86_64')
+            if 'linux_baseline_candidate' in entry:
+                with self.assertRaisesRegex(SystemExit, 'requires a stamped diagnostic build'):
+                    setup.linux_tag(slot)
+            else:
+                self.assertEqual(setup.linux_tag(slot), entry['wheel_platform_tag'])
+        if 'linux_baseline' in entry:
+            with _env(RUYIHTTP_GLIBC='2.31'):
+                self.assertEqual(setup.linux_tag(slot), f'manylinux_2_31_{platform.machine()}')
+            for glide in ('2.30', '2.39'):
+                with _env(RUYIHTTP_GLIBC=glide), self.assertRaisesRegex(SystemExit, 'measured floor 2.31'):
+                    setup.linux_tag(slot)
 
     def test_partial_and_mismatched_candidates_are_never_bundled(self):
         slot = 'linux_aarch64'

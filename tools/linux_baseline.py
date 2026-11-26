@@ -53,8 +53,11 @@ def _hash(value):
 
 
 def _file_hash(path):
+    h = hashlib.sha256()
     with path.open('rb') as fp:
-        return hashlib.file_digest(fp, 'sha256').hexdigest()
+        for block in iter(lambda: fp.read(1024 * 1024), b''):
+            h.update(block)
+    return h.hexdigest()
 
 
 def _require(ok, detail):
@@ -85,6 +88,9 @@ def builder_record(slot, evidence):
              any('clang version 16.0.6' in line for line in toolchain) and
              f'release: {RUST_VERSION}' in toolchain and f'host: {arch}-unknown-linux-gnu' in toolchain,
              'Unexpected native builder, loader, CPython or Rust toolchain')
+    headers = (evidence / 'builder-glibc-headers.txt').read_text().splitlines()
+    _require('#define __GLIBC__ 2' in headers and '#define __GLIBC_MINOR__ 31' in headers,
+             'Compiler did not select the pinned Bullseye glibc headers')
     receipts = ['builder-image.json', 'builder-dpkg.tsv', 'builder-toolchain.txt', 'builder-glibc-headers.txt']
     return {'schema': 1, 'slot': slot, 'arch': arch, 'glibc': FLOOR, 'pins': pinned,
             'image_config_id': image['Id'], 'packages': essential,
@@ -98,10 +104,11 @@ def audit_record(slot, evidence):
     audit_report = evidence / 'auditwheel.txt'
     report = audit_report.read_text()
     tag = re.search(r'following platform tag:\s+"(manylinux_2_(\d+)_' + arch + r')"', report)
-    proposed = (evidence / 'baseline-build.json').is_file()
     manifest = _read(evidence / 'runtime-manifest.json')
     entry = manifest['platforms'][slot]
-    floor = 31 if proposed or entry.get('linux_baseline') else 39
+    proposed = 'linux_baseline_candidate' in entry
+    _require(proposed == (evidence / 'baseline-build.json').is_file(), 'Linux candidate audit is missing its native build receipt')
+    floor = 31 if proposed or 'linux_baseline' in entry else 39
     _require(tag and int(tag[2]) <= floor, f'auditwheel did not establish a {arch} floor at or below glibc 2.{floor}')
     return {'schema': 1, 'slot': slot, 'version': AUDITWHEEL_VERSION,
             'wheel_sha256': _read(evidence / 'wheel.json')['wheel_sha256'],
@@ -168,9 +175,33 @@ def validate_policy_records(slot, entry, provenance, libraries=None):
              {n: v['sha256'] for n, v in provenance['files'].items()},
              'Linux ELF receipt inventory differs from the runtime manifest')
     if field == 'linux_baseline':
+        from verify_linux_floor import ENDPOINTS, RUNS
+
         floor = provenance.get('linux_floor_verification', {})
-        _require(floor.get('glibc') == FLOOR and floor.get('slot') == slot and floor.get('arch') == arch and
-                 floor.get('cpython_runtime_endpoints') == ['3.10', '3.14'] and floor.get('native_sha256') == entry['files'],
+        modern = provenance.get('native_verification', {})
+        audit = provenance.get('linux_auditwheel', {})
+        run, source_run = floor.get('run', ''), floor.get('source_run', '')
+        endpoints = floor.get('endpoints', {})
+        inferred = re.fullmatch(r'manylinux_2_(\d+)_' + arch, audit.get('inferred_platform_tag', ''))
+        _require(floor.get('schema') == 1 and floor.get('glibc') == FLOOR and floor.get('slot') == slot and
+                 floor.get('arch') == arch and floor.get('cpython_runtime_endpoints') == list(ENDPOINTS) and
+                 floor.get('native_sha256') == entry['files'] and floor.get('source_run') == modern.get('source_build_run') and
+                 floor.get('source_attempt') == modern.get('source_build_attempt') and
+                 source_run != run and all(re.fullmatch(re.escape(RUNS) + r'[1-9]\d*', r) for r in (run, source_run)) and
+                 re.fullmatch(r'[0-9a-f]{40}', floor.get('qualification_commit', '')) and
+                 re.fullmatch(r'[0-9a-f]{64}', floor.get('wheel_sha256', '')) and
+                 floor.get('wheel_filename', '').endswith(f'-py3-none-{tag}.whl') and
+                 endpoints.keys() == set(ENDPOINTS) and
+                 all(re.fullmatch(re.escape(run) + r'/job/[1-9]\d*', info.get('job', '')) and
+                     re.fullmatch(re.escape(run) + r'/artifacts/[1-9]\d*', info.get('artifact', '')) and
+                     re.fullmatch(r'sha256:[0-9a-f]{64}', info.get('artifact_digest', '')) and
+                     re.fullmatch(re.escape(endpoint) + r'\.\d+', info.get('python', '')) and
+                     info.get('reference_sha256') == modern.get('same_slot_firefox_reference_sha256') and
+                     re.fullmatch(r'[0-9a-f]{64}', info.get('wire_receipt_sha256', ''))
+                     for endpoint, info in endpoints.items()) and
+                 audit.get('slot') == slot and audit.get('version') == AUDITWHEEL_VERSION and inferred and
+                 int(inferred[1]) <= 31 and audit.get('wheel_sha256') == modern.get('wheel_sha256') and
+                 re.fullmatch(r'[0-9a-f]{64}', audit.get('auditwheel_sha256', '')),
                  'Linux wheel floor requires an independent same-slot Bullseye proof')
     if libraries is not None:
         validate_elf(slot, libraries, elf)
