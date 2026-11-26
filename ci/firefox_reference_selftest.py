@@ -117,6 +117,9 @@ class CaptureObserverTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(observed['grease_settings'], grease_settings(observed['settings']))
                     self.assertEqual(observed['hello']['offered_alpn'], ['h3'])
                     self.assertEqual(observed['quic_version'], 1)
+                    self.assertEqual(observed['initial']['version'], 1)
+                    self.assertGreaterEqual(observed['initial']['udp_payload_bytes'], 1200)
+                    self.assertIn(4, observed['initial']['transport_parameter_ids'])
 
 
 if __name__ == '__main__':
