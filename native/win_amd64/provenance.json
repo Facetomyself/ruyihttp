@@ -69,5 +69,28 @@
       "wheel_member": "ruyihttp/softokn3.dll",
       "record_hash": "sha256=yoncYmRdisVtN-ojI_vvb8JPhStCSG8y2y_wUmvewQU"
     }
+  },
+  "native_verification": {
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739200837",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739200837/job/139639762634",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739200837/artifacts/15080651467",
+    "wheel_artifact_archive_sha256": "45154abc3d6d96f79982f48b7c7f851e1562f1c6fd3cd3d4f334f5d9bce3a68a",
+    "evidence_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45739200837/artifacts/15080741260",
+    "evidence_artifact_archive_sha256": "c72811da64e89bf4ba91541210fdf6641902d062645e1b90f7dfac0c1f061b4c",
+    "ruyihttp_commit": "4c4d98be8f8949e4f9a16ad7b838fe3f808a21be",
+    "qualified_wheel": "ruyihttp-0.9.2-py3-none-win_amd64.whl",
+    "wheel_sha256": "ca9e18152164c7991617c70d827b797536cc55430bac2b0a907c25c603558590",
+    "runner": "windows-2025 x64 (Windows NT build 26100)",
+    "cpython_runtime_endpoints": ["3.10.11", "3.14.10"],
+    "loaded_sibling_dll_count": 6,
+    "tested_http": ["http/1.1", "h2", "h3"],
+    "explicit_profiles_wire_tested": ["159", "160", "161"],
+    "native_h3_cases_per_endpoint": 6,
+    "h3_certificate_negatives": ["wrong hostname", "untrusted issuer", "expired leaf"],
+    "h3_json_echo_bytes": 1048579,
+    "h3_json_echo_sha256": "f4777c8d9c10fb0bff676a666ef2aae3ece03bdab0276be14ba0491f5005d92b",
+    "h3_body_abi": null,
+    "two_hop_proxy_cases_per_endpoint": 10,
+    "upgrade": "Pinned official PyPI 0.9.0 -> fork candidate 0.9.2 in place, verifying unique distribution, old and new native hashes, and loopback HTTP before/after on both endpoints."
   }
 }
