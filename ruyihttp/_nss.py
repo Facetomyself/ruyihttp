@@ -170,9 +170,10 @@ def configure_library(library, expected_nss=None):
     for name, (arguments, result) in signatures.items():
         function = getattr(library, "necko_tls_" + name)
         function.argtypes, function.restype = arguments, result
-    if library.necko_tls_nss_version() != expected_nss:
+    actual_nss = library.necko_tls_nss_version()
+    if actual_nss != expected_nss:
         raise RuntimeError(
-            f"firefox-159 requires the packaged NSS {expected_nss.decode()} runtime"
+            f"expected packaged NSS {expected_nss.decode()} runtime, got {actual_nss!r}"
         )
 
 
