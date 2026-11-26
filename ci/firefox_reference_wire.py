@@ -20,6 +20,8 @@ from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import RequestReceived, StreamEnded
 
+from firefox_quic_initial import QuicInitialObservation
+
 IP = '127.0.0.1'
 PATH = '/profile-wire'
 BOOT = '/boot'
@@ -303,6 +305,7 @@ class Origin:
         class Protocol(QuicConnectionProtocol):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.initial = QuicInitialObservation(self._quic)
                 self.http = WireH3(self._quic)
                 self.handshake = None
                 self.hello = None
@@ -339,12 +342,17 @@ class Origin:
                     if len(remote) != 1 or settings is None or self.handshake is None or self.hello is None:
                         origin.errors.append('missing QUIC handshake, peer parameters, H3 SETTINGS or ClientHello')
                         return
+                    try:
+                        initial = self.initial.result()
+                    except ValueError as exc:
+                        origin.errors.append(f'Initial observer: {exc}')
+                        return
                     self.http.send_headers(message.stream_id, [(b':status', b'200'), (b'content-length', b'2'),
                                                                (b'cache-control', b'no-store')])
                     self.http.send_data(message.stream_id, b'h3', end_stream=True)
                     self.transmit()
                     origin.finish({'port': origin.port, 'mode': 'same-origin-fetch', 'protocol': self.handshake.alpn_protocol,
-                                   'quic_version': int(self._quic._version), 'hello': self.hello,
+                                   'quic_version': int(self._quic._version), 'initial': initial, 'hello': self.hello,
                                    'settings': settings, 'grease_settings': grease_settings(settings), 'headers': headers,
                                    'transport_parameters': {k: remote[0][k] for k in sorted(TP & remote[0].keys())},
                                    'bootstrap': list(origin.bootstrap)})
