@@ -23,7 +23,7 @@ CLANG_VERSION = '1:16.0.6-15~deb11u2'
 GCC_VERSION = '10.2.1-6'
 RUST_VERSION = '1.95.0'
 RUST_SHA256 = {
-    'linux_x86_64': '2e0338f18ecbaa4a0f631b9e80e8b26bb6fe77dd5454fba8a70cf96c1e84a1',
+    'linux_x86_64': '2e0338f18ecbaa4a0f631b9e80e8b8e26bb6fe77dd5454fba8a70cf96c1e84a1',
     'linux_aarch64': '094c9c36531911c5cc7dd6ab2d3069ab8dcd744d6239b0bda1387b243dfc391e',
 }
 AUDITWHEEL_VERSION = '6.6.0'
