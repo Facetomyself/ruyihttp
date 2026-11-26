@@ -13,11 +13,14 @@ The standalone SpiderMonkey donor is separate from this Necko ABI. The complete 
 - `libsoftokn3.so`, `libfreebl3.so`, `libfreeblpriv3.so`
 - `libsqlite3.so`, `libnssckbi.so`, `libnsssysinit.so`
 
-The runtime is NSS 3.132 / NSPR 4.40 / Neqo 0.33.0. The wheel's supported
-floor is glibc 2.39; `auditwheel` agrees. CPython 3.10 and 3.14 ran the
-1,048,579-byte binary ABI v1 and JSON echo controls and verified native argument
-bounds with two simultaneous owners. The manifest inventory and exact hashes
-are required for packaging.
+The runtime uses Firefox 161.0 sources with NSS 3.133 / NSPR 4.40 /
+Neqo 0.34.0. `auditwheel` agrees with the tested `manylinux_2_39_aarch64` tag;
+ELF inspection recorded `GLIBC_2.38` as the highest required versioned symbol,
+which does not establish a lower tested host floor. CPython 3.10 and 3.14 passed
+H3 with two simultaneous owners, the 1,048,579-byte binary ABI v1 and JSON echo
+controls, explicit Firefox 159/160/161 wire checks and the in-place upgrade
+from the 0.9.0 fork. The manifest inventory and exact hashes are required for
+packaging.
 
 Run the read-only preflight from the project root:
 
