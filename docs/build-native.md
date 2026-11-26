@@ -1,6 +1,6 @@
 # Building and importing native runtimes
 
-RuyiHttp 0.9.3 retains exactly the six Windows x64 DLLs from upstream PyPI 0.11.0; `python -B tools/sync_windows_native.py --check-slot` verifies the selected bank. This is not a Windows source-build claim. Both Linux architectures and both macOS architectures are compiled on their target CPU from pinned upstream sources. The runtime manifest and each slot’s provenance identify its actual patches, hashes and loader policy. Packaging tracked libraries is separate from recompiling them.
+RuyiHttp 0.9.4 retains exactly the six Windows x64 DLLs from upstream PyPI 0.11.0; `python -B tools/sync_windows_native.py --check-slot` verifies the selected bank. This is not a Windows source-build claim. Both Linux architectures and both macOS architectures are compiled on their target CPU from pinned upstream sources. The runtime manifest and each slot’s provenance identify its actual patches, hashes and loader policy. Packaging tracked libraries is separate from recompiling them.
 
 ## Historical import example (a disposable checkout only)
 
@@ -25,7 +25,7 @@ directory name. Linux tags also honor `RUYIHTTP_GLIBC`:
 
 ```sh
 RUYIHTTP_PLATFORM=darwin_arm64 python -m pip wheel --no-build-isolation --no-deps -w dist .
-RUYIHTTP_PLATFORM=linux_x86_64 RUYIHTTP_GLIBC=2.39 python -m pip wheel --no-build-isolation --no-deps -w dist .
+RUYIHTTP_PLATFORM=linux_x86_64 RUYIHTTP_GLIBC=2.31 python -m pip wheel --no-build-isolation --no-deps -w dist .
 ```
 
 ## Verify what is checked in
@@ -44,7 +44,7 @@ markers.
 The [native workflow](../.github/workflows/native-arm64-intel.yml) records the host architecture, upstream Git revisions and file inventory. It calls [the native build script](../ci/build_native_target.sh) on `ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15-intel` or `macos-26`. The donor commit `f557fcd437aae5f18f313eb330bd3ef50f5fc7df` still has its original Firefox 160 gitlink `2887d9de1f69c0e9776413da80e7ba0d1225dd9b`. The [Firefox 161 recipe](../tools/posix_firefox161.py) verifies that gitlink, then deliberately uses the independent official `FIREFOX_161_0_RELEASE` commit `9c70d5d48c866afc2e581d6b7ff6de98a1371d99`. The embedded Mozilla/Neqo/NSS inputs, dependency lock and ordered adapter patches are verified before promotion. Native source version and per-session Firefox selection are distinct. Per-slot provenance is the authority for any additional patches, including the [Gecko HTTP/3 policy adaptations](../native/patches/GECKO_H3_POLICY.md). Pinning NSS/Neqo versions alone does not configure the browser’s network preferences.
 
 1. Compile on the target CPU. For Linux, inspect the entire ELF set, exported ABI, dependencies and `$ORIGIN` search paths. For macOS, check each Mach-O architecture, deployment load command and sibling install names. Derive the wheel minimum from the binaries, rather than the SDK version or the runner label.
-2. Build a candidate wheel, check its hashes against its manifest and inspect its members. Check Linux platform policy with `auditwheel show`. Linux packaging never lowers the 2.39 compatibility floor to match an older build machine.
+2. Build a candidate wheel, check its hashes against its manifest and inspect its members. Check Linux platform policy with `auditwheel show`. For Linux 0.9.4, use the baseline build in a pinned Bullseye userland, inspect every `GLIBC/GLIBCXX/CXXABI/GCC` requirement and loader path, then [verify the same artifact on actual glibc 2.31](linux-glibc231-qualification.md). The measured tag cannot be lowered by repacking old runtime bytes.
 3. Install the wheel in a fresh target venv outside the checkout, clear all native library overrides, and verify that the process loads libraries from the installed package. Exercise real HTTP/1, TLS/HTTP/2, UDP/HTTP/3 and negative controls. A build job or a `dlopen` alone does not qualify the slot.
 4. Admit exactly the tested files, recording hashes, source revisions, build and verification receipts. Repack from the committed bytes and repeat the installed-wheel gate. The [Wheels workflow](../.github/workflows/wheels.yml) produces downloadable CI artifacts, not PyPI releases.
 
@@ -52,7 +52,7 @@ The [native workflow](../.github/workflows/native-arm64-intel.yml) records the h
 
 The POSIX source targets apply `native/patches/h3-body-abi-v1.patch`; macOS also applies the negotiated TLS reporting and global session handle patches. The versioned data ABI bounds buffers and byte counts; it runs only on the owning connection thread and never keeps a caller’s buffer. Artifacts from a failed source job remain diagnostic until independent target verification ties the exact hashes to a successful install and wire test. A matching build receipt alone is not release qualification.
 
-The per-platform `native-provenance.json` shipped in the installed wheel describes native sources and patches; its file inventory must agree with `runtime-manifest.json`. The four profile/root inputs are checked against their exact byte hashes at build time and after installing, including on Windows. A release upgrade uses ordinary pip version comparison, not `--force-reinstall`: Windows starts from the pinned original PyPI 0.9.0 wheel; other platforms reconstruct the prior five-platform distribution at `ea44f8f`. All five wheel jobs additionally reconstruct this fork at `fae13b0` (0.9.1), then verify ordinary upgrade, wire requests, installed identity, and the three removed roots against a retained positive control. Each 0.9.3 wheel gate also installs its exact public v0.9.2 release asset as a baseline, measures the old protocol behavior, and performs a normal upgrade to the candidate.
+The per-platform `native-provenance.json` shipped in the installed wheel describes native sources and patches; its file inventory must agree with `runtime-manifest.json`. The four profile/root inputs are checked against their exact byte hashes at build time and after installing, including on Windows. A release upgrade uses ordinary pip version comparison, not `--force-reinstall`: Windows starts from the pinned original PyPI 0.9.0 wheel; other platforms reconstruct the prior five-platform distribution at `ea44f8f`. All five wheel jobs additionally reconstruct this fork at `fae13b0` (0.9.1), then verify ordinary upgrade, wire requests, installed identity, and the three removed roots against a retained positive control. The 0.9.4 release-format wheel jobs also retain the v0.9.2 negative wire control and exercise upgrade from the exact v0.9.3 release. For the new Linux floor, incompatible older wheels are never installed by forcing pip; use the dedicated Bullseye gate and ordinary clean installation instead.
 
 ## Historical rebuild path for imported libraries
 

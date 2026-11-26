@@ -12,6 +12,7 @@ recursive-include docs *.md
 include docs/upstream-0.11.0-data.json ci/firefox_wire_reference.json
 include docs/firefox-reference-receipts.json docs/firefox-h2-preface-receipts.json
 include ci/*.py ci/*.sh ci/*.ps1 ci/firefox_reference_requirements.txt
+include ci/linux_floor/run.sh ci/linux_floor/Dockerfile
 include ci/masque_interop/main.go ci/masque_interop/go.mod ci/masque_interop/go.sum
 recursive-include ci/baselines *.json
 recursive-include tests *.py

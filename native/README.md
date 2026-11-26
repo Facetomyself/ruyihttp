@@ -7,9 +7,9 @@ set; do not mix core/QUIC/NSS files across directories.
 | --- | --- | --- | --- |
 | `win_amd64/` | ready | NSS 3.133 / Neqo 0.34.0 | exact six DLLs from LoseNine's official ruyihttp 0.11.0 PyPI wheel; import only |
 | `darwin_arm64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Apple Silicon macOS; minOS 26.0 |
-| `linux_x86_64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Ubuntu 24.04 x86_64 |
+| `linux_x86_64/` | ready | NSS 3.133 / Neqo 0.34.0 | digest-pinned Bullseye userland on native x86_64; glibc 2.31 runtime gate |
 | `darwin_x86_64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Intel macOS 15 |
-| `linux_aarch64/` | ready | NSS 3.133 / Neqo 0.34.0 | pinned source build on Ubuntu 24.04 ARM64 |
+| `linux_aarch64/` | ready | NSS 3.133 / Neqo 0.34.0 | digest-pinned Bullseye userland on native AArch64; glibc 2.31 runtime gate |
 
 `ruyihttp/runtime-manifest.json` is the authoritative list. Each ready directory
 has `provenance.json` and `SHA256SUMS`.
@@ -24,6 +24,8 @@ macOS architectures ship pinned source builds with optional binary H3 body ABI v
 Each platform's provenance identifies the exact native bytes.
 
 In 0.9.3 the POSIX HTTP/3 policy is a [versioned, source-checked input](patches/GECKO_H3_POLICY.md), distinct from the body ABI. The native admission records tie the installed observations to the SHA-256 of the signed-browser reference for that exact slot. The Windows schema and DLL bytes remain unchanged.
+
+The 0.9.4 Linux floor was rebuilt, not retagged: [qualification and loader checks](../docs/linux-glibc231-qualification.md). The optional CONNECT-UDP outer client is separate from the original Firefox native origin handshake.
 
 Verify with:
 

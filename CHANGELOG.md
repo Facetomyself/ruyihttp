@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.4 — authenticated CONNECT-UDP and lower Linux runtime floor (2026-11-26)
+
+- Add an explicit HTTP/3 MASQUE client via the optional `masque` extra. The outer layer authenticates the proxy; the inner origin remains native Firefox NSS/Neqo. Proxy and origin credentials and trust are separate. An explicit route does not fall back to origin TCP/direct UDP or perform local origin resolution.
+- Qualify ordinary/custom CONNECT-UDP targets, independent relay egress, end-to-end GET/POST bodies and same-tunnel streams, redirects, native certificate failures and authenticated HTTP/3 path budget. Test against a second pinned, loopback-only `masque-go` implementation. See [proxy details and limits](docs/masque.md).
+- Build and inspect fresh 14-library Linux x86_64 and AArch64 runtime sets in Bullseye. Independently install the identical release-format artifact in glibc 2.31 userlands at CPython 3.10 and 3.14 and exercise the native protocols plus MASQUE. The old v0.9.3 wheels remain at glibc 2.39; Windows/macOS native sets and deployment floors remain unchanged. See [floor checks](docs/linux-glibc231-qualification.md).
+
 ## 0.9.3 — same-platform Firefox network behavior (2026-11-26)
 
 - Correct the desktop Linux ARM64 public UA at the actual Firefox **123** release boundary. Through 122 the Linux token remains host-derived; native file selection continues to use the actual architecture on both sides.

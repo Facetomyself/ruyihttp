@@ -14,6 +14,10 @@
 
 三版 Windows wheel 均核对了 PyPI SHA-256 和逐文件 `RECORD`。0.11.0 的 wheel SHA-256 为 `79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332`。比较基线 0.9.1 的 Windows 使用上游 0.9.0 的六个 DLL；四个 POSIX 目标则使用固定 ff-ruyijs / Firefox 源码构建的 NSS 3.132 / NSPR 4.40 / Neqo 0.33.0。**包版本、可选 Firefox 配置和实际加载的原生库版本是三个不同的值。**
 
+## 0.9.4：独立于上游的代理与 Linux 运行基线
+
+本分支新增[端到端 H3 经 CONNECT-UDP](masque.md)及[Linux glibc 2.31 原生验收](linux-glibc231-qualification.md)。没有以旧 Linux wheel 或仅修改平台标签取得兼容性；Windows 上游 DLL 和 Firefox 159 默认配置沿用。两条版本线继续独立。
+
 ## 0.9.3：区分上游、平台移植与真实浏览器
 
 上游 0.11.0 的 Python 桌面 UA 固定为 Windows；0.10.0 的 Linux x86_64 wheel 也沿用该模板。本仓支持按宿主选择官方平台配置，因此 Linux/macOS 的验收依据应是该平台的官方 Firefox，而不是 Windows 模板。Linux ARM64 对应的公开 CPU 字段与实际加载库的 CPU 分离：[Firefox 122 源码](https://github.com/mozilla-firefox/firefox/blob/f16f94e4ec9404ae1cec1377a32c4812bbdbf0d3/netwerk/protocol/http/nsHttpHandler.cpp)仍使用 `uname`；[Firefox 123 发布默认值](https://github.com/mozilla-firefox/firefox/blob/83a2fe4a63390103d1ea7cacb15be96451e923f5/modules/libpref/init/StaticPrefList.yaml#L11540-L11555)开始在 Linux ARM64 冻结 OSCPU，故对外是 `X11; Linux x86_64`。Windows 六个 DLL 沿用上游原件，POSIX 桥则按[固定 Gecko 源码与目标机观测](../native/patches/GECKO_H3_POLICY.md)单独维护。

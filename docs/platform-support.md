@@ -6,9 +6,9 @@
 | --- | --- | --- | --- | --- |
 | [Windows x64](https://github.com/Facetomyself/ruyihttp/actions/runs/45739200837/job/139639762634) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-win_amd64` | Hash-verified upstream 0.11.0 DLLs; JSON body ABI, H3 reports the historical NSS/Neqo field set. |
 | [macOS arm64](https://github.com/Facetomyself/ruyihttp/actions/runs/45771609225/job/139745318598) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-macosx_26_0_arm64` | Six source-built arm64 dylibs, deployment floor 26.0; measured NSS H3 telemetry and binary body ABI v1. |
-| [Linux x86_64](https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419/job/139737727993) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-manylinux_2_39_x86_64` | Fourteen source-built ELF libraries, glibc 2.39 policy, H3 binary body ABI v1. |
+| [Linux x86_64](https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435/job/139818619959) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-manylinux_2_31_x86_64` | Fourteen source-built ELF libraries, glibc 2.31 policy, H3 binary body ABI v1. |
 | [macOS x86_64](https://github.com/Facetomyself/ruyihttp/actions/runs/45771612177/job/139745327525) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-macosx_15_0_x86_64` | Six source-built thin Intel dylibs; deployment floor 15.0, see receipt for exact runner version. |
-| [Linux aarch64](https://github.com/Facetomyself/ruyihttp/actions/runs/45769279791/job/139737739697) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-manylinux_2_39_aarch64` | 14 source-built ELF libraries. See native ARM acceptance below. |
+| [Linux aarch64](https://github.com/Facetomyself/ruyihttp/actions/runs/45792538631/job/139814940373) | ready | NSS 3.133 / NSPR 4.40 / Neqo 0.34.0 | `py3-none-manylinux_2_31_aarch64` | 14 source-built ELF libraries, independently installed on Bullseye glibc 2.31; H3 binary body ABI v1. |
 
 `build-required` means the Python path, manifest slot and wheel tag exist, but
 `setup.py` raises `native runtime missing` rather than packaging another
@@ -25,7 +25,7 @@ platform's binary.
   - Linux desktop ARM64: Firefox 100–122 uses `X11; Linux aarch64`, 123+ uses `X11; Linux x86_64`. Linux x86_64 uses `X11; Linux x86_64` throughout; the ARM64 wheel still selects its own native runtime.
 - HTTP/2 SETTINGS and header order are selected by the Firefox profile and are
   platform-independent in this tree.
-- HTTP/3 requires `Alt-Svc`. DNS HTTPS/ECH configuration is still not integrated.
+- Direct HTTP/3 uses `Alt-Svc`. An explicit H3 [CONNECT-UDP proxy route](masque.md) instead authenticates the proxy and launches the native H3 origin connection through the tunnel. DNS HTTPS/ECH configuration remains separate.
 
 ## Runtime loading
 
@@ -62,13 +62,15 @@ with ruyihttp.Session(firefox="159") as session:
 
 Expected: `200`, ALPN `h2`, and the NSS version from the platform manifest.
 
-## 0.9.3 qualification policy
+## 0.9.4 qualification policy
 
 Every [wheel job](../.github/workflows/wheels.yml) builds the platform wheel once, installs that same artifact on CPython 3.10 and 3.14, and records the interpreter, installed paths, native hashes and actual protocol results. Wire-level HTTP/3, strict certificate negatives, early response, IPv4/IPv6 Alt-Svc, blocked UDP/warm TCP, two-hop TCP proxies, H2 EOF/backpressure and source-to-destination upgrade are distinct checks. See [transport performance and limitations](performance.md) for budgets and the weekly comparison.
 
-Windows uses the unmodified 0.11.0 upstream x64 DLLs (NSS 3.133), distinct from the original upgrade fixture. Its H3 TLS result is `NSS/Neqo` and contains the negotiated protocol/version/cipher/resumption flag; it does not invent a Firefox-profile or NSS-version field. The core NSS version is measured separately. The four POSIX sets use source-built versioned body exports and provide the native NSS/Neqo TLS report. Binary ABI tests send and receive real bodies with embedded zeros, test owner isolation, and force the same bridge through JSON as an independent compatibility control. Protocol support here does not mean H3 through an ordinary TCP proxy.
+Windows uses the unmodified 0.11.0 upstream x64 DLLs (NSS 3.133), distinct from the original upgrade fixture. Its H3 TLS result is `NSS/Neqo` and contains the negotiated protocol/version/cipher/resumption flag; it does not invent a Firefox-profile or NSS-version field. The core NSS version is measured separately. The four POSIX sets use source-built versioned body exports and provide the native NSS/Neqo TLS report. Binary ABI tests send and receive real bodies with embedded zeros, test owner isolation, and force the same bridge through JSON as an independent compatibility control. The optional MASQUE transport uses QUIC DATAGRAM over HTTP/3 to reach the proxy and native QUIC to the origin; it is independent of ordinary TCP proxies. See [MASQUE interoperability](masque.md).
 
 The matrix links are native-bank job receipts (Windows keeps the byte-identical upstream import). For the exact Windows same-machine browser/original/old fork/candidate experiment see [upstream comparison](upstream.md#093区分上游平台移植与真实浏览器). The [release-wheel workflow](../.github/workflows/wheels.yml) also verifies ordinary upgrades from the 0.9.0 lineage, fork 0.9.1 and the actual [v0.9.2 Release assets](https://github.com/Facetomyself/ruyihttp/releases/tag/v0.9.2), the retired/retained TLS root controls, per-file identities and real UDP-only profile handshakes on CPython 3.10 and 3.14. The 0.11.0 PyPI distribution is a different version line.
+
+On Linux the exact final wheel is also installed in independent native Debian 11/glibc 2.31 userlands on CPython 3.10 and 3.14: [floor evidence](linux-glibc231-qualification.md). The older `manylinux_2_39` wheel is rejected there by ordinary pip; upgrade from that wheel is exercised on a new-enough host. The outer proxy hop is not a Firefox wire-identity claim.
 
 The measured stable fields are compared against the appropriate native machine / browser version. Record forks, upstream distributions, and actual browser observations separately: [wire comparison](firefox-profile-wire.md), [signed browser capture](firefox-reference-collection.md), and [first HTTP/2 flight](firefox-h2-preface.md).
 
