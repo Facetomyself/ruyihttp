@@ -8,7 +8,7 @@ on:
     inputs:
       targets:
         type: choice
-        options: [all, diagnostic]
+        options: [all, diagnostic, macos]
         default: all
       release:
         type: choice
