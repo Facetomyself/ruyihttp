@@ -137,6 +137,7 @@ class CaptureObserverTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(observed['quic_version'], 1)
                     self.assertEqual(observed['initial']['version'], 1)
                     self.assertGreaterEqual(observed['initial']['udp_payload_bytes'], 1200)
+                    self.assertIn(observed['initial']['packet_number_length'], range(1, 5))
                     self.assertIn(4, observed['initial']['transport_parameter_ids'])
 
 
