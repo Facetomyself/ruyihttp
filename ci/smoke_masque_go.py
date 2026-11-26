@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from smoke_masque import (
     AUTH, DOWNLOAD, LOOP, OriginProtocol, GuardedOrigin, UPLOAD, Wire,
     certs, check, check_origin, check_route, client_call, configuration,
-    runtime, target_path, watch_client,
+    runtime, target_path, watch_client, wheel_identity,
 )
 
 EXPECTED_MODULES = {
@@ -144,6 +144,7 @@ def main():
     receipt = {"verdict": "failed", "schema": "ruyihttp-masque-go-interop/v1",
                "fixture_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
     try:
+        receipt.update(wheel_identity())
         with tempfile.TemporaryDirectory(prefix="ruyi-masque-go-") as temp:
             asyncio.run(exercise(binary, receipt, *certs(Path(temp))))
         receipt["verdict"] = "passed"

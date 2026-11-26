@@ -34,7 +34,8 @@ from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
 from unittest.mock import patch
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
+from urllib.request import url2pathname
 
 from aioquic.asyncio import QuicConnectionProtocol, connect
 from aioquic.asyncio.server import QuicServer
@@ -721,6 +722,29 @@ def watch_client(state):
         yield dns_attempts, counters, clients
 
 
+def wheel_identity():
+    product = importlib.metadata.distribution("ruyihttp")
+    result = {"product_version": product.version}
+    direct = json.loads(product.read_text("direct_url.json") or "{}")
+    archive = direct.get("archive_info", {})
+    wheel_hash = archive.get("hashes", {}).get("sha256")
+    local = urlsplit(direct.get("url", ""))
+    if local.scheme == "file" and not local.netloc:
+        wheel = Path(url2pathname(local.path))
+        if wheel.suffix == ".whl" and wheel.is_file():
+            result["wheel_filename"] = wheel.name
+            with wheel.open("rb") as binary:
+                digest = hashlib.sha256()
+                for chunk in iter(lambda: binary.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            if wheel_hash:
+                check(wheel_hash == digest.hexdigest(), "installed wheel hash differs from local archive", wheel.name)
+            wheel_hash = digest.hexdigest()
+    if wheel_hash:
+        result["wheel_sha256"] = wheel_hash
+    return result
+
+
 def runtime():
     import ruyihttp
     from ruyihttp._firefox import runtime_platform
@@ -994,8 +1018,10 @@ async def qualify(receipt, origin_pem, relay_pem, modes):
                 case["origin_dns_attempts"] = list(dns)
                 case["native_body_calls"] = dict(abi)
                 live = [conn._thread.name for conn in native_clients if hasattr(conn, "_thread") and conn._thread.is_alive()]
+                outer_workers = [thread.name for thread in threading.enumerate() if thread.name.startswith("ruyihttp-masque-")]
                 case["live_native_workers_after_session_close"] = live
-                check(not dns and not live, "client origin DNS attempt or leaked native worker", dns, live)
+                case["live_outer_workers_after_session_close"] = outer_workers
+                check(not dns and not live and not outer_workers, "client origin DNS attempt or leaked worker", dns, live, outer_workers)
                 check_route(state)
                 if mode == "ok":
                     check(error is None, result)
@@ -1029,12 +1055,7 @@ def main():
             if args.fixture_self_test:
                 receipt["fixture_calibration"] = asyncio.run(fixture_self_test(origin_pem, relay_pem))
             else:
-                product = importlib.metadata.distribution("ruyihttp")
-                receipt["product_version"] = product.version
-                direct = json.loads(product.read_text("direct_url.json") or "{}")
-                wheel_hash = direct.get("archive_info", {}).get("hashes", {}).get("sha256")
-                if wheel_hash:
-                    receipt["wheel_sha256"] = wheel_hash
+                receipt.update(wheel_identity())
                 asyncio.run(qualify(receipt, origin_pem, relay_pem, args.case or MODES))
         receipt["verdict"] = "passed"
     except BaseException as error:
