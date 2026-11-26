@@ -15,7 +15,7 @@ from aioquic.h3.connection import H3Connection
 from aioquic.quic.configuration import QuicConfiguration
 from h2.config import H2Configuration
 from h2.connection import H2Connection
-from h2.events import StreamEnded
+from h2.events import ResponseReceived, StreamEnded
 
 from firefox_reference_capture import certificate, validate
 from firefox_reference_wire import BOOT, IP, PATH, Origin, grease_settings
@@ -49,9 +49,13 @@ async def h2_get(port, path, root):
         http.send_headers(1, request(port, path), end_stream=True)
         writer.write(http.data_to_send())
         await writer.drain()
+        status = None
         while data := await reader.read(65536):
-            if any(isinstance(event, StreamEnded) for event in http.receive_data(data)):
-                return
+            for event in http.receive_data(data):
+                if isinstance(event, ResponseReceived):
+                    status = int(dict(event.headers)[b':status'])
+                if isinstance(event, StreamEnded):
+                    return status
             writer.write(http.data_to_send())
             await writer.drain()
         raise RuntimeError('no fixture response')
@@ -64,6 +68,9 @@ class ClientH3(QuicConnectionProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.http = H3Connection(self._quic)
+
+    def quic_event_received(self, event):
+        self.http.handle_event(event)
 
     def get(self, port):
         stream = self._quic.get_next_available_stream_id()
@@ -105,9 +112,8 @@ class CaptureObserverTest(unittest.IsolatedAsyncioTestCase):
         with TemporaryDirectory() as directory:
             leaf, key, root = certificate(Path(directory))
             async with Origin('h3', leaf, key) as fixture:
-                await h2_get(fixture.port, BOOT, root)
-                with self.assertRaises(ConnectionRefusedError):
-                    await asyncio.open_connection(IP, fixture.port)
+                self.assertEqual(await h2_get(fixture.port, BOOT, root), 200)
+                self.assertEqual(await h2_get(fixture.port, PATH, root), 503)
                 conf = QuicConfiguration(is_client=True, alpn_protocols=['h3'], server_name='localhost',
                                          cadata=ssl.DER_cert_to_PEM_cert(root.read_bytes()).encode())
                 async with connect(IP, fixture.port, configuration=conf, create_protocol=ClientH3) as client:
