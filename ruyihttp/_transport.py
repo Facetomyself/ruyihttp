@@ -96,10 +96,24 @@ def is_masque_proxy(proxy):
     return isinstance(proxy, str) and proxy.partition(':')[0].lower() == 'masque' and ':' in proxy
 
 
-def masque_route_id(proxy):
-    # Include authority, credentials and template in the partition without
-    # retaining Basic credentials in pool keys or redirect markers.
-    return hashlib.sha256(proxy.encode('utf-8')).digest()
+def masque_route_id(proxy, proxy_verify=True, path_template=None):
+    # Length prefixes separate fields, including the default CA vs. a file named
+    # 'True'. Never put Basic credentials or a template query in a pool key.
+    if proxy_verify is True:
+        trust = b'default'
+    elif isinstance(proxy_verify, (str, os.PathLike)) and isinstance(os.fspath(proxy_verify), str) and os.fspath(proxy_verify):
+        trust = b'file:' + os.fsencode(os.path.abspath(proxy_verify))
+    else:
+        raise ValueError('MASQUE proxy_verify must be True or a CA bundle file path')
+    if path_template is not None and (not isinstance(path_template, str) or not path_template or len(path_template) > 4096):
+        raise ValueError('Invalid MASQUE path template')
+    if len(proxy) > 4096:
+        raise InvalidProxyURL('Invalid MASQUE proxy URL')
+    key = hashlib.sha256(b'ruyihttp:connect-udp:v1')
+    for item in (proxy.encode('utf-8'), trust, (path_template or '').encode('utf-8')):
+        key.update(len(item).to_bytes(4, 'big'))
+        key.update(item)
+    return key.digest()
 
 
 def _expired_records(cache, now):
@@ -1029,18 +1043,19 @@ class HTTPAdapter(RequestsAdapter):
             self._cool_alternative(key, alternate)
         return connection
 
-    def _connect_masque(self, request, proxy, verify, proxy_verify, budget):
+    def _connect_masque(self, request, proxy, verify, proxy_verify, path_template, budget):
         from ._http3 import Connection as H3Connection
         from ._masque import open_tunnel
 
         target = urlsplit(request.url)
-        host, port = target.hostname, target.port or 443
+        host, port = target.hostname, target.port if target.port is not None else 443
         library = self.library
         context = _ssl_context(verify, None, Path(library._name).parent)
 
         def via_proxy(cancel_event, on_error):
             return open_tunnel(proxy, host, port, proxy_verify=proxy_verify,
-                               timeout=budget.remaining(), cancel_event=cancel_event, on_error=on_error)
+                               timeout=budget.remaining(), cancel_event=cancel_event, on_error=on_error,
+                               path_template=path_template)
 
         try:
             conn = H3Connection(host, port, context, library._name, budget.remaining(),
@@ -1051,7 +1066,8 @@ class HTTPAdapter(RequestsAdapter):
         return conn
 
     def send(
-        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None, proxy_verify=True
+        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None, proxy_verify=True,
+        masque_path_template=None,
     ):
         retries = self.max_retries
         masque = is_masque_proxy(select_proxy(request.url, proxies or {}))
@@ -1085,7 +1101,7 @@ class HTTPAdapter(RequestsAdapter):
             try:
                 response = self._send_once(
                     request, stream, timeout, verify, cert, proxies, http1, http3,
-                    **({'proxy_verify': proxy_verify} if masque else {}),
+                    **({'proxy_verify': proxy_verify, 'masque_path_template': masque_path_template} if masque else {}),
                 )
             except (ConnectionError, ReadTimeout) as error:
                 if not masque:
@@ -1164,7 +1180,8 @@ class HTTPAdapter(RequestsAdapter):
             retries.sleep(response.raw)
 
     def _send_once(
-        self, request, stream, timeout, verify, cert, proxies, http1=False, http3=True, *, proxy_verify=True
+        self, request, stream, timeout, verify, cert, proxies, http1=False, http3=True, *, proxy_verify=True,
+        masque_path_template=None,
     ):
         if isinstance(timeout, tuple):
             if len(timeout) != 2:
@@ -1183,6 +1200,8 @@ class HTTPAdapter(RequestsAdapter):
         target = urlsplit(request.url)
         proxy = select_proxy(request.url, proxies or {})
         masque = is_masque_proxy(proxy)
+        route = None
+        origin_trust = str(verify)
         if masque:
             if target.scheme != 'https':
                 raise ProxyError('MASQUE requires an HTTPS origin', request=request)
@@ -1190,8 +1209,13 @@ class HTTPAdapter(RequestsAdapter):
                 raise SSLError('MASQUE requires verification of the origin certificate', request=request)
             if cert:
                 raise InvalidSchema('HTTP/3 origin client certificates are not implemented', request=request)
-            if not (proxy_verify is True or isinstance(proxy_verify, (str, os.PathLike)) and os.fspath(proxy_verify)):
-                raise ValueError('MASQUE proxy_verify must be True or a CA bundle file path')
+            if verify is True:
+                origin_trust = ('packaged',)
+            elif isinstance(verify, (str, os.PathLike)) and isinstance(os.fspath(verify), str):
+                origin_trust = ('ca', os.path.abspath(verify))
+            else:
+                raise ValueError('MASQUE origin verify must be True or a CA path')
+            route = masque_route_id(proxy, proxy_verify, masque_path_template)
             if http1 or not http3:
                 raise ProxyError('A MASQUE route requires end-to-end HTTP/3', request=request)
         elif proxy:
@@ -1210,9 +1234,8 @@ class HTTPAdapter(RequestsAdapter):
             target.scheme,
             target.hostname,
             target.port,
-            ('masque', masque_route_id(proxy), proxy_verify is True,
-             None if proxy_verify is True else os.fspath(proxy_verify)) if masque else proxy,
-            str(verify),
+            ('masque', route) if masque else proxy,
+            origin_trust,
             str(cert),
             http1,
         )
@@ -1230,7 +1253,7 @@ class HTTPAdapter(RequestsAdapter):
                     # the route, or the advertised route may have expired meanwhile.
                     alternate = self._active_alternative(key) if prefer and not masque else None
                     if masque:
-                        candidate = self._connect_masque(request, proxy, verify, proxy_verify, budget)
+                        candidate = self._connect_masque(request, proxy, verify, proxy_verify, masque_path_template, budget)
                     elif alternate:
                         candidate = self._connect_alternative(
                             request, key, alternate, verify, budget, None, pool=pool
@@ -1380,7 +1403,7 @@ class HTTPAdapter(RequestsAdapter):
             if masque:
                 # This never substitutes proxy ALPN/TLS for the origin proof.
                 response.proxy_tls = dict(transport.proxy_tls)
-                response._ruyi_masque_route = masque_route_id(proxy)
+                response._ruyi_masque_route = route
             response._necko_coalesced = coalesced
             response._necko_transport = transport
             return response

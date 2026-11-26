@@ -20,6 +20,7 @@ class Session(RequestsSession):
         "user_activation",
         "firefox",
         "proxy_verify",
+        "masque_path_template",
     ]
 
     def __init__(
@@ -35,9 +36,11 @@ class Session(RequestsSession):
         firefox=None,
         *,
         proxy_verify=True,
+        masque_path_template=None,
     ):
         super().__init__()
         self.proxy_verify = proxy_verify
+        self.masque_path_template = masque_path_template
         self.firefox = _firefox.firefox_version(firefox)
         if context not in ("navigation", "fetch"):
             raise ValueError("context must be navigation or fetch")
@@ -94,13 +97,16 @@ class Session(RequestsSession):
         selected = select_proxy(request.url, kwargs['proxies'] or {})
         required = getattr(request, '_ruyi_masque_route', None)
         masque = is_masque_proxy(selected)
-        if required is not None and (not masque or masque_route_id(selected) != required or urlsplit(request.url).scheme != 'https'):
-            raise ProxyError('Redirect would leave the authenticated MASQUE route', request=request)
         proxy_verify = kwargs.pop('proxy_verify', getattr(self, 'proxy_verify', True))
+        template = kwargs.pop('masque_path_template', getattr(self, 'masque_path_template', None))
+        if required is not None and (not masque or urlsplit(request.url).scheme != 'https' or
+                                     masque_route_id(selected, proxy_verify, template) != required):
+            raise ProxyError('Redirect would leave the authenticated MASQUE route', request=request)
         if masque:
             if not isinstance(self.get_adapter(request.url), HTTPAdapter):
                 raise ProxyError('Selected adapter does not implement MASQUE', request=request)
             kwargs['proxy_verify'] = proxy_verify
+            kwargs['masque_path_template'] = template
         _firefox.apply_headers(
             request, self.context, self.document_url, self.user_activation,
             self.firefox,
