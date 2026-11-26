@@ -1,13 +1,13 @@
 {
   "platform": "linux_x86_64",
-  "source": "Native source build verified by an installed-wheel runner",
+  "source": "Native Bullseye source build verified by independent installed-wheel runners",
   "ff_ruyijs_commit": "f557fcd437aae5f18f313eb330bd3ef50f5fc7df",
   "ff_ruyijs_firefox_gitlink": "2887d9de1f69c0e9776413da80e7ba0d1225dd9b",
   "firefox_source_commit": "9c70d5d48c866afc2e581d6b7ff6de98a1371d99",
   "firefox_source_tag": "FIREFOX_161_0_RELEASE",
   "neqo_source_commit": "e302b43503f44e09f4257573dd320621516d1560",
   "nss_rs_source_commit": "bb8ed19e82679e613a636f530d15ddc823f1b040",
-  "wheel_platform_tag": "manylinux_2_39_x86_64",
+  "wheel_platform_tag": "manylinux_2_31_x86_64",
   "runtime_expected": {
     "firefox": "161.0",
     "nss": "3.133",
@@ -16,60 +16,60 @@
   },
   "files": {
     "libnecko_core.so": {
-      "size": 248304,
-      "sha256": "60f02888accfd33d5e8d43018769afe8798248f4eccddf344c05406e6609738c"
+      "size": 248672,
+      "sha256": "30bb0708f7c6e4cf6c280f6ac6d036cec6e2ce99f20ebf028f35e652bc4ca359"
     },
     "libnecko_quic.so": {
-      "size": 2687512,
-      "sha256": "1bb4518c74d90ac37fe67d4038a2612621b954cb52a18f5b392757049e1e4a27"
+      "size": 2687808,
+      "sha256": "866e9d84ac9f4af48102c6176eddae1c1070134ed2f508b5ad6abf69ed2edd2b"
     },
     "libnss3.so": {
-      "size": 875305,
-      "sha256": "d8eb5dc3359938bd23aebcff1aa112f4a5922f0afe90527099e9c981cf956e24"
+      "size": 875368,
+      "sha256": "ee79d366db0848d947f58abfd637588ad8234f5da5eb5dc14d50045b32e771cc"
     },
     "libnssutil3.so": {
-      "size": 260105,
-      "sha256": "3492fa41ed8325d27ba1af243682924c97f1d4309098799dfd61ab83293548af"
+      "size": 260152,
+      "sha256": "fe84251b511858cd5f76310fb874addb3911cc07ea3ddfbbda902e7575d8e433"
     },
     "libssl3.so": {
-      "size": 494129,
-      "sha256": "f3a8fa03871928c2321cb2fdea2deaad746878c6672105a6e2ecb6556ab03e4e"
+      "size": 494192,
+      "sha256": "d536bd56b3deb271d8dc0a2de19e11774e7f9ca49802037afcef5388c5bac765"
     },
     "libnspr4.so": {
-      "size": 299201,
-      "sha256": "2cb4e0fe2e3dfc03e982727f25ddc3d03de22311c1423299ff3819d4c32b5a58"
+      "size": 303368,
+      "sha256": "832d5e62eacbb067eee30f8e5c899ec44157aaca51030473a296c584b95791d6"
     },
     "libplc4.so": {
-      "size": 30377,
-      "sha256": "3ca9db035b51cce8e18b39e98d528a989786e36af6ba9ad3668ac94796a74540"
+      "size": 30376,
+      "sha256": "c837bdec2daf84e0558e1fbfdc68830969085d20d2869372d8adbcebf2faca4a"
     },
     "libplds4.so": {
-      "size": 26041,
-      "sha256": "0930212708d4d7273de21b6d84aa00d45eecf0c6722c025e035dde293981a62c"
+      "size": 26040,
+      "sha256": "949db68dcda2a077af321684c62d7adf170f2c5e2c75f131994bc13bdc20daf7"
     },
     "libsoftokn3.so": {
-      "size": 429801,
-      "sha256": "1f281e2ca452a7e6345b41701e5c2d4c76f56e71241780a862cac7faa23b0389"
+      "size": 433936,
+      "sha256": "6744e029216d68bb99942544f306ec684074fd88a33e1cd81df0c7df232794b7"
     },
     "libfreebl3.so": {
-      "size": 21641,
-      "sha256": "a11ea2368b54ac26aed993ce2af4484244a0fb384cbd888caf46e7a9b4f14314"
+      "size": 21688,
+      "sha256": "f82a335ffefd5513291567d7b2ad26ff7f41f72352bb590172fe4d15080136ce"
     },
     "libfreeblpriv3.so": {
-      "size": 1292201,
-      "sha256": "7650a070bc6a9ed5c56134116f4ff32260cd777020785f42ef12466934ac076f"
+      "size": 1292248,
+      "sha256": "7cd39039b7e2669b31d06a1bba5f6740972100423b07c1a8b799a594061d1a07"
     },
     "libsqlite3.so": {
-      "size": 1282921,
-      "sha256": "ff6b02a71643c9dd2176b48a494c5219d915e6f14af285e3b33433d8eef3deb4"
+      "size": 1287064,
+      "sha256": "a72f4e9fc3db1d34696e76f34e3deb1e6a96ca2368c1f678abcea3b7b00ec622"
     },
     "libnssckbi.so": {
-      "size": 649145,
-      "sha256": "23064ef7a1fd75caedc7b8393d7492ed5a6c4605daee7d2a5dcb44b3211ac64c"
+      "size": 649208,
+      "sha256": "f52ee23da0dbbe6de7bb1c753b3848960e8a30afca9a38b7ec1198a0dbcb18d9"
     },
     "libnsssysinit.so": {
-      "size": 22257,
-      "sha256": "ddeb3a912777a65b523ca97cc1f7740c014d1a66000bcd95c2956ac885fff124"
+      "size": 22312,
+      "sha256": "4beab5125eb787f77c6df3be2c9418487039b4d7b5c774646eca4e508900aa02"
     }
   },
   "source_patches": [
@@ -88,17 +88,951 @@
   ],
   "h3_protocol_policy": 1,
   "h3_body_abi_expected": 1,
-  "highest_glibc_dynamic_requirement": "2.38",
+  "highest_glibc_dynamic_requirement": "2.30",
+  "linux_baseline_build": {
+    "schema": 1,
+    "slot": "linux_x86_64",
+    "arch": "x86_64",
+    "glibc": "2.31",
+    "pins": {
+      "BASELINE_IMAGE": "docker.io/library/buildpack-deps@sha256:861d612f2bccf851b081e8c4db098d305c804c909230258a78feb41b9f0e7eb1",
+      "BASELINE_ARCH": "amd64",
+      "BASELINE_SNAPSHOT": "20261015T000000Z",
+      "BASELINE_PYTHON": "3.14.1",
+      "BASELINE_PYTHON_SHA256": "8dfa08b1959d9d15838a1c2dab77dc8d8ff4a553a1ed046dfacbc8095c6d42fc",
+      "BASELINE_CLANG": "1:16.0.6-15~deb11u2",
+      "BASELINE_GCC": "10.2.1-6",
+      "BASELINE_RUST": "1.95.0",
+      "BASELINE_RUST_SHA256": "2e0338f18ecbaa4a0f631b9e80e8b8e26bb6fe77dd5454fba8a70cf96c1e84a1",
+      "BASELINE_AUDITWHEEL": "6.6.0"
+    },
+    "image_config_id": "sha256:bed366a801c77497cca4d5adab7b47e5a84f03e576c8d29f44b6eb6b3b0b95c3",
+    "packages": {
+      "libc6": "2.31-13+deb11u14",
+      "libc6-dev": "2.31-13+deb11u14",
+      "libstdc++6": "10.2.1-6",
+      "libgcc-s1": "10.2.1-6",
+      "gcc-10": "10.2.1-6",
+      "g++-10": "10.2.1-6",
+      "clang-16": "1:16.0.6-15~deb11u2",
+      "libclang-16-dev": "1:16.0.6-15~deb11u2",
+      "binutils": "2.35.2-2",
+      "ninja-build": "1.10.1-1",
+      "patchelf": "0.12-1"
+    },
+    "receipts": {
+      "builder-image.json": "c2408a7be8add96a14c396f94292dfa526da02c89fccccc32acbbeea2603c12b",
+      "builder-dpkg.tsv": "6136beaa81e1027d6b659de611688f9f391cfa425620af2fbe9fc8786efcc397",
+      "builder-toolchain.txt": "dc5baac9e49948deb0277b302d7fd54df0e5e09b0fe22ded9b339558d1cccf6b",
+      "builder-glibc-headers.txt": "a1469d7b252ddc21e30cd8e4c0937cdb9fedcd15945b1d3b0c57fa0dd6d43fac"
+    }
+  },
+  "linux_elf_preflight": {
+    "schema": 2,
+    "scope": "new candidate static ABI preflight",
+    "arch": "x86_64",
+    "passed": true,
+    "runtime_proven": false,
+    "highest_glibc_dynamic_requirement": "2.30",
+    "allowed_glibc_max": "2.31",
+    "libraries": {
+      "libfreebl3.so": {
+        "sha256": "f82a335ffefd5513291567d7b2ad26ff7f41f72352bb590172fe4d15080136ce",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ]
+        }
+      },
+      "libfreeblpriv3.so": {
+        "sha256": "7cd39039b7e2669b31d06a1bba5f6740972100423b07c1a8b799a594061d1a07",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.3"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.3"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ]
+        }
+      },
+      "libnecko_core.so": {
+        "sha256": "30bb0708f7c6e4cf6c280f6ac6d036cec6e2ce99f20ebf028f35e652bc4ca359",
+        "needed": [
+          "ld-linux-x86-64.so.2",
+          "libc.so.6",
+          "libgcc_s.so.1",
+          "libm.so.6",
+          "libnspr4.so",
+          "libnss3.so",
+          "libnssutil3.so",
+          "libpthread.so.0",
+          "libssl3.so",
+          "libstdc++.so.6"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 31,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3"
+          ],
+          "GLIBCXX": [
+            "GLIBCXX_3.4",
+            "GLIBCXX_3.4.19",
+            "GLIBCXX_3.4.20"
+          ],
+          "CXXABI": [
+            "CXXABI_1.3",
+            "CXXABI_1.3.7"
+          ],
+          "GCC": [
+            "GCC_3.0"
+          ]
+        },
+        "version_imports": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.3"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "libgcc_s.so.1": [
+            "GCC_3.0"
+          ],
+          "libnss3.so": [
+            "NSS_3.12",
+            "NSS_3.13",
+            "NSS_3.2",
+            "NSS_3.4"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ],
+          "libssl3.so": [
+            "NSS_3.13.2",
+            "NSS_3.14",
+            "NSS_3.15.4",
+            "NSS_3.2",
+            "NSS_3.27",
+            "NSS_3.28",
+            "NSS_3.33",
+            "NSS_3.4"
+          ],
+          "libstdc++.so.6": [
+            "CXXABI_1.3",
+            "CXXABI_1.3.7",
+            "GLIBCXX_3.4",
+            "GLIBCXX_3.4.19",
+            "GLIBCXX_3.4.20"
+          ]
+        }
+      },
+      "libnecko_quic.so": {
+        "sha256": "866e9d84ac9f4af48102c6176eddae1c1070134ed2f508b5ad6abf69ed2edd2b",
+        "needed": [
+          "ld-linux-x86-64.so.2",
+          "libc.so.6",
+          "libgcc_s.so.1",
+          "libnspr4.so",
+          "libnss3.so",
+          "libnssutil3.so",
+          "libpthread.so.0",
+          "libssl3.so"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 2,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.17",
+            "GLIBC_2.18",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.28",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.30"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": [
+            "GCC_3.0",
+            "GCC_3.3",
+            "GCC_4.2.0"
+          ]
+        },
+        "version_imports": {
+          "ld-linux-x86-64.so.2": [
+            "GLIBC_2.3"
+          ],
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.17",
+            "GLIBC_2.18",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.28",
+            "GLIBC_2.3",
+            "GLIBC_2.3.4",
+            "GLIBC_2.30"
+          ],
+          "libgcc_s.so.1": [
+            "GCC_3.0",
+            "GCC_3.3",
+            "GCC_4.2.0"
+          ],
+          "libnss3.so": [
+            "NSS_3.13",
+            "NSS_3.15",
+            "NSS_3.2",
+            "NSS_3.3",
+            "NSS_3.52",
+            "NSS_3.58",
+            "NSS_3.9.2"
+          ],
+          "libnssutil3.so": [
+            "NSSUTIL_3.15"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ],
+          "libssl3.so": [
+            "NSS_3.12.6",
+            "NSS_3.13.2",
+            "NSS_3.14",
+            "NSS_3.15",
+            "NSS_3.2",
+            "NSS_3.21",
+            "NSS_3.22",
+            "NSS_3.27",
+            "NSS_3.28",
+            "NSS_3.30.0.1",
+            "NSS_3.33",
+            "NSS_3.4"
+          ]
+        }
+      },
+      "libnspr4.so": {
+        "sha256": "832d5e62eacbb067eee30f8e5c899ec44157aaca51030473a296c584b95791d6",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libpthread.so.0",
+          "librt.so.1"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.3.2",
+            "GLIBC_2.30",
+            "GLIBC_2.7"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.17",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3",
+            "GLIBC_2.30",
+            "GLIBC_2.7"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5",
+            "GLIBC_2.3.2"
+          ]
+        }
+      },
+      "libnss3.so": {
+        "sha256": "ee79d366db0848d947f58abfd637588ad8234f5da5eb5dc14d50045b32e771cc",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libnssutil3.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3"
+          ],
+          "libnssutil3.so": [
+            "NSSUTIL_3.101",
+            "NSSUTIL_3.108",
+            "NSSUTIL_3.12",
+            "NSSUTIL_3.12.3",
+            "NSSUTIL_3.12.5",
+            "NSSUTIL_3.13",
+            "NSSUTIL_3.130",
+            "NSSUTIL_3.14",
+            "NSSUTIL_3.17.1",
+            "NSSUTIL_3.21",
+            "NSSUTIL_3.24",
+            "NSSUTIL_3.31",
+            "NSSUTIL_3.38",
+            "NSSUTIL_3.39",
+            "NSSUTIL_3.59",
+            "NSSUTIL_3.82",
+            "NSSUTIL_3.94"
+          ]
+        }
+      },
+      "libnssckbi.so": {
+        "sha256": "f52ee23da0dbbe6de7bb1c753b3848960e8a30afca9a38b7ec1198a0dbcb18d9",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ]
+        }
+      },
+      "libnsssysinit.so": {
+        "sha256": "4beab5125eb787f77c6df3be2c9418487039b4d7b5c774646eca4e508900aa02",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libnssutil3.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "libnssutil3.so": [
+            "NSSUTIL_3.12",
+            "NSSUTIL_3.14"
+          ]
+        }
+      },
+      "libnssutil3.so": {
+        "sha256": "fe84251b511858cd5f76310fb874addb3911cc07ea3ddfbbda902e7575d8e433",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.3"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.25",
+            "GLIBC_2.3"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ]
+        }
+      },
+      "libplc4.so": {
+        "sha256": "c837bdec2daf84e0558e1fbfdc68830969085d20d2869372d8adbcebf2faca4a",
+        "needed": [
+          "libc.so.6",
+          "libnspr4.so"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ]
+        }
+      },
+      "libplds4.so": {
+        "sha256": "949db68dcda2a077af321684c62d7adf170f2c5e2c75f131994bc13bdc20daf7",
+        "needed": [
+          "libc.so.6",
+          "libnspr4.so"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ]
+        }
+      },
+      "libsoftokn3.so": {
+        "sha256": "6744e029216d68bb99942544f306ec684074fd88a33e1cd81df0c7df232794b7",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libnssutil3.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0",
+          "libsqlite3.so"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.3"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libnssutil3.so": [
+            "NSSUTIL_3.108",
+            "NSSUTIL_3.12",
+            "NSSUTIL_3.12.3",
+            "NSSUTIL_3.12.5",
+            "NSSUTIL_3.14",
+            "NSSUTIL_3.17.1",
+            "NSSUTIL_3.33",
+            "NSSUTIL_3.38"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ],
+          "libsqlite3.so": [
+            "SQLITE_3"
+          ]
+        }
+      },
+      "libsqlite3.so": {
+        "sha256": "a72f4e9fc3db1d34696e76f34e3deb1e6a96ca2368c1f678abcea3b7b00ec622",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.28"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5",
+            "GLIBC_2.28"
+          ],
+          "libdl.so.2": [
+            "GLIBC_2.2.5"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ]
+        }
+      },
+      "libssl3.so": {
+        "sha256": "d536bd56b3deb271d8dc0a2de19e11774e7f9ca49802037afcef5388c5bac765",
+        "needed": [
+          "libc.so.6",
+          "libdl.so.2",
+          "libnspr4.so",
+          "libnss3.so",
+          "libnssutil3.so",
+          "libplc4.so",
+          "libplds4.so",
+          "libpthread.so.0"
+        ],
+        "loader_paths": [
+          "$ORIGIN"
+        ],
+        "checked_exports": 0,
+        "version_families": {
+          "GLIBC": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "GLIBCXX": [],
+          "CXXABI": [],
+          "GCC": []
+        },
+        "version_imports": {
+          "libc.so.6": [
+            "GLIBC_2.14",
+            "GLIBC_2.2.5"
+          ],
+          "libnss3.so": [
+            "NSS_3.10",
+            "NSS_3.101",
+            "NSS_3.11",
+            "NSS_3.11.1",
+            "NSS_3.11.2",
+            "NSS_3.115",
+            "NSS_3.117",
+            "NSS_3.12",
+            "NSS_3.12.3",
+            "NSS_3.12.6",
+            "NSS_3.13",
+            "NSS_3.14",
+            "NSS_3.14.3",
+            "NSS_3.15",
+            "NSS_3.19.1",
+            "NSS_3.2",
+            "NSS_3.21",
+            "NSS_3.22",
+            "NSS_3.3",
+            "NSS_3.34",
+            "NSS_3.4",
+            "NSS_3.52",
+            "NSS_3.58",
+            "NSS_3.6",
+            "NSS_3.62",
+            "NSS_3.66",
+            "NSS_3.77",
+            "NSS_3.8",
+            "NSS_3.9",
+            "NSS_3.9.2"
+          ],
+          "libnssutil3.so": [
+            "NSSUTIL_3.108",
+            "NSSUTIL_3.12",
+            "NSSUTIL_3.12.3",
+            "NSSUTIL_3.12.5",
+            "NSSUTIL_3.15",
+            "NSSUTIL_3.24",
+            "NSSUTIL_3.38",
+            "NSSUTIL_3.59"
+          ],
+          "libpthread.so.0": [
+            "GLIBC_2.2.5"
+          ]
+        }
+      }
+    },
+    "warnings": [],
+    "system_dt_needed": [
+      "ld-linux-x86-64.so.2",
+      "libc.so.6",
+      "libdl.so.2",
+      "libgcc_s.so.1",
+      "libm.so.6",
+      "libpthread.so.0",
+      "librt.so.1",
+      "libstdc++.so.6"
+    ],
+    "host_provider_definitions": {
+      "libc.so.6": {
+        "sha256": "d13f170ab30a0f91d9713e0c2196efa5fe0bc42f0f2737cf0e56380df8051159",
+        "versions": [
+          "GLIBC_2.10",
+          "GLIBC_2.11",
+          "GLIBC_2.12",
+          "GLIBC_2.13",
+          "GLIBC_2.14",
+          "GLIBC_2.15",
+          "GLIBC_2.16",
+          "GLIBC_2.17",
+          "GLIBC_2.18",
+          "GLIBC_2.2.5",
+          "GLIBC_2.2.6",
+          "GLIBC_2.22",
+          "GLIBC_2.23",
+          "GLIBC_2.24",
+          "GLIBC_2.25",
+          "GLIBC_2.26",
+          "GLIBC_2.27",
+          "GLIBC_2.28",
+          "GLIBC_2.29",
+          "GLIBC_2.3",
+          "GLIBC_2.3.2",
+          "GLIBC_2.3.3",
+          "GLIBC_2.3.4",
+          "GLIBC_2.30",
+          "GLIBC_2.4",
+          "GLIBC_2.5",
+          "GLIBC_2.6",
+          "GLIBC_2.7",
+          "GLIBC_2.8",
+          "GLIBC_2.9",
+          "GLIBC_PRIVATE",
+          "libc.so.6"
+        ]
+      },
+      "libdl.so.2": {
+        "sha256": "df5973c718b4ee540cdd4400e19e90182ab5f3bac2148c0c9f3bb92eb6af3121",
+        "versions": [
+          "GLIBC_2.2.5",
+          "GLIBC_2.3.3",
+          "GLIBC_2.3.4",
+          "GLIBC_PRIVATE",
+          "libdl.so.2"
+        ]
+      },
+      "libpthread.so.0": {
+        "sha256": "7048cb46bda23f790af92e5f92975d84816a6de0a074a1624d46ac3c74dcdc3b",
+        "versions": [
+          "GLIBC_2.11",
+          "GLIBC_2.12",
+          "GLIBC_2.18",
+          "GLIBC_2.2.5",
+          "GLIBC_2.2.6",
+          "GLIBC_2.28",
+          "GLIBC_2.3.2",
+          "GLIBC_2.3.3",
+          "GLIBC_2.3.4",
+          "GLIBC_2.30",
+          "GLIBC_2.31",
+          "GLIBC_2.4",
+          "GLIBC_PRIVATE",
+          "libpthread.so.0"
+        ]
+      },
+      "ld-linux-x86-64.so.2": {
+        "sha256": "1c654e88d721c9ac659b48400d20b5310ead8c6d15eeaf695d507d00d59ef490",
+        "versions": [
+          "GLIBC_2.2.5",
+          "GLIBC_2.3",
+          "GLIBC_2.4",
+          "GLIBC_PRIVATE",
+          "ld-linux-x86-64.so.2"
+        ]
+      },
+      "libgcc_s.so.1": {
+        "sha256": "2d771c2e232fce107c7ec7f9a64b9a804e6d6737063088a2d8096b149a0af8cd",
+        "versions": [
+          "GCC_3.0",
+          "GCC_3.3",
+          "GCC_3.3.1",
+          "GCC_3.4",
+          "GCC_3.4.2",
+          "GCC_3.4.4",
+          "GCC_4.0.0",
+          "GCC_4.2.0",
+          "GCC_4.3.0",
+          "GCC_4.7.0",
+          "GCC_4.8.0",
+          "GCC_7.0.0",
+          "libgcc_s.so.1"
+        ]
+      },
+      "libstdc++.so.6": {
+        "sha256": "0e83d02a0144c726f05de850b71165691e380bd90205d22dd04bc8f788625507",
+        "versions": [
+          "CXXABI_1.3",
+          "CXXABI_1.3.1",
+          "CXXABI_1.3.10",
+          "CXXABI_1.3.11",
+          "CXXABI_1.3.12",
+          "CXXABI_1.3.2",
+          "CXXABI_1.3.3",
+          "CXXABI_1.3.4",
+          "CXXABI_1.3.5",
+          "CXXABI_1.3.6",
+          "CXXABI_1.3.7",
+          "CXXABI_1.3.8",
+          "CXXABI_1.3.9",
+          "CXXABI_FLOAT128",
+          "CXXABI_TM_1",
+          "GLIBCXX_3.4",
+          "GLIBCXX_3.4.1",
+          "GLIBCXX_3.4.10",
+          "GLIBCXX_3.4.11",
+          "GLIBCXX_3.4.12",
+          "GLIBCXX_3.4.13",
+          "GLIBCXX_3.4.14",
+          "GLIBCXX_3.4.15",
+          "GLIBCXX_3.4.16",
+          "GLIBCXX_3.4.17",
+          "GLIBCXX_3.4.18",
+          "GLIBCXX_3.4.19",
+          "GLIBCXX_3.4.2",
+          "GLIBCXX_3.4.20",
+          "GLIBCXX_3.4.21",
+          "GLIBCXX_3.4.22",
+          "GLIBCXX_3.4.23",
+          "GLIBCXX_3.4.24",
+          "GLIBCXX_3.4.25",
+          "GLIBCXX_3.4.26",
+          "GLIBCXX_3.4.27",
+          "GLIBCXX_3.4.28",
+          "GLIBCXX_3.4.3",
+          "GLIBCXX_3.4.4",
+          "GLIBCXX_3.4.5",
+          "GLIBCXX_3.4.6",
+          "GLIBCXX_3.4.7",
+          "GLIBCXX_3.4.8",
+          "GLIBCXX_3.4.9",
+          "libstdc++.so.6"
+        ]
+      }
+    }
+  },
+  "linux_baseline": {
+    "policy": "manylinux_2_31",
+    "candidate_tag": "manylinux_2_31_x86_64",
+    "elf_sha256": "0004836c6d3d1bd68faecd6f8b9223500c5d9f47de1ebbbfa7c9153cb01bc455",
+    "build_sha256": "c165079ca6f6d57dad849ec3edd7147aeaf39078893ed57c73129fc2af8b4773"
+  },
+  "linux_floor_verification": {
+    "schema": 1,
+    "slot": "linux_x86_64",
+    "arch": "x86_64",
+    "glibc": "2.31",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837",
+    "qualification_commit": "d33376668958db75cdde80292792db3ace18162b",
+    "source_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435",
+    "source_attempt": 1,
+    "wheel_sha256": "7c0bbeaa523f0120c7c650aaa5a87cd9e6c2dadd073d6fb0e4a5b0ac17da1850",
+    "wheel_filename": "ruyihttp-0.9.4.dev45793633435+gha.1-py3-none-manylinux_2_31_x86_64.whl",
+    "native_sha256": {
+      "libnecko_core.so": "30bb0708f7c6e4cf6c280f6ac6d036cec6e2ce99f20ebf028f35e652bc4ca359",
+      "libnecko_quic.so": "866e9d84ac9f4af48102c6176eddae1c1070134ed2f508b5ad6abf69ed2edd2b",
+      "libnss3.so": "ee79d366db0848d947f58abfd637588ad8234f5da5eb5dc14d50045b32e771cc",
+      "libnssutil3.so": "fe84251b511858cd5f76310fb874addb3911cc07ea3ddfbbda902e7575d8e433",
+      "libssl3.so": "d536bd56b3deb271d8dc0a2de19e11774e7f9ca49802037afcef5388c5bac765",
+      "libnspr4.so": "832d5e62eacbb067eee30f8e5c899ec44157aaca51030473a296c584b95791d6",
+      "libplc4.so": "c837bdec2daf84e0558e1fbfdc68830969085d20d2869372d8adbcebf2faca4a",
+      "libplds4.so": "949db68dcda2a077af321684c62d7adf170f2c5e2c75f131994bc13bdc20daf7",
+      "libsoftokn3.so": "6744e029216d68bb99942544f306ec684074fd88a33e1cd81df0c7df232794b7",
+      "libfreebl3.so": "f82a335ffefd5513291567d7b2ad26ff7f41f72352bb590172fe4d15080136ce",
+      "libfreeblpriv3.so": "7cd39039b7e2669b31d06a1bba5f6740972100423b07c1a8b799a594061d1a07",
+      "libsqlite3.so": "a72f4e9fc3db1d34696e76f34e3deb1e6a96ca2368c1f678abcea3b7b00ec622",
+      "libnssckbi.so": "f52ee23da0dbbe6de7bb1c753b3848960e8a30afca9a38b7ec1198a0dbcb18d9",
+      "libnsssysinit.so": "4beab5125eb787f77c6df3be2c9418487039b4d7b5c774646eca4e508900aa02"
+    },
+    "cpython_runtime_endpoints": [
+      "3.10",
+      "3.14"
+    ],
+    "endpoints": {
+      "3.10": {
+        "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/job/139828153338",
+        "artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/artifacts/15105505696",
+        "artifact_digest": "sha256:5743d654159ae0c860a77ce5fe38d0f8eef845c2b0fa3d14bba31f854185ab45",
+        "python": "3.10.18",
+        "reference_sha256": "ec4e9e34a82e22f2eae7075fc1715843176d196a43c5b3da600af141c62b775a",
+        "wire_receipt_sha256": "ee1721c0216a07fee1cbce1069ca2b5a5ff9b51e7b3af6727b8f25d54d2c0b75",
+        "masque_status": "dependency-only-uncombined-source-candidate",
+        "modern_upgrade_job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/job/139828152465",
+        "modern_upgrade_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/artifacts/15103959828"
+      },
+      "3.14": {
+        "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/job/139828152843",
+        "artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/artifacts/15104549365",
+        "artifact_digest": "sha256:d089ebae8ff79b60830e95362ada0530719c79929e572e33db6ee394d27164b1",
+        "python": "3.14.10",
+        "reference_sha256": "ec4e9e34a82e22f2eae7075fc1715843176d196a43c5b3da600af141c62b775a",
+        "wire_receipt_sha256": "2910e63051b8c31aa1ea961449783976674a7aa3039a2c5e5c5cde31f0e1e9d4",
+        "masque_status": "dependency-only-uncombined-source-candidate",
+        "modern_upgrade_job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/job/139828152893",
+        "modern_upgrade_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45796429837/artifacts/15104872918"
+      }
+    }
+  },
+  "linux_auditwheel": {
+    "schema": 1,
+    "slot": "linux_x86_64",
+    "version": "6.6.0",
+    "wheel_sha256": "7c0bbeaa523f0120c7c650aaa5a87cd9e6c2dadd073d6fb0e4a5b0ac17da1850",
+    "inferred_platform_tag": "manylinux_2_31_x86_64",
+    "auditwheel_sha256": "3f92050f0811b7dae114e9ede026b377d9e240d6c8a5a64b3b5a676de8996221"
+  },
   "native_verification": {
-    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419",
-    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419/job/139737727993",
-    "ruyihttp_commit": "a0c5a16bf7ea15247b5eda9e5e0d0260a66297ef",
-    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419/artifacts/15093507302",
-    "wheel_sha256": "a2b9ce3899837a76dcdc457be44305c2f343e6fec434de869a4a0a9f8207b6c4",
-    "evidence_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45769276419/artifacts/15093616230",
-    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45763606818",
+    "run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435",
+    "job": "https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435/job/139818619959",
+    "ruyihttp_commit": "1ccb28c9cbfdd5383db07de71e249f959c24fe73",
+    "wheel_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435/artifacts/15104441434",
+    "wheel_sha256": "7c0bbeaa523f0120c7c650aaa5a87cd9e6c2dadd073d6fb0e4a5b0ac17da1850",
+    "evidence_artifact": "https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435/artifacts/15104102477",
+    "source_build_run": "https://github.com/Facetomyself/ruyihttp/actions/runs/45793633435",
     "source_build_attempt": 1,
-    "source_build_commit": "c0595468d08df7b41791d45929d383988da820cc",
+    "source_build_commit": "1ccb28c9cbfdd5383db07de71e249f959c24fe73",
     "cpython_runtime_endpoints": [
       "3.10",
       "3.14"
@@ -118,8 +1052,8 @@
     "h3_protocol_policy": 1,
     "same_slot_firefox_reference_sha256": "ec4e9e34a82e22f2eae7075fc1715843176d196a43c5b3da600af141c62b775a",
     "same_slot_firefox_wire_receipt_sha256": {
-      "3.10": "c79109a8329cdf014da4f96d78fbbe85da4e63b7c568a9bc8e280691464f3cdc",
-      "3.14": "f686c0a54ca9fd6c6c192e030e073d09e13b4d37de65e7a0ed5e52d4e020e475"
+      "3.10": "06ada7fd60440172d208fc5eb9d53d5732c0e052187fb490e7db80d1400faad8",
+      "3.14": "4ec929febe138b0a12ee96f3fbd84edc2034643e7e1b5ee63c89e5e12de919b0"
     },
     "tested_quic_policy_profiles": [
       "144",
