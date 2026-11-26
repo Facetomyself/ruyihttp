@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""In-place upgrade: original PyPI Windows wheel or previous, Git-pinned POSIX 0.9.0."""
+"""Check a normal in-place upgrade from the original 0.9.0 or this fork's pinned 0.9.1."""
 
 import hashlib
 import json
@@ -20,10 +20,13 @@ def main():
     candidate = Path(sys.argv[1]).resolve(strict=True)
     candidate_version = candidate.name.split("-")[1]
     slot = sys.argv[2] if len(sys.argv) > 2 else "win_amd64"
-    assert candidate_version != "0.9.0"
+    fork_baseline = sys.argv[3:] == ["--from-fork-091"]
+    assert len(sys.argv) <= 3 or fork_baseline
+    old_version = "0.9.1" if fork_baseline else "0.9.0"
+    assert candidate_version != old_version
     with tempfile.TemporaryDirectory(prefix="ruyihttp-upgrade-") as directory:
         root = Path(directory)
-        if slot == "win_amd64":
+        if slot == "win_amd64" and not fork_baseline:
             provenance = json.loads(PROVENANCE.read_text(encoding="utf-8"))
             baseline = root / provenance["wheel"]
             assert baseline.name == "ruyihttp-0.9.0-py3-none-win_amd64.whl"
@@ -35,13 +38,23 @@ def main():
             hashes = {k: value["sha256"] for k, value in provenance["files"].items()}
             source = "published PyPI wheel"
         else:
-            previous = Path(os.environ["RUYIHTTP_PREVIOUS_BUILD"]).resolve(strict=True)
-            (baseline,) = (previous / "wheels").glob("ruyihttp-0.9.0-*.whl")
+            env_key = (
+                "RUYIHTTP_FORK_091_BUILD"
+                if fork_baseline
+                else "RUYIHTTP_PREVIOUS_BUILD"
+            )
+            previous = Path(os.environ[env_key]).resolve(strict=True)
+            (baseline,) = (previous / "wheels").glob(f"ruyihttp-{old_version}-*.whl")
             checkout = previous / "source"
             source = subprocess.check_output(
                 ["git", "-C", checkout, "rev-parse", "HEAD"], text=True
             ).strip()
-            assert source == "ea44f8fe4468bbee80996e4e73745d6d53c072cc", source
+            expected = (
+                "fae13b0a9eabbafbcdbf5c59438875525fcc0d0b"
+                if fork_baseline
+                else "ea44f8fe4468bbee80996e4e73745d6d53c072cc"
+            )
+            assert source == expected, source
             origin = subprocess.check_output(
                 ["git", "-C", checkout, "show", "HEAD:ruyihttp/runtime-manifest.json"]
             )
@@ -82,7 +95,7 @@ print(f'installed {expected} with Python {sys.version.split()[0]} in {root}', fl
             )
 
         call("-m", "pip", "install", str(baseline))
-        version("0.9.0")
+        version(old_version)
         call(CI / "smoke_local.py")
         call("-m", "pip", "install", "--upgrade", str(candidate))
         call("-m", "pip", "check")
@@ -90,7 +103,7 @@ print(f'installed {expected} with Python {sys.version.split()[0]} in {root}', fl
         call(CI / "verify_installed.py", slot, candidate)
         call(CI / "smoke_local.py")
         print(
-            f"PASS: in-place 0.9.0 -> {candidate_version}; one distribution, native hashes, HTTP before and after",
+            f"PASS: in-place {old_version} -> {candidate_version}; one distribution, native hashes, HTTP before and after",
             flush=True,
         )
 
