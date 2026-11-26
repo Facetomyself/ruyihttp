@@ -95,3 +95,27 @@ diff --git a/native/necko_posix/quic/Cargo.lock b/native/necko_posix/quic/Cargo.
  dependencies = [
   "bindgen 0.72.999",
   "derive_more",
+diff --git a/native/necko_posix/quic/webtransport.rs b/native/necko_posix/quic/webtransport.rs
+--- a/native/necko_posix/quic/webtransport.rs
++++ b/native/necko_posix/quic/webtransport.rs
+@@ -45,5 +45,5 @@
+             value["lostOutgoing"] = json!(stats.datagram_tx.lost);
+             if let Ok(stats) = client.webtransport_session_stats(id) {
+-                value["expiredOutgoing"] = json!(stats.datagrams_expired_outgoing);
++                value["expiredOutgoing"] = json!(stats.outgoing_datagrams.expired);
+             }
+             if let Ok(size) = client.webtransport_max_datagram_size(id) { value["maxDatagramSize"] = json!(size); }
+@@ -61,5 +61,5 @@
+             let code = u32::try_from(number(v,"code")?).map_err(err)?;
+             let stats = client.webtransport_close_session(id,code,text(v,"reason")?,now).map_err(err)?;
+-            session.wt_closed.insert(id.as_u64(),json!({"expiredOutgoing":stats.datagrams_expired_outgoing}));
++            session.wt_closed.insert(id.as_u64(),json!({"expiredOutgoing":stats.outgoing_datagrams.expired}));
+             Ok(json!({}))
+         },
+@@ -67,5 +67,5 @@
+             let data = B64.decode(text(v,"data")?).map_err(err)?;
+             if data.len() > 65536 { return Err("Datagram exceeds limit".into()); }
+-            // Neqo 0.33: the default send group and order (as its own CONNECT-UDP
++            // Use the default send group and order (as its own CONNECT-UDP
+             // sends do); only a refused datagram was not queued.
+             let outcome = client.webtransport_send_datagram(id,&data,None,now,SendGroupId::new(0),0).map_err(err)?;
