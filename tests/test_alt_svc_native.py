@@ -19,7 +19,7 @@ from requests.exceptions import RequestException
 
 import ruyihttp
 import test_http3_native as fixture
-from ruyihttp import _transport
+from ruyihttp import _connect, _transport
 
 
 class _TCPServer(socketserver.ThreadingTCPServer):
@@ -292,6 +292,60 @@ class NativeAltSvcTests(unittest.TestCase):
                     flush=True,
                 )
 
+    @contextlib.contextmanager
+    def _order_healthy_race(self, alpn):
+        # Both lanes run the real factories. Require TCP to borrow the warm
+        # lease, but hold its result until the coordinator has selected H3.
+        # The host scheduler need not let QUIC finish inside its 100 ms lead.
+        borrowed = threading.Event()
+        released = threading.Event()
+        real_race = _connect.race
+
+        def ordered_race(primary, backup, *args, **kwargs):
+            def quic(attempt):
+                candidate = primary(attempt)
+                try:
+                    self.assertTrue(
+                        borrowed.wait(attempt.remaining()), "no warm TCP result"
+                    )
+                except Exception:
+                    candidate.close()
+                    raise
+                return candidate
+
+            def tcp(attempt):
+                lease = backup(attempt)
+                close = lease.close
+
+                def return_lease():
+                    close()
+                    released.set()
+
+                lease.close = return_lease
+                try:
+                    self.assertIsInstance(lease, _transport._BorrowedConnection)
+                    self.assertEqual(lease.alpn, alpn)
+                    remaining = attempt.remaining()
+                    borrowed.set()
+                    self.assertTrue(
+                        attempt.cancelled.wait(remaining), "warm TCP was not cancelled"
+                    )
+                    # Let the real race close this late result and return its lease.
+                    return lease
+                except Exception:
+                    lease.close()
+                    raise
+
+            candidate = real_race(quic, tcp, *args, **kwargs)
+            if not released.wait(2):
+                candidate.close()
+                self.fail("losing warm TCP lease was not returned")
+            return candidate
+
+        with patch.object(_connect, "race", ordered_race):
+            yield
+        self.assertTrue(borrowed.is_set() and released.is_set())
+
     def test_verified_h3_wins_and_reuses_while_bootstrap_tcp_remains_live(self):
         origin = self._origin()
         for alpn, version in (("http/1.1", 11), ("h2", 20)):
@@ -312,7 +366,11 @@ class NativeAltSvcTests(unittest.TestCase):
                 times = []
                 for path in ("/body", "/empty"):
                     request_started = time.perf_counter()
-                    with session.get(url + path, timeout=2) as response:
+                    order = (
+                        self._order_healthy_race(alpn) if path == "/body"
+                        else contextlib.nullcontext()
+                    )
+                    with order, session.get(url + path, timeout=2) as response:
                         self.assertEqual(
                             (response.raw.version, response.tls["alpn"]), (30, "h3")
                         )
