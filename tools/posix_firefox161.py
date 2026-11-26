@@ -70,8 +70,9 @@ def validate_candidate(slot, entry, provenance):
          'Unexpected Firefox 161 source provenance')
     expected = [{'path': path, 'sha256': digest(ROOT / path)} for path in source_patches(slot)]
     need(provenance.get('source_patches') == expected, 'Unexpected source patch names, order or bytes')
-    need(entry.get('h3_protocol_policy') == provenance.get('h3_protocol_policy') == H3_PROTOCOL_POLICY,
-         'Missing POSIX HTTP/3 policy generation')
+    need(all(type(record.get('h3_protocol_policy')) is int and
+             record['h3_protocol_policy'] == H3_PROTOCOL_POLICY for record in (entry, provenance)),
+         'Missing or invalid POSIX HTTP/3 policy generation')
 
 
 def versions_in_lock(path, *, mozilla):

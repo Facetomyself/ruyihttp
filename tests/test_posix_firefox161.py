@@ -11,8 +11,9 @@ import posix_firefox161 as recipe
 class PosixRecipeTests(unittest.TestCase):
     def setUp(self):
         self.slot = 'darwin_x86_64'
-        self.runtime = recipe.runtime_expected(self.slot)
+        self.runtime = dict(recipe.runtime_expected(self.slot), h3_protocol_policy=recipe.H3_PROTOCOL_POLICY)
         self.provenance = {
+            'h3_protocol_policy': recipe.H3_PROTOCOL_POLICY,
             'ff_ruyijs_commit': recipe.DONOR_COMMIT,
             'ff_ruyijs_firefox_gitlink': recipe.DONOR_FIREFOX,
             'firefox_source_commit': recipe.FIREFOX_COMMIT,
@@ -39,6 +40,18 @@ class PosixRecipeTests(unittest.TestCase):
             recipe.validate_candidate(self.slot, self.runtime, old_receipt)
         with self.assertRaisesRegex(ValueError, 'runtime versions'):
             recipe.validate_candidate(self.slot, dict(self.runtime, nss='3.132'), self.provenance)
+
+    def test_matches_typed_policy_in_both_records(self):
+        for field in ('runtime', 'provenance'):
+            for wrong in (None, True, '1', 0, 2):
+                runtime, provenance = dict(self.runtime), dict(self.provenance)
+                record = runtime if field == 'runtime' else provenance
+                if wrong is None:
+                    del record['h3_protocol_policy']
+                else:
+                    record['h3_protocol_policy'] = wrong
+                with self.subTest(field=field, wrong=wrong), self.assertRaisesRegex(ValueError, 'policy generation'):
+                    recipe.validate_candidate(self.slot, runtime, provenance)
 
     def test_rejects_missing_reordered_or_changed_patch(self):
         for change in ('missing', 'reordered', 'changed'):
