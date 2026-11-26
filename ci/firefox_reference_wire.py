@@ -14,7 +14,7 @@ from aioquic.buffer import Buffer
 from aioquic.h3.connection import FrameType, H3Connection
 from aioquic.h3.events import HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
-from aioquic.quic.events import HandshakeCompleted
+from aioquic.quic.events import ConnectionTerminated, HandshakeCompleted
 from aioquic.quic.logger import QuicLogger
 from h2.config import H2Configuration
 from h2.connection import H2Connection
@@ -161,8 +161,10 @@ class WireH3(H3Connection):
 
 
 class Origin:
-    def __init__(self, case, leaf, key):
+    def __init__(self, case, leaf, key, bootstrap_protocol='h1'):
         self.case = case
+        self.bootstrap_protocol = bootstrap_protocol
+        self.tcp_protocol = bootstrap_protocol if case == 'h3' else case
         self.leaf, self.key = leaf, key
         self.result = asyncio.get_running_loop().create_future()
         self.hellos = WeakKeyDictionary()
@@ -170,6 +172,7 @@ class Origin:
         self.tcp_fallback = []
         self.tls_client_hellos = 0
         self.h3_handshakes = []
+        self.h3_terminations = []
         self.other_paths = []
         self.errors = deque(maxlen=10)
         self.tasks = set()
@@ -177,7 +180,7 @@ class Origin:
         self.quic_log = QuicLogger() if case == 'h3' else None
 
     async def __aenter__(self):
-        alpn = 'http/1.1' if self.case == 'h1' else 'h2'
+        alpn = 'http/1.1' if self.tcp_protocol == 'h1' else 'h2'
         context = alpn_context(self.leaf, self.key, alpn, self)
         self.tcp = await asyncio.start_server(self.accept, IP, 0, ssl=context, ssl_handshake_timeout=8)
         self.port = self.tcp.sockets[0].getsockname()[1]
@@ -221,7 +224,7 @@ class Origin:
             base = {'hello': self.hellos[tls][0], 'client_hello_count': len(self.hellos[tls]),
                     'protocol': tls.selected_alpn_protocol(), 'port': self.port, 'mode': 'navigation',
                     'negotiated_tls': {'version': tls.version(), 'cipher': tls.cipher()[0]}}
-            if self.case == 'h1':
+            if self.tcp_protocol == 'h1':
                 await self.h1(reader, writer, base)
             else:
                 await self.h2(reader, writer, base)
@@ -237,22 +240,43 @@ class Origin:
             self.other_paths.append([protocol, path])
 
     async def h1(self, reader, writer, base):
-        line = (await reader.readline()).rstrip(b'\r\n')
-        if not line:
-            return
-        headers = []
-        while (row := await reader.readline()) not in (b'\r\n', b''):
-            name, value = row.rstrip(b'\r\n').split(b':', 1)
-            headers.append((name, value.strip(b' \t')))
-        if row != b'\r\n':
-            return
-        if line != f'GET {PATH} HTTP/1.1'.encode('ascii'):
-            self.extra('h1', line.decode('ascii'))
-            return
-        writer.write(b'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: no-store\r\nConnection: close\r\n'
-                     + f'Content-Length: {len(NAV_BODY)}\r\n\r\n'.encode('ascii') + NAV_BODY)
-        await writer.drain()
-        self.finish(dict(base, request_line=line.decode('ascii'), headers=headers_text(headers)))
+        while line := (await reader.readline()).rstrip(b'\r\n'):
+            headers = []
+            while (row := await reader.readline()) not in (b'\r\n', b''):
+                name, value = row.rstrip(b'\r\n').split(b':', 1)
+                headers.append((name, value.strip(b' \t')))
+            if row != b'\r\n':
+                return
+            line = line.decode('ascii')
+            record = dict(base, request_line=line, headers=headers_text(headers))
+            response = b'Cache-Control: no-store\r\n'
+            body = b''
+            status = '404 Not Found'
+            if self.case == 'h3':
+                response += f'Alt-Svc: h3=":{self.port}"; ma=60\r\n'.encode('ascii')
+                if line == f'GET {BOOT} HTTP/1.1':
+                    status, body = '200 OK', BOOT_BODY
+                    if len(self.bootstrap) < 5:
+                        self.bootstrap.append(record)
+                elif line == f'GET {PATH} HTTP/1.1':
+                    status = '503 Service Unavailable'
+                    if len(self.tcp_fallback) < 20:
+                        self.tcp_fallback.append(record)
+                else:
+                    self.extra('h1', line)
+            elif line == f'GET {PATH} HTTP/1.1':
+                status, body = '200 OK', NAV_BODY
+                response += b'Connection: close\r\n'
+            else:
+                self.extra('h1', line)
+            if body:
+                response += b'Content-Type: text/html\r\n'
+            writer.write(f'HTTP/1.1 {status}\r\n'.encode('ascii') + response
+                         + f'Content-Length: {len(body)}\r\n\r\n'.encode('ascii') + body)
+            await writer.drain()
+            if self.case == 'h1' and status == '200 OK':
+                self.finish(record)
+                return
 
     async def h2(self, reader, writer, base):
         if base['protocol'] != 'h2':
@@ -337,6 +361,8 @@ class Origin:
                 if isinstance(event, HandshakeCompleted):
                     self.handshake = event
                     origin.h3_handshakes.append([event.alpn_protocol, int(self._quic._version)])
+                elif isinstance(event, ConnectionTerminated):
+                    origin.h3_terminations.append([event.error_code, event.frame_type])
                 for message in self.http.handle_event(event):
                     if not isinstance(message, HeadersReceived) or message.push_id is not None:
                         continue
@@ -367,7 +393,7 @@ class Origin:
                                    'quic_version': int(self._quic._version), 'initial': initial, 'hello': self.hello,
                                    'settings': settings, 'grease_settings': grease_settings(settings), 'headers': headers,
                                    'transport_parameters': {k: remote[0][k] for k in sorted(TP & remote[0].keys())},
-                                   'bootstrap': list(origin.bootstrap)})
+                                   'bootstrap_protocol': origin.bootstrap_protocol, 'bootstrap': list(origin.bootstrap)})
 
         return Protocol
 
@@ -376,5 +402,6 @@ class Origin:
         return {'case': self.case, 'port': self.port, 'bootstrap': self.bootstrap, 'tcp_fallback': self.tcp_fallback,
                 'other_paths': self.other_paths, 'server_errors': list(self.errors),
                 'tls_client_hellos': self.tls_client_hellos, 'quic_traces': len(traces),
-                'h3_handshakes': self.h3_handshakes,
+                'h3_handshakes': self.h3_handshakes, 'h3_terminations': self.h3_terminations,
+                'bootstrap_protocol': self.bootstrap_protocol if self.case == 'h3' else None,
                 'quic_events': [[event['name'] for event in trace['events'][:64]] for trace in traces[:3]]}
