@@ -168,7 +168,7 @@ def floor_identity(arch, endpoint):
     libc = ctypes.CDLL(None)
     libc.gnu_get_libc_version.restype = ctypes.c_char_p
     require(libc.gnu_get_libc_version() == b"2.31", "runtime glibc differs from getconf")
-    packages = capture(["dpkg-query", "-W", "-f=${Package}\t${Version}\n", "libc6", "libgcc-s1", "libstdc++6"])
+    packages = capture(["dpkg-query", "-W", "-f=${Package}\t${Version}\n", "libc6", "libgcc-s1", "libstdc++6", "libzstd1"])
     versions = dict(line.split("\t", 1) for line in packages.strip().splitlines())
     require(versions["libc6"].startswith("2.31-") and versions["libstdc++6"].startswith("10."), packages)
     stdcpp = (Path("/usr/lib") / f"{arch}-linux-gnu/libstdc++.so.6").resolve(strict=True)
@@ -325,8 +325,12 @@ def install(args, identity):
     identity["fixture_dependencies"] = dependencies(fixture_deps)
     log(evidence, "pip-check", [python, *PIP, "check"])
     log(evidence, "pip-list", [python, *PIP, "list", "--format=json"])
-    if args.mode != "probe" and ("masque" in extras or args.mode == "release"):
-        require({"masque", "socks"} <= extras and (ROOT / "ci/smoke_masque.py").is_file(), "required MASQUE/SOCKS extra or loopback fixture absent")
+    masque_fixture = (ROOT / "ci/smoke_masque.py").is_file()
+    if args.mode == "release":
+        require({"masque", "socks"} <= extras and masque_fixture, "required MASQUE/SOCKS extra or loopback fixture absent")
+    if args.mode != "probe" and "masque" in extras:
+        require("socks" in extras, "MASQUE floor fixture requires the SOCKS extra")
+        identity["masque_status"] = "wire-required" if masque_fixture else "dependency-only-uncombined-source-candidate"
         masque_python = new_venv(state / "masque")
         identity["masque_dependencies"] = dependencies(pip_install(evidence, "masque-install", masque_python, f"{wheel}[masque,socks]"), wheel)
         log(evidence, "masque-pip-check", [masque_python, *PIP, "check"])
@@ -365,9 +369,11 @@ print('cryptography', cryptography.__version__, 'validated EC, Brotli and Zstand
                                                   args.wheels, args.evidence, args.state, args.old, args.mode])
         require("" != runtime, "no runtime evidence")
         installed.update(json.loads((evidence / "native-runtime.json").read_text(encoding="utf-8")))
-        if "masque_dependencies" in installed:
+        if installed.get("masque_status") == "wire-required":
             log(evidence, "masque-suite", [state / "masque/bin/python", "-I", __file__, "masque", args.slot, args.endpoint,
                                           args.wheels, args.evidence, args.state, args.old, args.mode])
+            require((evidence / "masque-wire.json").is_file(), "MASQUE wire receipt is missing")
+            installed["masque_status"] = "wire-passed"
             installed["gates"].append("masque-rfc9298")
     json_file(evidence / "summary.json", installed)
     print(json.dumps(installed, sort_keys=True), flush=True)
