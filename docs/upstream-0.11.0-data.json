@@ -1,0 +1,35 @@
+{
+  "upstream": "https://pypi.org/project/ruyihttp/0.11.0/",
+  "upstream_wheel": {
+    "wheel_filename": "ruyihttp-0.11.0-py3-none-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/f5/76/5e918b50ec3021414d525993add261f54dafa107bc64128bdc3cf29d79b1/ruyihttp-0.11.0-py3-none-win_amd64.whl",
+    "sha256": "79eb2f08326c5f1e0a9ffddecef5136f45b50aefe952051f878e514a63939332"
+  },
+  "mozilla": {
+    "tag": "FIREFOX_161_0_RELEASE",
+    "commit": "9c70d5d48c866afc2e581d6b7ff6de98a1371d99",
+    "certdata_url": "https://raw.githubusercontent.com/mozilla-firefox/firefox/9c70d5d48c866afc2e581d6b7ff6de98a1371d99/security/nss/lib/ckfw/builtins/certdata.txt",
+    "certdata_sha256": "3ec2b4d240dc12c747eaf450061db84af757c483bbda302f9e29ceb5d70be510",
+    "psl_url": "https://raw.githubusercontent.com/mozilla-firefox/firefox/9c70d5d48c866afc2e581d6b7ff6de98a1371d99/netwerk/dns/effective_tld_names.dat",
+    "psl_sha256": "809adae1a2cb1621b70165c11e0d14412d3f104f40a4ebed9a99e23c54f78d71"
+  },
+  "normalization": "PEM and JSON use LF in this repository; the PSL bytes exactly match the Mozilla source.",
+  "server_root_count": 118,
+  "installed_sha256": {
+    "firefox-roots.pem": "737517c3f03de76442482d7d4fd5d81de60da1be75823d878adb08da3c0ef4fe",
+    "firefox-root-constraints.json": "c7da1746dd827a47584fa5fe82204e981eae4d628c8590fe4c23083b2a66ac1a",
+    "firefox-suffixes.dat": "809adae1a2cb1621b70165c11e0d14412d3f104f40a4ebed9a99e23c54f78d71"
+  },
+  "previous_root_count": 121,
+  "removed_tls_anchor_sha256": {
+    "emSign Root CA - C1": "125609aa301da0a249b97a8239cb6a34216f44dcac9f3954b14292f2e8c8608f",
+    "emSign ECC Root CA - G3": "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b",
+    "emSign ECC Root CA - C3": "bc4d809b15189d78db3e1d8cf4f9726a795da1643ca5f1358e1ddb0edc0d7eb3"
+  },
+  "psl_rules": {
+    "previous": 10398,
+    "current": 10463,
+    "added": 70,
+    "removed": 5
+  }
+}
