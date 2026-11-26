@@ -2,11 +2,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-"""TLS ClientHello inputs of each Firefox release (Windows x64, release channel).
+"""TLS ClientHello configuration inputs for supported Firefox profiles.
 
-Generated from the release tags' sources and checked against ClientHellos
-captured from the official Windows x64 builds. Fields map onto necko_tls_profile.
-native_profile refuses to apply this table on Darwin or any other host.
+The original clusters were derived from release sources and Windows x64
+captures. Linux and macOS share those inputs. An alias selects the same
+configuration, not a guarantee of browser-identical output from a native slot.
 """
 
 from collections import namedtuple
@@ -149,13 +149,14 @@ PROFILES = {
     "157": _P7,
     "158": _P7,
     "159": _P7,
+    # The upstream 0.11.0 profiles use the unchanged 159 cluster.
+    "160": _P7,
+    "161": _P7,
 }
 
 
-# The cluster table above was derived from Firefox release sources and checked
-# against Windows x64 captures. macOS and Linux select the same clusters; the
-# platform runtimes are NSS 3.132 and are validated by cipher/group/key-share
-# counts, not by byte-identical ClientHello records.
+# All platforms select the same inputs. The loaded native library and the
+# observed output remain platform-specific.
 PLATFORM_PROFILES = {
     "win_amd64": PROFILES,
     "darwin": PROFILES,

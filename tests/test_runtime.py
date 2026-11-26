@@ -5,6 +5,7 @@
 import json
 import os
 import pathlib
+import re
 import sys
 import tempfile
 import unittest
@@ -17,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ruyihttp import _firefox, _http3, _nss, _transport
+from ruyihttp import Session, _firefox, _http3, _nss, _transport
 
 import setup
 WIN_DLL_NAMES = {
@@ -89,6 +90,7 @@ class RuntimeContractTests(unittest.TestCase):
             key: os.environ.get(key)
             for key in (
                 "NECKO_CORE_LIBRARY",
+                "NECKO_FIREFOX",
                 "NECKO_QUIC_LIBRARY",
                 "RUYIHTTP_MACHINE",
             )
@@ -195,17 +197,11 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn(str(override), str(error.exception))
 
     def test_nss_gate_compares_packaged_version(self):
-        # 期望版本随宿主平台取 manifest 值（win_amd64=3.131，linux/darwin=3.132），
-        # 不能硬编码成 Windows 那一档。
         expected = _nss.expected_nss_version()
         _nss.configure_library(_NativeLibrary(expected))
-        wrong = b"3.130" if expected != b"3.130" else b"3.129"
-        with self.assertRaisesRegex(
-            RuntimeError,
-            r"^firefox-159 requires the packaged NSS "
-            + expected.decode()
-            + r" runtime$",
-        ):
+        wrong = expected + b".1"  # A compatible-looking prefix is still a mismatch.
+        message = f"expected packaged NSS {expected.decode()} runtime, got {wrong!r}"
+        with self.assertRaisesRegex(RuntimeError, f"^{re.escape(message)}$"):
             _nss.configure_library(_NativeLibrary(wrong))
 
     def test_data_path_searches_runtime_layouts(self):
@@ -267,6 +263,48 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertEqual(_firefox.client_platform(), "win_amd64")
         built = _nss.native_profile("159")
         self.assertEqual(built.cipher_count, len(_nss.TLS_PROFILES["159"].ciphers))
+
+    def test_explicit_firefox_160_161_selection_and_platform_tokens(self):
+        self.assertEqual(_firefox.DEFAULT_FIREFOX, "159")
+        self.assertEqual(_firefox.FIREFOX_VERSIONS, tuple(map(str, range(100, 162))))
+        self.assertEqual(_firefox.firefox_version(None), "159")
+        # Session construction normalizes the selection without loading native libraries.
+        with Session() as session:
+            self.assertEqual(session.firefox, "159")
+        with _env(NECKO_FIREFOX="Firefox-161.0"):
+            with Session() as via_env, Session(firefox=160) as explicit:
+                self.assertEqual((via_env.firefox, explicit.firefox), ("161", "160"))
+        for value, expected in (("Firefox-160.0", "160"), (" Firefox 161 ", "161")):
+            self.assertEqual(_firefox.firefox_version(value), expected)
+        for value in ("99", "162", "Firefox/161.0", "160.1"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, r"choose 100-161$"):
+                _firefox.firefox_version(value)
+
+        baseline = {k: v for k, v in _firefox.PROFILES["159"].items() if k != "user_agent"}
+        cases = (
+            ("nt", "win32", "amd64", "win_amd64", "Windows NT 10.0; Win64; x64"),
+            ("posix", "darwin", "arm64", "darwin", "Macintosh; Intel Mac OS X 10.15"),
+            ("posix", "darwin", "x86_64", "darwin", "Macintosh; Intel Mac OS X 10.15"),
+            ("posix", "linux", "x86_64", "linux", "X11; Linux x86_64"),
+            ("posix", "linux", "aarch64", "linux", "X11; Linux aarch64"),
+        )
+        for version in ("160", "161"):
+            config = _firefox.PROFILES[version]
+            self.assertEqual({k: v for k, v in config.items() if k != "user_agent"}, baseline)
+            self.assertIs(_nss.TLS_PROFILES[version], _nss.TLS_PROFILES["159"])
+            for os_name, platform_name, arch, profile_platform, system_token in cases:
+                with self.subTest(version=version, os=platform_name, arch=arch):
+                    with driven_host(os_name, platform_name, arch):
+                        headers = _firefox.default_headers("navigation", version)
+                    self.assertEqual(
+                        headers["User-Agent"],
+                        f"Mozilla/5.0 ({system_token}; rv:{version}.0) Gecko/20100101 Firefox/{version}.0",
+                    )
+                    candidate = _nss.native_profile(version, platform=profile_platform)
+                    control = _nss.native_profile("159", platform=profile_platform)
+                    self.assertEqual(candidate.cipher_count, control.cipher_count)
+                    self.assertEqual(candidate.group_count, control.group_count)
+                    self.assertEqual(_firefox.quic_profile(version, profile_platform), baseline["quic"])
 
     def test_host_platform_matches_this_host(self):
         if os.name == "nt":
@@ -338,32 +376,41 @@ class RuntimeContractTests(unittest.TestCase):
             (ROOT / "ruyihttp" / "runtime-manifest.json").read_text(encoding="utf-8")
         )
         self.assertEqual(manifest["default"], "win_amd64")
-        self.assertEqual(manifest["platforms"]["win_amd64"]["nss"], "3.131")
-        self.assertEqual(manifest["platforms"]["darwin_arm64"]["nss"], "3.132")
-        self.assertEqual(manifest["platforms"]["linux_x86_64"]["nss"], "3.132")
-        for slot, suffix in (("darwin_x86_64", ".dylib"), ("linux_aarch64", ".so")):
+        slots = {
+            "win_amd64": ("necko", ".dll"),
+            "darwin_arm64": ("libnecko", ".dylib"),
+            "darwin_x86_64": ("libnecko", ".dylib"),
+            "linux_x86_64": ("libnecko", ".so"),
+            "linux_aarch64": ("libnecko", ".so"),
+        }
+        self.assertEqual(set(manifest["platforms"]), set(slots))
+        for slot, (prefix, suffix) in slots.items():
             with self.subTest(slot=slot):
                 entry = manifest["platforms"][slot]
-                actual = {p.name for p in (ROOT / "native" / slot).glob("*" + suffix)}
+                native = ROOT / "native" / slot
+                actual = {p.name for p in native.glob("*" + suffix)}
                 self.assertIn(entry["status"], ("ready", "build-required"))
                 if entry["status"] == "ready":
-                    self.assertTrue({"libnecko_core" + suffix, "libnecko_quic" + suffix} <= actual)
+                    self.assertTrue({f"{prefix}_core{suffix}", f"{prefix}_quic{suffix}"} <= actual)
                     self.assertEqual(actual, set(entry["files"]))
+                    provenance = json.loads((native / "provenance.json").read_text(encoding="utf-8"))
+                    runtime = provenance["runtime_expected"]
+                    self.assertEqual({key: entry[key] for key in ("firefox", "nss", "nspr", "neqo")}, runtime)
+                    self.assertEqual(_nss.expected_nss_version(slot), entry["nss"].encode("ascii"))
                 else:
                     self.assertFalse(actual)
-        self.assertIn("libnecko_quic.dylib", manifest["platforms"]["darwin_arm64"]["files"])
-        self.assertIn("libnecko_quic.so", manifest["platforms"]["linux_x86_64"]["files"])
 
     def test_nss_gate_reads_manifest(self):
-        self.assertEqual(_nss.expected_nss_version("win_amd64"), b"3.131")
-        self.assertEqual(_nss.expected_nss_version("darwin_arm64"), b"3.132")
-        self.assertEqual(_nss.expected_nss_version("linux_x86_64"), b"3.132")
-        _nss.configure_library(_NativeLibrary(b"3.132"), expected_nss=b"3.132")
-        with self.assertRaisesRegex(
-            RuntimeError,
-            r"^firefox-159 requires the packaged NSS 3\.132 runtime$",
-        ):
-            _nss.configure_library(_NativeLibrary(b"3.131"), expected_nss=b"3.132")
+        # Distinct values make it impossible for a hardcoded native version or
+        # the wrong platform entry to pass, even when real slots share a version.
+        slots = {"win_amd64": {"nss": "8.1"}, "darwin_arm64": {"nss": "8.2"},
+                 "linux_x86_64": {"nss": "8.3"}}
+        with patch.object(_nss, "_runtime_manifest", return_value={"platforms": slots}):
+            for slot, entry in slots.items():
+                with self.subTest(slot=slot):
+                    self.assertEqual(_nss.expected_nss_version(slot), entry["nss"].encode("ascii"))
+            with self.assertRaisesRegex(RuntimeError, r"no entry for other$"):
+                _nss.expected_nss_version("other")
 
     def test_windows_build_copies_native_dlls(self):
         build_lib = self.root / "win-build"
