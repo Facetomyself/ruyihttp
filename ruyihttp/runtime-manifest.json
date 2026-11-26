@@ -111,23 +111,23 @@
     },
     "darwin_x86_64": {
       "status": "ready",
-      "firefox": "159.0",
-      "nss": "3.132",
+      "firefox": "161.0",
+      "nss": "3.133",
       "nspr": "4.40",
-      "neqo": "0.33.0",
+      "neqo": "0.34.0",
       "files": {
         "libnecko_core.dylib": "16257c1cf9cf44f90a96d52c3e069ae8f4f439723afbc8085b741adf257ac06c",
-        "libnecko_quic.dylib": "5dd0347c2f0d3e8f3b41466739726756c815a0e51d05b13329e5f7672c3cc00a",
-        "libnss3.dylib": "6def79bab867bb978044f668943e9b7fea9d727ebd45fc00f9078ae6c873ee56",
-        "libsoftokn3.dylib": "e17b78deede206e5702108ca59106ff7f455523bf09908f2264bcc0dd5ec9bf0",
-        "libfreebl3.dylib": "ee816e9dec66edc52ba44b67bdb6844a49839d838a84e9a3c2b0d8148475e502",
-        "libmozglue.dylib": "52a7bb0803ec133312c7e895d0c5e33b23b8c1e8d2a8660f3d51d6b61c350cc8"
+        "libnecko_quic.dylib": "271ddc4159f149131a0c4c3d4bfd936be84601ec876a42274d1e003e9f37a235",
+        "libnss3.dylib": "ceab4ba049adc23dff033dfbf9ec6f3c3b78be77ebd5dc614ffc57668d42910c",
+        "libsoftokn3.dylib": "bb2b4957f16ade4f49ce33e1b8f1bab57a808bcde71fe869eaaf94f50b8532d2",
+        "libfreebl3.dylib": "94718096805a3d1f9c4b6e3696c0c695e53f0ca375e4506818d5d35a4d8e4141",
+        "libmozglue.dylib": "5bed7dfdd89813f14ea1f9953bd8f6aa5bdb05f39e10529f7e586873ece44727"
       },
       "wheel_platform_tag": "macosx_15_0_x86_64",
       "h3_tls": "nss",
       "h3_version_export": {
         "type": "ascii",
-        "value": "neqo-0.33.0/nss-3.132"
+        "value": "neqo-0.34.0/nss-3.133"
       },
       "h3_body_abi": 1,
       "minimum_macos": "15.0.0",
