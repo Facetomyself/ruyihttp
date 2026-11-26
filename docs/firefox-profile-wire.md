@@ -14,14 +14,14 @@ python -I /absolute/path/to/ruyihttp/ci/smoke_firefox_profiles.py <slot> --outpu
 
 - H1 和 H2 使用顶层导航；逐项核对请求目标、实际协商的 ALPN、完整 UA、请求头名称和值的顺序、TCP ClientHello 选定字段，以及 H2 首个非 ACK SETTINGS 的实际顺序。
 - H3 比较从已验证的 `https://localhost:<port>/boot` 发起的默认同源 Fetch。只映射实际回环端口，保留 Fetch Metadata、完整 `Referer` 路径、`Alt-Used`、伪头和普通请求头顺序。H1 引导响应发布 Alt-Svc，随后关闭 TCP 路径；HTTP/3 必须使用 UDP，且服务器独立观测 ClientHello、首次 Initial 版本、协商版本、选定传输参数与有序 SETTINGS。
-- 捕获输出保留 TLS 扩展顺序：只有同 slot、版本和请求方式的官方样本实际出现排列变化时，才比较固定扩展及 GREASE 数量，并保持可证实的固定位置。固定字段的具体范围和加密随机量、协议环境边界见[参考格式](../ci/firefox_wire_references/README.md)。这些测试是结构化字段的线路对照，不是全网络指纹或报文散列。
+- 捕获输出保留 TLS 扩展顺序：只有同 slot、版本和请求方式的官方样本实际出现排列变化时，才比较固定扩展及 GREASE 数量，并保持可证实的固定位置。实测确有稳定扩展的排列变化时，wheel 也必须在最多五次独立连接内出现至少两种合规排列，每次均需通过固定字段核对。固定字段的具体范围和加密随机量、协议环境边界见[参考格式](../ci/firefox_wire_references/README.md)。这些测试是结构化字段的线路对照，不是全网络指纹或报文散列。
 
 ## 对照与诊断
 
 [`v0.9.2` 的历史 Linux ARM64 参考](../ci/firefox_wire_reference.json)曾省略 UA 的具体值，并把官方 H3 Fetch 与库的 H3 导航放在报告中并列；这个文件只能用于理解旧证据，不能用于新验收。新版保留原始捕获证据，也可对旧 wheel 或没有 fork manifest 的 PyPI 包运行独立采集：
 
 ```sh
-python -I /absolute/path/to/ruyihttp/ci/smoke_firefox_profiles.py <slot> --collect --output observed.jsonl
+python -I /absolute/path/to/ruyihttp/ci/smoke_firefox_profiles.py <slot> --collect --repeats 2 --output observed.jsonl
 python -I /absolute/path/to/ruyihttp/ci/firefox_wire.py <slot> observed.jsonl
 ```
 
