@@ -233,8 +233,7 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertIn("Windows NT 10.0; Win64; x64", windows)
         self.assertIn("Macintosh; Intel Mac OS X 10.15", mac)
         self.assertNotIn("Windows", mac)
-        # Linux UA 的架构部分随 RUYIHTTP_MACHINE / 真实机器变化（x86_64 或 aarch64）
-        self.assertRegex(linux, r"X11; Linux (x86_64|aarch64)")
+        self.assertIn("X11; Linux x86_64", linux)
         self.assertNotIn("Windows", linux)
         frozen = _firefox._user_agent(112, "darwin")
         self.assertIn("rv:109.0", frozen)
@@ -264,6 +263,19 @@ class RuntimeContractTests(unittest.TestCase):
         built = _nss.native_profile("159")
         self.assertEqual(built.cipher_count, len(_nss.TLS_PROFILES["159"].ciphers))
 
+    def test_linux_arm64_ua_freezes_at_123_without_changing_native_slot(self):
+        for machine, slot in (("aarch64", "linux_aarch64"), ("x86_64", "linux_x86_64")):
+            with driven_host("posix", "linux", machine):
+                self.assertEqual(_firefox.runtime_platform(), slot)
+                for major in (100, 119, 122, 123, 126, 127, 159, 160, 161):
+                    with self.subTest(machine=machine, major=major):
+                        cpu = machine if major < 123 else "x86_64"
+                        rv = 109 if 110 <= major <= 119 else major
+                        expected = f"Mozilla/5.0 (X11; Linux {cpu}; rv:{rv}.0) Gecko/20100101 Firefox/{major}.0"
+                        self.assertEqual(_firefox._user_agent(major), expected)
+                        for context in ("navigation", "fetch"):
+                            self.assertEqual(_firefox.default_headers(context, str(major))["User-Agent"], expected)
+
     def test_explicit_firefox_160_161_selection_and_platform_tokens(self):
         self.assertEqual(_firefox.DEFAULT_FIREFOX, "159")
         self.assertEqual(_firefox.FIREFOX_VERSIONS, tuple(map(str, range(100, 162))))
@@ -286,7 +298,7 @@ class RuntimeContractTests(unittest.TestCase):
             ("posix", "darwin", "arm64", "darwin", "Macintosh; Intel Mac OS X 10.15"),
             ("posix", "darwin", "x86_64", "darwin", "Macintosh; Intel Mac OS X 10.15"),
             ("posix", "linux", "x86_64", "linux", "X11; Linux x86_64"),
-            ("posix", "linux", "aarch64", "linux", "X11; Linux aarch64"),
+            ("posix", "linux", "aarch64", "linux", "X11; Linux x86_64"),
         )
         for version in ("160", "161"):
             config = _firefox.PROFILES[version]

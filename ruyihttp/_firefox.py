@@ -89,8 +89,11 @@ def _user_agent(version, platform=None):
     elif platform == "darwin":
         system = "Macintosh; Intel Mac OS X 10.15"
     elif platform == "linux":
-        machine = _machine()
-        system = "X11; Linux aarch64" if machine in ("aarch64", "arm64") else "X11; Linux x86_64"
+        # On desktop ARM64 Firefox 123 enabled network.http.useragent.freezeCpu
+        # on the release channel (127 extended that policy to 32-bit x86).
+        # This controls public HTTP identity, never the native library choice.
+        cpu = "aarch64" if version < 123 and _machine() in ("aarch64", "arm64") else "x86_64"
+        system = f"X11; Linux {cpu}"
     else:
         raise RuntimeError(
             "User-Agent was measured for Windows x64, Macintosh and Linux x86_64. "
