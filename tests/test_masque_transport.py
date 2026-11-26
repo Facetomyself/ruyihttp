@@ -111,7 +111,7 @@ def test_remote_packet_limits_must_carry_native_initial(frame, size, valid):
         _sending_limit({8: 1, 51: True}, Setting, frame, size)
 
 
-def _tls_files(directory, *, right_name=True, server_usage=True):
+def _tls_files(directory, *, loopback, right_name=True, server_usage=True):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
@@ -126,7 +126,7 @@ def _tls_files(directory, *, right_name=True, server_usage=True):
         .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=1))
         .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
         .add_extension(x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address(
-            "127.0.0.1" if right_name else "127.0.0.2"))]), critical=False)
+            loopback if right_name else "127.0.0.2"))]), critical=False)
         .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH if server_usage
                                              else ExtendedKeyUsageOID.CLIENT_AUTH]), critical=True)
         .sign(private, hashes.SHA256())
@@ -142,13 +142,21 @@ def _wire_test(tmp_path, mode):
     pytest.importorskip("aioquic")
     from aioquic.asyncio import QuicConnectionProtocol, serve
     from aioquic.buffer import encode_uint_var
-    from aioquic.h3.connection import H3Connection, HeadersState, Setting
+    from aioquic.h3.connection import FrameType, H3Connection, HeadersState, Setting, encode_frame
     from aioquic.h3.events import DatagramReceived, HeadersReceived
     from aioquic.quic.configuration import QuicConfiguration
     from aioquic.quic.events import HandshakeCompleted, ProtocolNegotiated, StreamReset
     from aioquic.tls import CipherSuite
 
-    certfile, keyfile = _tls_files(tmp_path, right_name=mode != "name", server_usage=mode != "eku")
+    loopback = "::1" if mode == "ipv6" else "127.0.0.1"
+    authority_host = "[::1]" if mode == "ipv6" else loopback
+    if mode == "ipv6":
+        try:
+            with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as probe:
+                probe.bind((loopback, 0))
+        except OSError:
+            pytest.skip("IPv6 UDP loopback is unavailable")
+    certfile, keyfile = _tls_files(tmp_path, loopback=loopback, right_name=mode != "name", server_usage=mode != "eku")
     config = QuicConfiguration(
         is_client=False, alpn_protocols=["doq" if mode == "alpn" else "h3"], max_datagram_size=1400,
         max_datagram_frame_size=1256 if mode == "small-datagram" else 1400,
@@ -179,6 +187,8 @@ def _wire_test(tmp_path, mode):
         def quic_event_received(self, event):
             if isinstance(event, ProtocolNegotiated):
                 self.h3 = H3(self._quic)
+                if mode == "goaway":
+                    self._quic.send_stream_data(self.h3._local_control_stream_id, encode_frame(FrameType.GOAWAY, b"\x00"))
             if isinstance(event, HandshakeCompleted):
                 seen.handshakes.append(event)
             if isinstance(event, StreamReset):
@@ -223,11 +233,11 @@ def _wire_test(tmp_path, mode):
     async def run():
         seen.request = asyncio.Event()
         woke = threading.Event()
-        server = await serve("127.0.0.1", 0, configuration=config, create_protocol=FixedPeer,
+        server = await serve(loopback, 0, configuration=config, create_protocol=FixedPeer,
                             session_ticket_handler=seen.tickets.append)
         port = server._transport.get_extra_info("sockname")[1]
         task = asyncio.create_task(asyncio.to_thread(
-            open_tunnel, f"masque://unit:p%40ss@127.0.0.1:{port}", "unresolved-target.invalid", 443,
+            open_tunnel, f"masque://unit:p%40ss@{authority_host}:{port}", "unresolved-target.invalid", 443,
             proxy_verify=True if mode == "untrusted" else certfile, timeout=3, on_error=woke.set,
         ))
         try:
@@ -244,6 +254,7 @@ def _wire_test(tmp_path, mode):
                 "invalid-connect": (MasqueError, "0x109"), "name": (SSLError, "certificate"),
                 "untrusted": (SSLError, "certificate"), "eku": (SSLError, "server authentication"),
                 "alpn": (SSLError, "TLS handshake"), "cipher": (SSLError, "TLS handshake"),
+                "goaway": (MasqueError, "GOAWAY"),
             }.get(mode)
             if expected:
                 with pytest.raises(expected[0], match=expected[1]) as error:
@@ -264,7 +275,7 @@ def _wire_test(tmp_path, mode):
                 assert not seen.handshakes[0].early_data_accepted and seen.tickets == []
                 assert seen.headers == [{
                     b":method": b"CONNECT", b":protocol": b"connect-udp", b":scheme": b"https",
-                    b":authority": f"127.0.0.1:{port}".encode(),
+                    b":authority": f"{authority_host}:{port}".encode(),
                     b":path": b"/.well-known/masque/udp/unresolved-target.invalid/443/",
                     b"capsule-protocol": b"?1", b"proxy-authorization": b"Basic dW5pdDpwQHNz",
                 }]
@@ -292,6 +303,7 @@ def _wire_test(tmp_path, mode):
 @pytest.mark.parametrize("mode", [
     "ok", "coalesced", "interim", "bad-capsule", "deny", "invalid-status", "forbidden-content",
     "no-connect", "no-datagram", "small-datagram", "invalid-connect", "name", "untrusted", "eku", "alpn", "cipher",
+    "goaway", "ipv6",
 ])
 def test_real_loopback_outer_h3(mode, tmp_path):
     _wire_test(tmp_path, mode)

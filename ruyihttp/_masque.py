@@ -10,6 +10,7 @@ The outer TLS peer is the proxy; the caller owns the inner protocol and trust.
 """
 
 import errno
+import logging
 import math
 import os
 import queue
@@ -52,6 +53,9 @@ _MAX_H3_FIELDS = 16384
 _MAX_STREAMS = 32
 _DNS_SLOTS = threading.BoundedSemaphore(8)
 _MTU_PING = -1  # Private identifier; never serialized as PING has no payload.
+# aioquic logs peer-provided close reasons, which may echo request headers.
+# Use a detached logger for this transport; public errors use only local text/codes.
+_QUIET_QUIC = logging.Logger("ruyihttp.masque.quic", logging.CRITICAL + 1)
 
 
 class MasqueError(ProxyError):
@@ -219,11 +223,13 @@ def _aioquic():
 
         def __init__(self, *, endpoint, cafile):
             super().__init__(configuration=QuicConfiguration(
-                is_client=True, alpn_protocols=["h3"], server_name=endpoint.host,
+                # TLS SNI is a DNS name without the final root dot (RFC 6066).
+                is_client=True, alpn_protocols=["h3"], server_name=endpoint.host.rstrip("."),
                 verify_mode=ssl.CERT_REQUIRED, cafile=cafile, session_ticket=None,
                 idle_timeout=_IDLE_TIMEOUT, max_datagram_size=_OUTER_MAX,
                 max_datagram_frame_size=_OUTER_MAX, max_data=131072, max_stream_data=32768,
             ))
+            self._logger = logging.LoggerAdapter(_QUIET_QUIC, {})
             self._max_datagram_size = _OUTER_MIN
             self._local_max_streams_bidi.value = self._local_max_streams_bidi.sent = 0
             self._local_max_streams_uni.value = self._local_max_streams_uni.sent = 8
@@ -329,6 +335,9 @@ def _aioquic():
                     return self._receive_datagram(event.data)
             except h3.MessageError:
                 raise CapsuleError("Malformed HTTP/3 response on MASQUE CONNECT stream") from None
+            except BufferReadError:
+                self._is_done = True
+                self._quic.close(error_code=h3.ErrorCode.H3_FRAME_ERROR)
             except h3.ProtocolError as error:
                 self._is_done = True
                 self._quic.close(error_code=error.error_code)
