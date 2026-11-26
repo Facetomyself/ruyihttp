@@ -1,6 +1,6 @@
 # macOS arm64 runtime
 
-Status: ready. Version 0.9.2 uses a native Apple Silicon source build, not the historical 0.4.1 donor wheel. The six dylibs are recorded in [platform provenance](native/darwin_arm64/provenance.json), together with source pins and H3 bridge patches.
+Status: ready. Version 0.9.3 uses a native Apple Silicon source build, not the historical 0.4.1 donor wheel. The six dylibs are recorded in [platform provenance](native/darwin_arm64/provenance.json), together with source pins and H3 bridge patches.
 
 ## Runtime
 
@@ -35,7 +35,7 @@ The directory contains:
 
 ## Verification
 
-The [0.9.2 native candidate](https://github.com/Facetomyself/ruyihttp/actions/runs/45740624232/job/139644438167) qualifies HTTP/1.1, H2, real QUIC/H3, positive/negative certificate controls, the optional binary body ABI and JSON compatibility on the native Apple Silicon runner. The H3 response now includes measured NSS/TLS metadata.
+The [0.9.3 native candidate](https://github.com/Facetomyself/ruyihttp/actions/runs/45771609225/job/139745318598) was built on Apple Silicon. Its HTTP/3 bridge configures genuine NSS delegated credentials before handshake, uses Gecko's three-byte source CID, decouples Extended CONNECT from WebTransport and applies the measured QUIC negotiation and flow control rules. Actual TLS/H1/H2/H3, certificate, optional binary body ABI/JSON and same-slot official Firefox 159/160/161 repeat gates were exercised on Python 3.10 and 3.14. The [Intel source and strict qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45771612177/job/139745327525) are independent.
 
 Historical 0.9.0 HTTPS control on a Mac mini (arm64, macOS 26.5.2, Python 3.12.13):
 

@@ -23,6 +23,8 @@ Windows 0.9.0 pip-upgrade source is separate from the active runtime in
 macOS architectures ship pinned source builds with optional binary H3 body ABI v1.
 Each platform's provenance identifies the exact native bytes.
 
+In 0.9.3 the POSIX HTTP/3 policy is a [versioned, source-checked input](patches/GECKO_H3_POLICY.md), distinct from the body ABI. The native admission records tie the installed observations to the SHA-256 of the signed-browser reference for that exact slot. The Windows schema and DLL bytes remain unchanged.
+
 Verify with:
 
 ```sh
