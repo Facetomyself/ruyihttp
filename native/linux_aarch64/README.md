@@ -18,9 +18,11 @@ Neqo 0.34.0. `auditwheel` agrees with the tested `manylinux_2_39_aarch64` tag;
 ELF inspection recorded `GLIBC_2.38` as the highest required versioned symbol,
 which does not establish a lower tested host floor. CPython 3.10 and 3.14 passed
 H3 with two simultaneous owners, the 1,048,579-byte binary ABI v1 and JSON echo
-controls, explicit Firefox 159/160/161 wire checks and the in-place upgrade
-from the 0.9.0 fork. The manifest inventory and exact hashes are required for
-packaging.
+controls, exact-slot comparison against official Firefox 159/160/161 with
+fresh TLS permutation witnesses, and the in-place upgrade from the 0.9.0 fork.
+The [hosted qualification](https://github.com/Facetomyself/ruyihttp/actions/runs/45769279791)
+replayed the original source libraries by digest. The manifest inventory and
+exact hashes are required for packaging.
 
 Run the read-only preflight from the project root:
 
