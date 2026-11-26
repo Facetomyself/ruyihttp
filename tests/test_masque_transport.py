@@ -4,6 +4,7 @@
 
 import asyncio
 import ipaddress
+import selectors
 import socket
 import threading
 from collections import deque
@@ -83,14 +84,24 @@ def test_udp_backpressure_and_oversized_packets_have_bounded_loss():
         relay.request = 0
         relay.connection = connection
         relay.h3 = SimpleNamespace(send_datagram=lambda _id, data: connection._datagrams_pending.append(data))
-        sock.send(b"x" * 1253)
-        sock.send(b"y" * 1252)
-        relay._drain_local()
-        assert list(connection._datagrams_pending) == [b"\x00" + b"y" * 1252]
-        for _ in range(_MAX_PENDING * 2):
-            sock.send(b"z")
-            relay._drain_local()
-        assert len(connection._datagrams_pending) == _MAX_PENDING
+        # An accepted nonblocking UDP send is not a receive-readiness event,
+        # including on loopback (macOS can deliver after send() has returned).
+        # The production worker waits on this exact selector before draining.
+        with selectors.DefaultSelector() as poll:
+            poll.register(peer, selectors.EVENT_READ)
+
+            def deliver(payload):
+                assert sock.send(payload) == len(payload)
+                assert poll.select(3), 'fixture UDP datagram never became readable'
+                relay._drain_local()
+
+            deliver(b"x" * 1253)
+            assert not connection._datagrams_pending
+            deliver(b"y" * 1252)
+            assert list(connection._datagrams_pending) == [b"\x00" + b"y" * 1252]
+            for _ in range(_MAX_PENDING * 2):
+                deliver(b"z")
+            assert len(connection._datagrams_pending) == _MAX_PENDING
     finally:
         sock.close()
         peer.close()
