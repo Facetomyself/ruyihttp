@@ -127,9 +127,15 @@ def verify_release(slot, release, work):
     expect(sha256(manifest) == manifest_hash, f'{version} manifest SHA-256 mismatch')
     home = work / 'gpg'
     home.mkdir(mode=0o700)
-    gpg = ['gpg', '--no-options', '--batch', '--homedir', str(home)]
-    subprocess.run([*gpg, '--import', str(key)], check=True, capture_output=True, timeout=30)
-    status = output(*gpg, '--status-fd', '1', '--verify', str(signature), str(manifest))
+    # Git for Windows ships an MSYS-linked GnuPG, whose native home syntax is /d/….
+    msys_gpg = sys.platform == 'win32' and any(line.startswith('Home: /') for line in output('gpg', '--version').splitlines())
+
+    def gpg_path(path):
+        return output('cygpath', '-u', str(path)) if msys_gpg else str(path)
+
+    gpg = ['gpg', '--no-options', '--batch', '--homedir', gpg_path(home)]
+    subprocess.run([*gpg, '--import', gpg_path(key)], check=True, timeout=30)
+    status = output(*gpg, '--status-fd', '1', '--verify', gpg_path(signature), gpg_path(manifest))
     valid = [line.split() for line in status.splitlines() if line.startswith('[GNUPG:] VALIDSIG ')]
     expect(len(valid) == 1 and (valid[0][2], valid[0][-1]) == (SIGNER, PRIMARY), 'unexpected release signer')
     entries = {}

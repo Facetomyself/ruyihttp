@@ -134,12 +134,23 @@ def nss_import(browser, profile, root):
     destroy = bind('CERT_DestroyCertificate', None, pointer)
     shutdown = bind('NSS_Shutdown', status)
     get_error = bind('PORT_GetError', status)
+    internal_slot = bind('PK11_GetInternalKeySlot', pointer)
+    needs_init = bind('PK11_NeedUserInit', status, pointer)
+    init_pin = bind('PK11_InitPin', status, pointer, charptr, charptr)
+    free_slot = bind('PK11_FreeSlot', None, pointer)
 
     def check(value, operation):
         expect(value == 0, f'NSS {operation} failed: {get_error()}')
 
     check(init(f'sql:{profile}'.encode('utf-8')), 'init')
     try:
+        slot = internal_slot()
+        expect(slot, f'NSS internal key slot missing: {get_error()}')
+        try:
+            if needs_init(slot):
+                check(init_pin(slot, None, b''), 'initialize isolated key slot')
+        finally:
+            free_slot(slot)
         der = root.read_bytes()
         array = (ctypes.c_ubyte * len(der)).from_buffer_copy(der)
         item = Item(0, array, len(der))
@@ -169,7 +180,8 @@ def write_profile(browser, directory, root):
 def launch(browser, arch, profile, url, directory):
     argv = [str(browser), '-headless', '-no-remote', '-new-instance', '-profile', str(profile), url]
     if sys.platform == 'darwin':
-        argv[:0] = ['/usr/bin/arch', '-' + arch]
+        seatbelt = '(version 1) (allow default) (deny network-outbound) (allow network-outbound (remote ip "localhost:*"))'
+        argv[:0] = ['/usr/bin/sandbox-exec', '-p', seatbelt, '/usr/bin/arch', '-' + arch]
     if sys.platform == 'win32':
         argv.insert(1, '-wait-for-browser')
     env = dict(os.environ)
