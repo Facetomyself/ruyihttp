@@ -57,7 +57,7 @@
       "wheel_platform_tag": "macosx_26_0_arm64",
       "files": {
         "libnecko_core.dylib": "8ba32df8f12d390f0ef83ff11f6186a818803882b4cab0463401c95ad2b28da2",
-        "libnecko_quic.dylib": "8d36fc37c3b79b73caf57274bdeedc5b947f195693be26a2a8f980c2a88feeb2",
+        "libnecko_quic.dylib": "af4807cd567fe307db10e237b5cb78b84127cb95ba4a11caec0093542052d679",
         "libnss3.dylib": "17d24937bbf2509dfaa2f6d2296678f605e6f86c3a8ac3cc25b6f4ada7febe95",
         "libsoftokn3.dylib": "eaf276da9a0cf3be5f2d7f62b3d116c04579b84a31db979a48708a8c675291fa",
         "libfreebl3.dylib": "04d29929d3b12640b1ec84cd8f0fe814b9a57f6040471ae2898203405afad2bb",
@@ -76,7 +76,8 @@
         "libsoftokn3.dylib": "26.0.0",
         "libfreebl3.dylib": "26.0.0",
         "libmozglue.dylib": "26.0.0"
-      }
+      },
+      "h3_protocol_policy": 1
     },
     "linux_x86_64": {
       "status": "ready",
