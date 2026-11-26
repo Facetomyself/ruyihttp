@@ -42,7 +42,9 @@ _SHORT_OVERHEAD = 41
 # aioquic emits DATAGRAM_WITH_LENGTH: 1 type + 2 length at this MTU;
 # the first request has Quarter Stream ID zero and we send Context ID zero.
 _FRAME_OVERHEAD = 5
+_OUTER_FLOOR = _INNER_INITIAL + _SHORT_OVERHEAD + _FRAME_OVERHEAD
 _INNER_MAX = _OUTER_MAX - _SHORT_OVERHEAD - _FRAME_OVERHEAD
+_MTU_STEPS = (1360, 1320, _OUTER_FLOOR)
 _IDLE_TIMEOUT = 60.0
 _DEFAULT_CONNECT_TIMEOUT = 30.0
 _POLL = 0.05
@@ -52,7 +54,6 @@ _MAX_H3_BUFFER = 32768
 _MAX_H3_FIELDS = 16384
 _MAX_STREAMS = 32
 _DNS_SLOTS = threading.BoundedSemaphore(8)
-_MTU_PING = -1  # Private identifier; never serialized as PING has no payload.
 # aioquic logs peer-provided close reasons, which may echo request headers.
 # Use a detached logger for this transport; public errors use only local text/codes.
 _QUIET_QUIC = logging.Logger("ruyihttp.masque.quic", logging.CRITICAL + 1)
@@ -209,7 +210,7 @@ def _aioquic():
         from aioquic.quic.configuration import QuicConfiguration
         from aioquic.quic.connection import QuicConnection
         from aioquic.quic.packet import QuicFrameType, pull_quic_transport_parameters
-        from aioquic.quic.packet_builder import QuicPacketBuilderStop
+        from aioquic.quic.packet_builder import QuicDeliveryState, QuicPacketBuilderStop
         from cryptography import x509
         from cryptography.x509.oid import ExtendedKeyUsageOID
     except ImportError:
@@ -219,7 +220,8 @@ def _aioquic():
 
     class OuterQuic(QuicConnection):
         peer_udp_size = 65527  # RFC 9000 §18.2 default in absence of parameter.
-        probe_size = None
+        _queued_probe = None
+        built_probe = None
 
         def __init__(self, *, endpoint, cafile):
             super().__init__(configuration=QuicConfiguration(
@@ -263,25 +265,62 @@ def _aioquic():
                 if ExtendedKeyUsageOID.SERVER_AUTH not in usage:
                     raise SSLError("MASQUE proxy certificate disallows TLS server authentication")
 
-        def start_probe(self, size):
-            # Send a protected PING + PADDING and require its ACK before exposing
-            # the inner socket. A successful 1200-byte TLS handshake is insufficient.
-            self.probe_size = size
-            self._max_datagram_size = size
-            self.send_ping(_MTU_PING)
+        def start_probe(self, uid, size):
+            # Each generation has its own private PING UID; it is not sent on wire.
+            self._queued_probe = (uid, size)
+            self.send_ping(uid)
+
+        def cancel_probe(self):
+            if self._queued_probe is not None:
+                uid, _ = self._queued_probe
+                self._queued_probe = None
+                self._ping_pending.remove(uid)
+
+        def datagrams_to_send(self, now):
+            self.built_probe = None
+            if self._queued_probe is None:
+                return super().datagrams_to_send(now)
+            # Raise the packet builder's ceiling only for this probe. A normal
+            # QUIC PTO PING and the control streams use the validated ceiling.
+            saved = self._max_datagram_size
+            self._max_datagram_size = self._queued_probe[1]
+            try:
+                packets = super().datagrams_to_send(now)
+            finally:
+                self._max_datagram_size = saved
+            if self.built_probe is not None:
+                if len(packets) != 1 or len(packets[0][0]) != self.built_probe[1]:
+                    raise MasqueError("Unexpected MASQUE MTU probe packet size")
+            elif any(len(data) > saved for data, _ in packets):
+                raise MasqueError("MASQUE QUIC packet exceeded the validated path size")
+            return packets
 
         def _write_ping_frame(self, builder, uids=(), comment=""):
-            if _MTU_PING not in uids:
+            probe = self._queued_probe
+            if probe is None or probe[0] not in uids:
                 return super()._write_ping_frame(builder, uids, comment)
-            # The handshake is confirmed, so only 1-RTT packets are emitted. Fill
-            # this UDP datagram up to the probe size (16 bytes is the TLS AEAD tag).
-            space = self.probe_size - builder._buffer.tell() - 16
-            if space < 1 or builder.remaining_flight_space < space:
+            uid, size = probe
+            # Handshake is confirmed; only 1-RTT short packets are emitted.
+            # Include the actual AEAD tag in the size of the UDP payload.
+            space = size - builder._buffer.tell() - builder._packet_crypto.aead_tag_size
+            if space < 1 or min(builder.remaining_buffer_space, builder.remaining_flight_space) < space:
                 raise QuicPacketBuilderStop
-            super()._write_ping_frame(builder, uids, comment)
+            super()._write_ping_frame(builder, (uid,), comment)
             if space > 1:
                 buf = builder.start_frame(QuicFrameType.PADDING, capacity=space - 1)
                 buf.push_bytes(bytes(space - 2))
+            self.cancel_probe()
+            self.built_probe = probe
+            # Stop building at one padded datagram. This also keeps any STREAM
+            # data from being sent in a probe and skips upstream's clear().
+            raise QuicPacketBuilderStop
+
+        def _on_ping_delivery(self, delivery, uids):
+            if delivery != QuicDeliveryState.ACKED:
+                # Recovery may probe again, but it may not replay a PMTU UID
+                # in a shorter packet after the MASQUE search has moved on.
+                uids = tuple(uid for uid in uids if uid >= 0)
+            super()._on_ping_delivery(delivery, uids)
 
         def check_buffers(self):
             if len(self._streams) + len(self._streams_finished) > _MAX_STREAMS:
@@ -447,11 +486,47 @@ def _sending_limit(settings, setting, remote_frame_size, peer_udp_size):
     if type(remote_frame_size) is not int or remote_frame_size <= 0:
         raise MasqueError("MASQUE proxy did not enable QUIC DATAGRAM frames")
     path_size = min(peer_udp_size, _OUTER_MAX)
-    limit = min(path_size - _SHORT_OVERHEAD - _FRAME_OVERHEAD,
-                remote_frame_size - _FRAME_OVERHEAD)
+    limit = _path_payload_limit(path_size, remote_frame_size)
     if limit < _INNER_INITIAL:
         raise MasqueError("MASQUE proxy transport limits cannot carry the native 1252-byte QUIC Initial")
     return path_size, limit
+
+
+def _path_payload_limit(size, frame_limit):
+    return min(size - _SHORT_OVERHEAD - _FRAME_OVERHEAD, frame_limit - _FRAME_OVERHEAD)
+
+
+class _MtuSearch:
+    """Bounded, establishment-only forward path discovery (RFC 9000 §14.3)."""
+
+    def __init__(self, ceiling, deadline):
+        self._sizes = (ceiling, *(size for size in _MTU_STEPS if size < ceiling), _OUTER_FLOOR)
+        self._index = 0
+        self._deadline = deadline
+        self.current = None
+        self.due = 0.0
+
+    def advance(self, now, pto):
+        if self.current is not None and now < self.due:
+            return None
+        if self._index == len(self._sizes) or now >= self._deadline:
+            raise ConnectTimeout("MASQUE outer path did not acknowledge a probe large enough for nested QUIC")
+        size = self._sizes[self._index]
+        self._index += 1
+        self.current = (-self._index, size)
+        # Reserve time for every later size (including one floor retry) and
+        # the CONNECT response, while allowing several PTOs at each size.
+        remaining_slots = len(self._sizes) - self._index + 2
+        wait = min(max(3 * pto, 0.075), 0.75, (self._deadline - now) / remaining_slots)
+        self.due = now + wait
+        return self.current
+
+    def acknowledged(self, uid):
+        return self.current[1] if self.current is not None and self.current[0] == uid else None
+
+    def rejected(self, uid):
+        if self.acknowledged(uid) is not None:
+            self.due = 0.0
 
 
 class _Relay:
@@ -464,7 +539,8 @@ class _Relay:
         self.request = None
         self.accepted = False
         self.limit = None
-        self.path_valid = False
+        self.mtu_size = None
+        self.mtu_search = None
         self.capsules = CapsuleDecoder(_INNER_MAX)
         self.interim = 0
 
@@ -479,13 +555,22 @@ class _Relay:
             return
         if self.h3.goaway == 0:
             raise MasqueError("MASQUE proxy excluded CONNECT-UDP (HTTP/3 GOAWAY)")
-        if self.limit is None:
-            size, self.limit = _sending_limit(self.h3.received_settings, self.setting,
+        if self.request is not None:
+            return
+        now = time.monotonic()
+        if self.mtu_search is None:
+            ceiling, _ = _sending_limit(self.h3.received_settings, self.setting,
                 self.connection._remote_max_datagram_frame_size, self.connection.peer_udp_size)
-            self.mtu_size = size
-        if self.connection._handshake_confirmed and self.connection.probe_size is None:
-            self.connection.start_probe(self.mtu_size)
-        if self.request is None and self.path_valid:
+            if not self.connection._handshake_confirmed:
+                return
+            self.mtu_search = _MtuSearch(ceiling, self.deadline)
+        if self.mtu_size is None:
+            probe = self.mtu_search.advance(now, self.connection._loss.get_probe_timeout())
+            if probe is not None:
+                self.connection.cancel_probe()
+                self.connection.start_probe(*probe)
+        else:
+            _remaining(self.deadline, self.cancel_event, self.tunnel._stop)
             self.request = self.connection.get_next_available_stream_id()
             self.h3.send_headers(self.request, self.headers, end_stream=False)
             self.headers = None
@@ -548,8 +633,12 @@ class _Relay:
                     raise SSLError("MASQUE proxy requires fresh authenticated h3 TLS without early data")
                 self.connection.check_server_certificate_usage()
                 self.h3 = self.outer_http(self.connection)
-            elif isinstance(event, self.quic.PingAcknowledged) and event.uid == _MTU_PING:
-                self.path_valid = True
+            elif isinstance(event, self.quic.PingAcknowledged) and self.mtu_search is not None:
+                size = self.mtu_search.acknowledged(event.uid)
+                if self.mtu_size is None and size is not None:
+                    self.mtu_size = size
+                    self.limit = _path_payload_limit(size, self.connection._remote_max_datagram_frame_size)
+                    self.connection._max_datagram_size = size
             elif isinstance(event, (self.quic.StreamReset, self.quic.StopSendingReceived)):
                 if self.request is not None and event.stream_id == self.request:
                     raise MasqueError(f"MASQUE proxy stopped the CONNECT-UDP stream (0x{event.error_code:x})")
@@ -583,6 +672,10 @@ class _Relay:
                 if _would_block(error):
                     continue  # Bound buffering; UDP/QUIC loss recovery applies.
                 if error.errno == errno.EMSGSIZE or getattr(error, "winerror", None) == 10040:
+                    probe = self.connection.built_probe
+                    if probe is not None and self.mtu_size is None:
+                        self.mtu_search.rejected(probe[0])
+                        continue
                     raise MasqueError("MASQUE outer path MTU is too small for nested QUIC") from None
                 raise
 
@@ -611,8 +704,8 @@ class _Relay:
                         try:
                             wait = min(wait, _remaining(self.deadline, self.cancel_event, self.tunnel._stop))
                         except ConnectTimeout:
-                            if self.connection.probe_size is not None and not self.path_valid:
-                                raise ConnectTimeout("MASQUE outer path MTU probe was not acknowledged") from None
+                            if self.mtu_search is not None and self.mtu_size is None:
+                                raise ConnectTimeout("MASQUE outer path did not acknowledge a probe large enough for nested QUIC") from None
                             raise
                     elif self.cancel_event is not None and self.cancel_event.is_set():
                         return
@@ -623,8 +716,11 @@ class _Relay:
                     self._process_events()
                     self._flush(sock)
                     timer = self.connection.get_timer()
+                    now = time.monotonic()
                     if timer is not None:
-                        wait = min(wait, max(0.0, timer - time.monotonic()))
+                        wait = min(wait, max(0.0, timer - now))
+                    if self.mtu_search is not None and self.mtu_size is None:
+                        wait = min(wait, max(0.0, self.mtu_search.due - now))
                     for key, _ in selector.select(wait):
                         if key.fileobj is sock:
                             for _ in range(_BURST):
@@ -637,6 +733,7 @@ class _Relay:
                         else:
                             self._drain_local()
             finally:
+                self.connection.cancel_probe()
                 self.connection._datagrams_pending.clear()
                 try:
                     # Emit any requested stream reset before closing the transport.

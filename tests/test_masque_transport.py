@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from ruyihttp._masque import (
-    _MAX_PENDING, MasqueError, Tunnel, _Relay, _resolve, _sending_limit,
+    _MAX_PENDING, MasqueError, Tunnel, _MtuSearch, _Relay, _resolve, _sending_limit,
     _udp_pair, _verify_path, open_tunnel,
 )
 from ruyihttp._masque_codec import parse_proxy
@@ -111,6 +111,22 @@ def test_remote_packet_limits_must_carry_native_initial(frame, size, valid):
         _sending_limit({8: 1, 51: True}, Setting, frame, size)
 
 
+def test_mtu_search_ignores_stale_small_and_unrelated_pings():
+    search = _MtuSearch(1400, deadline=20)
+    high = search.advance(now=1, pto=0.04)
+    assert high[1] == 1400
+    assert search.acknowledged(1) is None
+    assert search.advance(now=1.01, pto=0.04) is None
+    search.rejected(high[0])  # e.g. synchronous EMSGSIZE
+    medium = search.advance(now=1.01, pto=0.04)
+    assert medium[1] == 1360
+    assert search.acknowledged(high[0]) is None
+    assert search.acknowledged(medium[0]) == 1360
+    assert search.advance(now=1.02, pto=0.04) is None
+    with pytest.raises(ConnectTimeout, match="acknowledge"):
+        search.advance(now=20, pto=0.04)
+
+
 def _tls_files(directory, *, loopback, right_name=True, server_usage=True):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
@@ -141,11 +157,12 @@ def _tls_files(directory, *, loopback, right_name=True, server_usage=True):
 def _wire_test(tmp_path, mode):
     pytest.importorskip("aioquic")
     from aioquic.asyncio import QuicConnectionProtocol, serve
-    from aioquic.buffer import encode_uint_var
+    from aioquic.buffer import Buffer, encode_uint_var
     from aioquic.h3.connection import FrameType, H3Connection, HeadersState, Setting, encode_frame
     from aioquic.h3.events import DatagramReceived, HeadersReceived
     from aioquic.quic.configuration import QuicConfiguration
     from aioquic.quic.events import HandshakeCompleted, ProtocolNegotiated, StreamReset
+    from aioquic.quic.packet import pull_quic_transport_parameters, push_quic_transport_parameters
     from aioquic.tls import CipherSuite
 
     loopback = "::1" if mode == "ipv6" else "127.0.0.1"
@@ -157,14 +174,17 @@ def _wire_test(tmp_path, mode):
         except OSError:
             pytest.skip("IPv6 UDP loopback is unavailable")
     certfile, keyfile = _tls_files(tmp_path, loopback=loopback, right_name=mode != "name", server_usage=mode != "eku")
+    wire_ceiling = {"mtu-1330": 1330, "mtu-1300": 1300, "mtu-blackhole": 1297}.get(mode, 1400)
+    advertised_ceiling = {"peer-udp": 1308, "peer-udp-small": 1297}.get(mode)
     config = QuicConfiguration(
-        is_client=False, alpn_protocols=["doq" if mode == "alpn" else "h3"], max_datagram_size=1400,
+        is_client=False, alpn_protocols=["doq" if mode == "alpn" else "h3"],
+        max_datagram_size=min(wire_ceiling, advertised_ceiling or 1400),
         max_datagram_frame_size=1256 if mode == "small-datagram" else 1400,
     )
     if mode == "cipher":
         config.cipher_suites = [CipherSuite.EMPTY_RENEGOTIATION_INFO_SCSV]
     config.load_cert_chain(certfile, keyfile)
-    seen = SimpleNamespace(headers=[], payloads=[], outer_sizes=[], handshakes=[], resets=[], tickets=[])
+    seen = SimpleNamespace(headers=[], payloads=[], outer_sizes=[], drops=[], handshakes=[], resets=[], tickets=[])
 
     class H3(H3Connection):
         def _get_local_settings(self):
@@ -180,8 +200,25 @@ def _wire_test(tmp_path, mode):
     class FixedPeer(QuicConnectionProtocol):
         h3 = None
 
+        def __init__(self, connection, **options):
+            super().__init__(connection, **options)
+            if advertised_ceiling is not None:
+                original = connection._serialize_transport_parameters
+
+                def serialize():
+                    params = pull_quic_transport_parameters(Buffer(data=original()))
+                    params.max_udp_payload_size = advertised_ceiling
+                    encoded = Buffer(capacity=2048)
+                    push_quic_transport_parameters(encoded, params)
+                    return encoded.data
+
+                connection._serialize_transport_parameters = serialize
+
         def datagram_received(self, data, addr):
             seen.outer_sizes.append(len(data))
+            if len(data) > wire_ceiling:
+                seen.drops.append(len(data))
+                return
             super().datagram_received(data, addr)
 
         def quic_event_received(self, event):
@@ -216,7 +253,7 @@ def _wire_test(tmp_path, mode):
                         self.h3.send_datagram(part.stream_id, b"\xff")
                         self.h3.send_data(part.stream_id, b"\x09\x02na\x00\x03\x00", end_stream=False)
                         self.h3.send_data(part.stream_id, b"ok", end_stream=False)
-                        self.h3.send_datagram(part.stream_id, b"\x00dg")
+                        self.h3.send_datagram(part.stream_id, b"\x00" + b"d" * 1252)
                     self.transmit()
 
         def respond(self, stream):
@@ -255,6 +292,8 @@ def _wire_test(tmp_path, mode):
                 "untrusted": (SSLError, "certificate"), "eku": (SSLError, "server authentication"),
                 "alpn": (SSLError, "TLS handshake"), "cipher": (SSLError, "TLS handshake"),
                 "goaway": (MasqueError, "GOAWAY"),
+                "peer-udp-small": (MasqueError, "1252-byte"),
+                "mtu-blackhole": (ConnectTimeout, "acknowledge a probe"),
             }.get(mode)
             if expected:
                 with pytest.raises(expected[0], match=expected[1]) as error:
@@ -263,14 +302,23 @@ def _wire_test(tmp_path, mode):
                 assert b"p@ss" not in str(error.value).encode()
                 if mode not in ("deny", "invalid-status", "forbidden-content"):
                     assert seen.headers == []
+                if mode == "mtu-blackhole":
+                    assert seen.drops == [1400, 1360, 1320, 1298, 1298]
+                    assert len(seen.handshakes) == 1
+                elif mode == "peer-udp-small":
+                    assert max(seen.outer_sizes) <= 1200
                 return
             tunnel = await task
             try:
                 assert tunnel.error is None
                 assert tunnel.info["verified"] is True
-                assert tunnel.info["outer_udp_payload_size"] == 1400
-                assert 1400 in seen.outer_sizes
+                expected_mtu = {"mtu-1330": 1320, "mtu-1300": 1298, "peer-udp": 1308}.get(mode, 1400)
+                assert tunnel.info["outer_udp_payload_size"] == expected_mtu
+                assert tunnel.info["max_inner_udp_payload_size"] == expected_mtu - 46
+                assert expected_mtu in seen.outer_sizes
                 assert seen.outer_sizes[0] == 1200
+                assert seen.drops == {"mtu-1330": [1400, 1360], "mtu-1300": [1400, 1360, 1320]}.get(mode, [])
+                packets_before_data = len(seen.outer_sizes)
                 assert len(seen.handshakes) == 1 and not seen.handshakes[0].session_resumed
                 assert not seen.handshakes[0].early_data_accepted and seen.tickets == []
                 assert seen.headers == [{
@@ -288,9 +336,10 @@ def _wire_test(tmp_path, mode):
                     assert 0x10E in seen.resets
                 else:
                     loop = asyncio.get_running_loop()
-                    received = {await asyncio.wait_for(loop.sock_recv(tunnel.socket, 128), 1) for _ in range(2)}
-                    assert received == {b"ok", b"dg"}
+                    received = {await asyncio.wait_for(loop.sock_recv(tunnel.socket, 1500), 1) for _ in range(2)}
+                    assert received == {b"ok", b"d" * 1252}
                 assert seen.payloads == [b"\x00" + b"x" * 1252]
+                assert max(seen.outer_sizes[packets_before_data:]) <= expected_mtu
             finally:
                 tunnel.close()
             assert woke.is_set() == (mode == "bad-capsule")
@@ -303,7 +352,7 @@ def _wire_test(tmp_path, mode):
 @pytest.mark.parametrize("mode", [
     "ok", "coalesced", "interim", "bad-capsule", "deny", "invalid-status", "forbidden-content",
     "no-connect", "no-datagram", "small-datagram", "invalid-connect", "name", "untrusted", "eku", "alpn", "cipher",
-    "goaway", "ipv6",
+    "goaway", "ipv6", "mtu-1330", "mtu-1300", "mtu-blackhole", "peer-udp", "peer-udp-small",
 ])
 def test_real_loopback_outer_h3(mode, tmp_path):
     _wire_test(tmp_path, mode)
