@@ -23,7 +23,8 @@ def main():
     print(f"{wheel.name} sha256={hashlib.sha256(wheel.read_bytes()).hexdigest()}", flush=True)
     env = os.environ.copy()
     for key in ("NECKO_CORE_LIBRARY", "NECKO_QUIC_LIBRARY", "RUYIHTTP_MACHINE", "RUYIHTTP_PLATFORM",
-                "PYTHONPATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH"):
+                "NECKO_FIREFOX", "PYTHONPATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH",
+                "DYLD_FALLBACK_LIBRARY_PATH"):
         env.pop(key, None)
     env["RUYIHTTP_TEST_NATIVE_H3"] = "1"
     env["RUYIHTTP_REQUIRE_H3_IPV6"] = "1"
@@ -62,6 +63,7 @@ def main():
     python("installed-identity", "-I", ROOT / "ci/verify_installed.py", slot, wheel)
     python("http1", "-I", ROOT / "ci/smoke_local.py")
     python("native-transactions", "-I", ROOT / "ci/smoke_native_target.py", slot)
+    python("firefox-profile-wire", "-I", ROOT / "ci/smoke_firefox_profiles.py", slot)
     python("full-h3", "-I", "-m", "unittest", "discover", "-s", ROOT / "tests", "-p", "test_http3_native.py", "-v")
     for module in ('test_h3_body_abi.py', 'test_alt_svc_native.py'):
         if (ROOT / 'tests' / module).is_file():
