@@ -41,6 +41,7 @@ DEBIAN_FRONTEND=noninteractive apt-get "${apt_flags[@]}" install -y --no-install
   ninja-build=1.10.1-1 patchelf=0.12-1 libc6-dev libffi-dev libssl-dev libbz2-dev liblzma-dev \
   libreadline-dev libsqlite3-dev zlib1g-dev
 
+[[ $BASELINE_PYTHON_SHA256 =~ ^[a-f0-9]{64}$ && $BASELINE_RUST_SHA256 =~ ^[a-f0-9]{64}$ ]]
 fetch_verified() {
   local url=$1 hash=$2 dest=$3
   curl --proto '=https' -fLSs --retry 3 --connect-timeout 30 "$url" -o "$dest"
