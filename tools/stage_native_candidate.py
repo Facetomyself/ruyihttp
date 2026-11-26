@@ -13,7 +13,7 @@ from pathlib import Path
 from build_native import (NATIVE, PLATFORM_FILES, check_architecture, load_manifest,
                           sha256, write_manifest)
 from posix_firefox161 import (DONOR_COMMIT, DONOR_FIREFOX, FIREFOX_COMMIT, FIREFOX_TAG,
-                              NEQO_COMMIT, NSS_RUST_COMMIT, ROOT, VERSIONS,
+                              H3_PROTOCOL_POLICY, NEQO_COMMIT, NSS_RUST_COMMIT, ROOT, VERSIONS,
                               runtime_expected, source_patches, validate_candidate)
 
 TARGETS = {
@@ -150,13 +150,14 @@ def main():
     for path in libs:
         copied = Path(shutil.copy2(path, dest / path.name))
         inventory[path.name] = {"size": copied.stat().st_size, "sha256": sha256(copied)}
-    entry.update(runtime_expected(args.platform))
+    entry.update(runtime_expected(args.platform), h3_protocol_policy=H3_PROTOCOL_POLICY)
     provenance = {"platform": args.platform, "source": "source-built candidate, native verification required",
                   "ff_ruyijs_commit": args.donor, "ff_ruyijs_firefox_gitlink": DONOR_FIREFOX,
                   "firefox_source_commit": args.firefox, "firefox_source_tag": FIREFOX_TAG,
                   "neqo_source_commit": NEQO_COMMIT, "nss_rs_source_commit": NSS_RUST_COMMIT,
                   "wheel_platform_tag": tag, "runtime_expected": VERSIONS, "files": inventory,
-                  "source_patches": patches, "h3_body_abi_expected": 1, **deployment}
+                  "source_patches": patches, "h3_protocol_policy": H3_PROTOCOL_POLICY,
+                  "h3_body_abi_expected": 1, **deployment}
     validate_candidate(args.platform, entry, provenance)
     (dest / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     hashes = {name: item["sha256"] for name, item in inventory.items()}

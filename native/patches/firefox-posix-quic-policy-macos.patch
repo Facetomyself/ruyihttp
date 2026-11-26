@@ -1,0 +1,73 @@
+diff --git a/native/necko_quic/src/lib.rs b/native/necko_quic/src/lib.rs
+index 07536c3..30c292d 100644
+--- a/native/necko_quic/src/lib.rs
++++ b/native/necko_quic/src/lib.rs
+@@ -29,7 +29,7 @@ use neqo_http3::{
+ use neqo_transport::streams::SendGroupId;
+ use neqo_transport::{
+     AppError, CloseReason, Connection, ConnectionParameters, Output, RandomConnectionIdGenerator,
+-    StreamId, StreamType, Version, set_client_hello_adjustments,
++    StreamDataLimit, StreamId, StreamType, Version, set_client_hello_adjustments,
+ };
+ use nss::AuthenticationStatus;
+ use nss::cert::CertificateCompressor;
+@@ -114,8 +114,19 @@ fn json_bool(value: &Value, key: &str) -> Option<bool> {
+     value.get(key).and_then(Value::as_bool)
+ }
+ 
+-fn apply_profile(profile: &Value) -> (ConnectionParameters, bool) {
++fn receive_window(profile: &Value, key: &str) -> Result<Option<u64>, String> {
++    profile.get(key).map(|value| value.as_u64().filter(|n| *n < 1 << 62)
++        .ok_or_else(|| format!("Invalid {key} preference"))).transpose()
++}
++
++fn apply_profile(profile: &Value) -> Result<(ConnectionParameters, bool), String> {
+     let mut params = ConnectionParameters::default();
++    if let Some(size) = receive_window(profile, "max_data")? {
++        params = params.max_data(size);
++    }
++    if let Some(size) = receive_window(profile, "max_stream_data_bidi_local")? {
++        params = params.max_stream_data(StreamDataLimit::BiDiLocal, size);
++    }
+     if let Some(size) = json_u64(profile, "datagram_size") {
+         params = params.datagram_size(size);
+     }
+@@ -136,14 +147,13 @@ fn apply_profile(profile: &Value) -> (ConnectionParameters, bool) {
+             .max_streams(StreamType::BiDi, streams)
+             .max_streams(StreamType::UniDi, streams);
+     }
+-    if json_bool(profile, "version2") == Some(true) {
+-        params = params.versions(
+-            Version::Version1,
+-            vec![Version::Version1, Version::Version2],
+-        );
++    if let Some(enabled) = json_bool(profile, "version2") {
++        // Start at v1 independently of the preference order for negotiation.
++        let versions = if enabled { Version::all() } else { vec![Version::Version1] };
++        params = params.versions(Version::Version1, versions);
+     }
+     let datagrams = json_bool(profile, "h3_datagram").unwrap_or(true);
+-    (params, datagrams)
++    Ok((params, datagrams))
+ }
+ 
+ const APPLE_COMPRESSION_ZLIB: u32 = 0x205;
+@@ -804,12 +814,16 @@ fn command_new(body: &Value) -> Result<Value, String> {
+         .map_err(|_| "HTTP/3 remote address is invalid".to_string())?;
+     let profile = body.get("profile").cloned().unwrap_or_else(|| json!({}));
+     let firefox = body.get("firefox").and_then(Value::as_str).map(str::to_owned);
+-    let (params, h3_datagram) = apply_profile(&profile);
++    let (params, h3_datagram) = apply_profile(&profile)?;
+     let webtransport = body.get("webtransport").and_then(Value::as_bool).unwrap_or(false);
++    let connect = profile.get("h3_connect").map(|value| {
++        value.as_bool().ok_or("Invalid h3_connect preference")
++    }).transpose()?.unwrap_or(false);
+     let http3 = Http3Parameters::default()
+         .connection_parameters(params)
+         .http3_datagram(h3_datagram)
+-        .webtransport(webtransport);
++        // WebTransport still implies Extended CONNECT when explicitly requested.
++        .connect(connect).webtransport(webtransport);
+     let mut connection = Connection::new_client(
+         host,
+         &["h3"],

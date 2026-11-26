@@ -89,7 +89,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.candidate_run }}
-          name: unverified-diagnostic-wheel-${{ matrix.slot }}-${{ inputs.candidate_run }}-${{ inputs.candidate_attempt }}
+          name: source-native-wheel-${{ matrix.slot }}-${{ inputs.candidate_run }}-${{ inputs.candidate_attempt }}
           path: ${{ runner.temp }}/source-wheel/
       - uses: actions/download-artifact@v4
         if: inputs.mode == 'requalify'
@@ -176,7 +176,8 @@ jobs:
             git -C "$donor/firefox" config remote.origin.promisor true
             git -C "$donor/firefox" config remote.origin.partialclonefilter blob:none
             retry_fetch "$donor/firefox" --filter=blob:none origin "$FIREFOX_COMMIT"
-            git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust build/rust browser/config
+            git -C "$donor/firefox" sparse-checkout set security/nss nsprpub third_party/rust build/rust browser/config \
+              netwerk/socket/neqo_glue netwerk/protocol/http modules/libpref/init
           else
             retry_fetch "$donor/firefox" origin "$FIREFOX_COMMIT"
           fi
@@ -279,6 +280,13 @@ jobs:
           name: native-evidence-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/native-evidence/
           if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && inputs.mode == 'rebuild' && steps.candidate.outcome == 'success' }}
+        with:
+          name: source-native-wheel-${{ matrix.slot }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wheelhouse/*.whl
+          if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure() && steps.candidate.outcome == 'success'
