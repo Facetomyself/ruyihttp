@@ -178,9 +178,14 @@ def floor_identity(arch, endpoint):
     python_ldd = capture(["ldd", exe])
     paths = ldd_paths(python_ldd, arch, exe.parent.parent / "lib")
     require(any(path.name.startswith("libc-") for path in paths), python_ldd)
-    return {"arch": arch, "python": sys.version.split()[0], "python_path": str(exe), "python_ldd": python_ldd,
-            "glibc": glibc, "debian_packages": versions, "system_libstdc++": str(stdcpp),
-            "system_cxx_ceilings": {k: version_string(v) for k, v in ceilings.items()}, "openssl": ssl.OPENSSL_VERSION}
+    # ldd's ASLR addresses differ across the online and offline containers.
+    python_ldd = re.sub(r"\(0x[0-9a-f]+\)", "(load address elided)", python_ldd)
+    result = {"arch": arch, "python": sys.version.split()[0], "python_path": str(exe), "python_ldd": python_ldd,
+              "glibc": glibc, "debian_packages": versions, "system_libstdc++": str(stdcpp),
+              "system_cxx_ceilings": {k: version_string(v) for k, v in ceilings.items()}, "openssl": ssl.OPENSSL_VERSION}
+    if endpoint == "3.14":
+        result["python_source"] = (exe.parent.parent / "qualification-source.txt").read_text(encoding="utf-8").strip()
+    return result
 
 
 def version_string(version):
@@ -333,7 +338,9 @@ def verify(args, identity):
     arch = args.slot.removeprefix("linux_")
     evidence, state = args.evidence, args.state
     installed = json.loads((evidence / "installation.json").read_text(encoding="utf-8"))
-    require(all(installed[key] == value for key, value in identity.items()), "installation and runtime environment differ")
+    differing = [key for key, value in identity.items() if installed[key] != value]
+    require(not differing, f"installation and runtime environment differ: {differing}")
+    installed["container"] = json.loads((evidence / "image.json").read_text(encoding="utf-8"))
     probe = """
 import brotli, cryptography, zstandard, aioquic, h2, requests, socks
 from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1, generate_private_key
