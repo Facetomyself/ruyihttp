@@ -13,7 +13,7 @@ The goal is bounded resource use and predictable behavior when a route or consum
 
 ## Reproducible performance trend
 
-The [performance workflow](../.github/workflows/transport-performance.yml) runs weekly (Monday 03:17 UTC) and on manual dispatch. It compares an installed candidate with the pre-optimization `ea44f8f` reference on the same runner and pinned Python/dependencies. Both use fresh temporary certificates and actual loopback H1/TLS, hyper-h2 and aioquic peers, served by a separate process. It does not require a public network origin. Wheel downloads and dependency installation happen during setup.
+The [performance workflow](../.github/workflows/transport-performance.yml) runs weekly (Monday 03:17 UTC), on manual dispatch, and on relevant same-repository PRs. Compare installed wheels with the same runner, CPU affinity, Python and dependencies. Weekly trends retain the pre-optimization `ea44f8f` reference. For the selective Firefox 161 upgrade, PRs compare with the previous fork `0.9.1` (`fae13b0`); manual runs can select either fixed reference. Both use fresh temporary certificates and actual loopback H1/TLS, hyper-h2 and aioquic peers, served by a separate process. It does not require a public network origin. Wheel downloads and dependency installation happen during setup.
 
 To reproduce on Linux using the actual target wheel, from outside the source tree:
 

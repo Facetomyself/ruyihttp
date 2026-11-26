@@ -3,9 +3,14 @@ on:
   workflow_dispatch:
     inputs:
       compare_reference:
-        description: Measure the frozen pre-optimization wheel in this job for comparison
+        description: Measure the selected pinned fork reference alongside the candidate
         type: boolean
         default: true
+      reference_release:
+        description: Reference commit (weekly runs retain the original pre-optimization baseline)
+        type: choice
+        default: fork-0.9.1
+        options: [fork-0.9.1, pre-optimization-0.9.0]
   pull_request:
     paths: ['benchmarks/**', '.github/workflows/transport-performance.yml']
   schedule:
@@ -21,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 16
     env:
-      BASELINE: ea44f8fe4468bbee80996e4e73745d6d53c072cc
+      BASELINE: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.reference_release == 'fork-0.9.1')) && 'fae13b0a9eabbafbcdbf5c59438875525fcc0d0b' || 'ea44f8fe4468bbee80996e4e73745d6d53c072cc' }}
       COMPARE: ${{ github.event_name != 'workflow_dispatch' || inputs.compare_reference }}
       PIP_DISABLE_PIP_VERSION_CHECK: '1'
     steps:
